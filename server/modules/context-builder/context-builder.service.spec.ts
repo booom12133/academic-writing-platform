@@ -34,7 +34,11 @@ describe('ContextBuilderService', () => {
     expect(context.source).toEqual({
       id: 'document-1',
       kind: 'parsed-document',
-      ...source,
+      fileName: source.fileName,
+      sourceType: source.type,
+      extension: source.extension,
+      mimeType: source.mimeType,
+      sizeBytes: source.sizeBytes,
       title: 'Paper',
       metadata: {},
       warnings: [],
