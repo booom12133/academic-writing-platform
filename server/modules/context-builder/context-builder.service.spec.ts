@@ -5,21 +5,30 @@ import {
 } from '../document-parsing/document-parser.types';
 
 describe('ContextBuilderService', () => {
-  it('builds task context from a parsed document', () => {
-    const source: DocumentSource = {
-      type: 'markdown', fileName: 'paper.md', extension: '.md',
-      mimeType: 'text/markdown', sizeBytes: 20,
-    };
-    const document: ParsedDocument = {
-      source,
-      title: 'Paper',
-      blocks: [
-        { id: 'b000001', type: 'heading', level: 1, text: 'Introduction' },
-        { id: 'b000002', type: 'paragraph', text: 'Evidence.' },
-      ],
-      outline: [], plainText: 'Introduction\n\nEvidence.', metadata: {}, warnings: [],
-    };
+  const source: DocumentSource = {
+    type: 'markdown', fileName: 'paper.md', extension: '.md',
+    mimeType: 'text/markdown', sizeBytes: 20,
+  };
+  const document: ParsedDocument = {
+    source,
+    title: 'Paper',
+    blocks: [
+      { id: 'b000001', type: 'heading', level: 1, text: 'Introduction' },
+      { id: 'b000002', type: 'paragraph', text: 'Evidence.', pageNumber: 2 },
+      { id: 'b000003', type: 'list-item', ordered: true, depth: 1, text: 'Finding' },
+      {
+        id: 'b000004', type: 'table', text: '',
+        rows: [{ cells: ['Method', 'Score'] }, { cells: ['A', '92.4'] }],
+      },
+      { id: 'b000005', type: 'code', language: 'ts', text: 'const answer = 42;' },
+      { id: 'b000006', type: 'formula', display: true, text: 'E = mc^2' },
+    ],
+    outline: [], plainText: 'Introduction\n\nEvidence.',
+    metadata: { pageCount: 2 },
+    warnings: [{ code: 'PDF_LAYOUT_SIMPLIFIED', message: 'Layout simplified.' }],
+  };
 
+  it('builds task context from a parsed document', () => {
     const context = new ContextBuilderService().build({
       taskType: 'polish',
       document,
@@ -40,9 +49,45 @@ describe('ContextBuilderService', () => {
       mimeType: source.mimeType,
       sizeBytes: source.sizeBytes,
       title: 'Paper',
-      metadata: {},
-      warnings: [],
+      metadata: document.metadata,
+      warnings: document.warnings,
     });
-    expect(context.units).toHaveLength(2);
+    expect(context.units).toHaveLength(6);
+  });
+
+  it('maps every source block once in the original order with deterministic IDs', () => {
+    const result = new ContextBuilderService().build({ taskType: 'paper-revision', document });
+
+    expect(result.units).toHaveLength(document.blocks.length);
+    expect(result.units.map((unit) => unit.id)).toEqual([
+      'document-1:b000001', 'document-1:b000002', 'document-1:b000003',
+      'document-1:b000004', 'document-1:b000005', 'document-1:b000006',
+    ]);
+    result.units.forEach((unit, index) => {
+      expect(unit.sourceId).toBe('document-1');
+      expect(unit.sourceBlockId).toBe(document.blocks[index].id);
+      expect(unit.sourceBlockIndex).toBe(index);
+      expect(unit.block).toEqual(document.blocks[index]);
+    });
+  });
+
+  it('returns the same context for repeated calls with the same input', () => {
+    const service = new ContextBuilderService();
+    expect(service.build({ taskType: 'polish', document })).toEqual(
+      service.build({ taskType: 'polish', document }),
+    );
+  });
+
+  it('copies table rows and cell arrays for each mapped unit', () => {
+    const result = new ContextBuilderService().build({ taskType: 'polish', document });
+    const tableBlock = result.units[3].block;
+    const sourceTableBlock = document.blocks[3];
+
+    if (tableBlock.type !== 'table') throw new Error('Expected table block.');
+    if (sourceTableBlock.type !== 'table') throw new Error('Expected source table block.');
+    expect(tableBlock.rows).not.toBe(sourceTableBlock.rows);
+    expect(tableBlock.rows[0].cells).not.toBe(sourceTableBlock.rows[0].cells);
+    tableBlock.rows[0].cells[0] = 'Changed';
+    expect(sourceTableBlock.rows[0].cells[0]).toBe('Method');
   });
 });
