@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-02
 
 ## Project
 
@@ -24,10 +24,10 @@ Last Updated: 2026-09-01
 - Current Development Phase: Phase C2 — Context Builder
 - Current Development Branch: `phase/c2-context-builder`
 - Current Phase Status: `IN_PROGRESS / REVIEW_CANDIDATE`
-- Current Review Candidate Commit: `ce1103d` (`fix(c2): validate reference section object`; C2 implementation review-candidate tip before state-record commit)
+- Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; local post-review fix tip, pending GitHub push)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: NOT YET CREATED — pending Phase C2 review-candidate push.
+- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; remote head remains `4983e90` because the post-review push is currently blocked by GitHub HTTPS connectivity.
 
 ## Completed phases
 
@@ -61,6 +61,9 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 - Current client type-check: PASS (covered by `npm run type:check` and the lint pipeline).
 - Current server build: PASS.
 - Current client build: PASS, with existing non-blocking module-type and chunk-size warnings.
+- Current post-review targeted C2: PASS — 44 tests.
+- Current post-review full regression: PASS — 21 suites / 150 tests.
+- Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
 - DeepSeek API calls during C2 verification: 0.
 
 ## Frozen components / interfaces
@@ -78,6 +81,7 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 ## Known issues
 
 - Phase C2 is only a review candidate on `phase/c2-context-builder`; it is not accepted, merged into `main`, or tagged.
+- Post-review local fix `5cda43f` is committed and verified, but its push is not completed because GitHub HTTPS connection to port 443 is unavailable from this environment; PR #1 remains open at the prior remote head until a later push succeeds.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
