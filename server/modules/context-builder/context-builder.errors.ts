@@ -9,5 +9,6 @@ export class ContextBuilderError extends Error {
   ) {
     super(message);
     this.name = 'ContextBuilderError';
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }
