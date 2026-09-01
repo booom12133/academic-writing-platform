@@ -2,6 +2,8 @@
 
 本项目的长期协作约定如下：ChatGPT 是项目总控、架构师、阶段审查者和验收者；Codex/Work 是实施工程师；GitHub 是唯一项目真相源。
 
+正常本地 Git、commit、push、PR 准备、Review 修复及 ACCEPTED 后的 closing/merge/tag 操作由 Codex/Work 执行；ChatGPT 负责架构、审查、验收和 GitHub 状态核验。当前 `origin` 与 repository-local Git 网络规则见 `CODEX_WORKFLOW.md`。
+
 开始任何任务前，必须依次读取 `PROJECT_STATE.md`、`ROADMAP.md`、`CODEX_WORKFLOW.md`、`PROJECT_STATE.md` 指向的最近 Final Acceptance Report，以及当前任务直接相关文档。
 
 硬规则：
@@ -13,6 +15,7 @@
 - ChatGPT 要求修复时，只做当前 Phase 的最小必要修复，不做无关重构。
 - 只有正式 ACCEPTED 后，才按 Final Acceptance Report → `PROJECT_STATE.md` → merge `main` → accepted tag → STOP 收尾。
 - Codex 与 Work 不得同时修改同一开发分支。
+- 每次 push 前必须核对 `origin` 和 repository-local `http.version`；当前网络兼容值为 `HTTP/1.1`，禁止无原因改回 HTTP/2 或使用 force push。
 - 若仓库与聊天上下文冲突，以最新 accepted `main`、`PROJECT_STATE.md` 和 Final Acceptance Report 为准，并报告冲突。
 
 完整生命周期、审查状态、分支/提交/PR 规则见 [`CODEX_WORKFLOW.md`](CODEX_WORKFLOW.md)。

@@ -10,6 +10,56 @@
 
 聊天内容不能替代仓库状态。每次任务开始先读取 `PROJECT_STATE.md`、`ROADMAP.md`、本文件、最近 Final Acceptance Report 和任务相关文档。
 
+## GitHub Remote and Codex Push Rules
+
+正式 GitHub repository 和 remote 固定为：
+
+```text
+origin = https://github.com/booom12133/academic-writing-platform.git
+stable branch = main
+```
+
+正常情况下由 Codex / Work 负责本地 Git 操作：创建 Phase branch、检查 status/diff、add、commit、push、准备或创建 PR、按 Review 在同一 Phase branch 修复并 push，以及 `ACCEPTED` 后的 closing commit、merge `main`、push `main` 和 push accepted tag。ChatGPT 不代替 Codex 实施代码；ChatGPT 负责 Architecture、Review、Acceptance 和 GitHub state verification。
+
+当前仓库使用 repository-local Git 网络兼容配置：
+
+```text
+http.version = HTTP/1.1
+```
+
+每次 push 前必须核对：
+
+```bash
+git status --short
+git branch --show-current
+git remote -v
+git config --local --get http.version
+```
+
+必须确认 `origin` 指向上述真实 repository，且 `http.version` 为 `HTTP/1.1`。不得无原因改回 HTTP/2、覆盖未知 remote、使用 `git push --force` 或 `git push --force-with-lease`。
+
+从 Phase C2 开始，标准流程是：
+
+```text
+accepted main
+  → git pull --ff-only origin main
+  → phase/<phase-id>-<short-name>
+  → implementation + tests
+  → commit
+  → push same Phase branch
+  → mandatory PR
+  → ChatGPT review
+  → minimal fixes on same Phase branch
+  → explicit PHASE_x_ACCEPTED
+  → merge main
+  → push main
+  → push accepted tag
+```
+
+C1 是唯一 bootstrap exception，不创建 C1 PR。Review 修复不得创建新的修复 branch，也不得在 `ACCEPTED` 前 merge 或创建 accepted tag。
+
+如果 GitHub 传输失败，先确认 repository-local `http.version` 为 `HTTP/1.1`，再执行 `git ls-remote origin`。若配置正确但当前执行环境仍无法连接 GitHub，输出 `CODEX_GITHUB_NETWORK_BLOCKED`、`LOCAL_CHANGES_SAFE`、`PUSH_NOT_COMPLETED`，不修改代码、Git 历史或 tag，并将状态交还用户。
+
 ## Lifecycle
 
 ```text
