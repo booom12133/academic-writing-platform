@@ -5,8 +5,9 @@ Last Updated: 2026-09-01
 ## Project
 
 - Name: 学术写作AI工具平台
-- GitHub: https://github.com/booom12133/academic-writing-platform.git
-- GitHub Source of Truth: CONFIGURED LOCALLY as `origin`; live remote verification is currently network-limited
+- GitHub: [https://github.com/booom12133/academic-writing-platform](https://github.com/booom12133/academic-writing-platform)
+- Source of Truth: GitHub
+- Stable Branch: `main`
 - Git repository: INITIALIZED LOCALLY; local `origin/main` and `origin/phase/c1-document-parsing` tracking refs are present
 - Repository-local Git HTTP: `HTTP/1.1`
 
@@ -26,7 +27,7 @@ Last Updated: 2026-09-01
 - Current Review Candidate Commit: `4d95db8` (`docs(c1): record review candidate state`; accepted C1 implementation baseline)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: NOT REQUIRED — C1 is the one-time bootstrap accepted phase
+- Current PR: C1 PR NOT REQUIRED — one-time bootstrap accepted phase.
 
 ## Completed phases
 
@@ -73,9 +74,11 @@ Build an isolated Buffer + safe metadata document parsing foundation for DOCX, P
 
 ## Known issues
 
-- GitHub remote, GitHub PR, and CI history are not configured yet.
 - Phase C1 is accepted and frozen under the explicit upstream decision `PHASE_C1_ACCEPTED`.
-- The accepted tag and stable baseline are locally verified; live GitHub transport verification is currently limited by connection resets/timeouts.
+- GitHub remote is configured and the accepted C1 baseline has been pushed.
+- `main` is the stable accepted branch.
+- `phase-c1-accepted` remains the canonical C1 acceptance tag.
+- Phase C2 remains `NOT_STARTED`.
 - Client build retains existing non-fatal warnings.
 - C1 intentionally does not connect frontend files, backend multipart upload, storage, tasks, Polish/Revision integration, Context Builder, chunking, RAG, or OCR.
 
