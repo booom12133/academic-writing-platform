@@ -74,6 +74,7 @@ describe('ContextBuilderService', () => {
     [undefined, 'INVALID_CONTEXT_INPUT'],
     [{ taskType: 'outline', document }, 'INVALID_CONTEXT_INPUT'],
     [{ taskType: 'polish', document: undefined }, 'INVALID_CONTEXT_INPUT'],
+    [{ taskType: 'polish', document, userInstructions: 123 }, 'INVALID_CONTEXT_INPUT'],
     [{ taskType: 'polish', document: { ...document, blocks: [] } }, 'INVALID_PARSED_DOCUMENT'],
   ] as const)('rejects malformed input with %s', (input, code) => {
     expectInvalidInput(input, code);
@@ -88,6 +89,126 @@ describe('ContextBuilderService', () => {
   ] as const)('rejects malformed blocks', (invalidDocument, code) => {
     expectInvalidInput({ taskType: 'polish', document: invalidDocument }, code);
   });
+
+  it.each([
+    ['missing source', { ...document, source: undefined }],
+    ['empty source fileName', {
+      ...document,
+      source: { ...source, fileName: '' },
+    }],
+    ['invalid source type and extension pair', {
+      ...document,
+      source: { ...source, type: 'pdf', extension: '.md' },
+    }],
+    ['invalid source mimeType', {
+      ...document,
+      source: { ...source, mimeType: 42 },
+    }],
+    ['negative source size', {
+      ...document,
+      source: { ...source, sizeBytes: -1 },
+    }],
+    ['non-string plainText', {
+      ...document,
+      plainText: 123,
+    }],
+    ['non-array outline', {
+      ...document,
+      outline: 'invalid',
+    }],
+    ['malformed metadata', {
+      ...document,
+      metadata: 'invalid',
+    }],
+    ['missing warnings', {
+      ...document,
+      warnings: undefined,
+    }],
+    ['malformed warning object', {
+      ...document,
+      warnings: [{ code: 'PDF_LAYOUT_SIMPLIFIED', message: 42 }],
+    }],
+    ['invalid warning provenance', {
+      ...document,
+      warnings: [{ code: 'PDF_LAYOUT_SIMPLIFIED', message: 'warn', pageNumber: -1 }],
+    }],
+    ['warning block provenance missing from blocks', {
+      ...document,
+      warnings: [{ code: 'PDF_LAYOUT_SIMPLIFIED', message: 'warn', blockId: 'b999999' }],
+    }],
+    ['invalid page number', {
+      ...document,
+      blocks: [{ ...document.blocks[0], pageNumber: -1 }, ...document.blocks.slice(1)],
+    }],
+    ['invalid heading level', {
+      ...document,
+      blocks: [{ ...document.blocks[0], level: 7 }, ...document.blocks.slice(1)],
+    }],
+    ['invalid list-item shape', {
+      ...document,
+      blocks: [
+        document.blocks[0],
+        document.blocks[1],
+        { ...document.blocks[2], ordered: 'yes', depth: -1 },
+        ...document.blocks.slice(3),
+      ],
+    }],
+    ['invalid table rows', {
+      ...document,
+      blocks: [
+        ...document.blocks.slice(0, 3),
+        { ...document.blocks[3], rows: [{ cells: ['Method'] }, { cells: [99] }] },
+        ...document.blocks.slice(4),
+      ],
+    }],
+    ['invalid code language', {
+      ...document,
+      blocks: [
+        ...document.blocks.slice(0, 4),
+        { ...document.blocks[4], language: 99 },
+        ...document.blocks.slice(5),
+      ],
+    }],
+    ['invalid formula display', {
+      ...document,
+      blocks: [
+        ...document.blocks.slice(0, 5),
+        { ...document.blocks[5], display: 'yes' },
+      ],
+    }],
+    ['invalid outline entry', {
+      ...document,
+      outline: [{
+        headingBlockId: 'b000001',
+        title: 'Introduction',
+        level: '1',
+        startBlockIndex: 0,
+        endBlockIndexExclusive: 1,
+      }],
+    }],
+    ['outline entry mismatched to heading block', {
+      ...document,
+      outline: [{
+        headingBlockId: 'b000001',
+        title: 'Wrong title',
+        level: 1,
+        startBlockIndex: 0,
+        endBlockIndexExclusive: 2,
+      }],
+    }],
+    ['invalid metadata pageCount', {
+      ...document,
+      metadata: { pageCount: -1 },
+    }],
+  ] as const)(
+    'rejects malformed parsed document field: %s',
+    (_description, invalidDocument) => {
+      expectInvalidInput(
+        { taskType: 'polish', document: invalidDocument as never },
+        'INVALID_PARSED_DOCUMENT',
+      );
+    },
+  );
 
   it('rejects an invalid reference-section range', () => {
     const invalid = {
@@ -131,6 +252,40 @@ describe('ContextBuilderService', () => {
 
     expectInvalidInput(
       { taskType: 'polish', document: invalid },
+      'INVALID_PARSED_DOCUMENT',
+    );
+  });
+
+  it('rejects a malformed reference section detection discriminant', () => {
+    const invalid = {
+      ...document,
+      referenceSection: {
+        headingBlockId: 'b000001',
+        startBlockIndex: 0,
+        endBlockIndexExclusive: 2,
+        detection: 'heuristic',
+      },
+    };
+
+    expectInvalidInput(
+      { taskType: 'polish', document: invalid as never },
+      'INVALID_PARSED_DOCUMENT',
+    );
+  });
+
+  it('rejects a reference headingBlockId that is not a non-empty string', () => {
+    const invalid = {
+      ...document,
+      referenceSection: {
+        headingBlockId: '',
+        startBlockIndex: 0,
+        endBlockIndexExclusive: 2,
+        detection: 'explicit-heading',
+      },
+    };
+
+    expectInvalidInput(
+      { taskType: 'polish', document: invalid as never },
       'INVALID_PARSED_DOCUMENT',
     );
   });
