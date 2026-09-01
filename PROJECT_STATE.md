@@ -16,7 +16,7 @@ Last Updated: 2026-09-02
 - Current Stable Phase: Phase C2 — Context Builder
 - Stable Status: ACCEPTED / FROZEN (`PHASE_C2_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: to be recorded after the Phase C2 acceptance merge; the accepted implementation is `5cda43f`
+- Stable Main Commit: `64f9bc2219cf65ccc85f126a4f862df19f23d6b7` (Phase C2 acceptance merge)
 - Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 - Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, and Phase C2 are completed/frozen by project records
 
@@ -28,7 +28,7 @@ Last Updated: 2026-09-02
 - Phase C2 Accepted Implementation Commit: `5cda43f`
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — acceptance closeout in progress before merge
+- Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — MERGED
 - Phase C2 Accepted Tag: `phase-c2-accepted` — to be created on the final accepted `main` commit
 - Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 
