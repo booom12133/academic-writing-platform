@@ -22,4 +22,4 @@ Historical reports are intentionally preserved at their original root paths and 
 - [PHASE_B1_FINAL_FIX_REPORT.md](../../PHASE_B1_FINAL_FIX_REPORT.md) — B1 fix history.
 - Additional B1 diagnostic/validator reports remain in the project root.
 
-No C1 Final Acceptance Report is created in this task because C1 has not received the explicit upstream `PHASE_C1_ACCEPTED` decision.
+- [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](PHASE_C1_FINAL_ACCEPTANCE_REPORT.md) — accepted C1 closeout report; `PHASE_C1_ACCEPTED` was explicitly provided upstream.

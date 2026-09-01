@@ -10,25 +10,28 @@ Last Updated: 2026-09-01
 
 ## Stable state
 
-- Current Stable Phase: Phase B1
-- Stable Status: ACCEPTED according to the existing B1 final acceptance evidence; no accepted GitHub main commit exists yet
-- Stable Main Commit: UNKNOWN (repository was created after the historical B1 work)
-- Latest Final Acceptance Report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, and Phase B1 are treated as completed/frozen by the existing project records
+- Current Stable Phase: Phase C1 — Document Parsing Foundation
+- Stable Status: ACCEPTED / FROZEN (`PHASE_C1_ACCEPTED`)
+- Stable Main Commit: canonical pointer is the annotated tag `phase-c1-accepted` on final `main` HEAD; the exact merge hash is intentionally not self-recorded in the merge commit
+- Latest Final Acceptance Report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, and Phase C1 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase C1 — Document Parsing Foundation
-- Current Development Branch: `phase/c1-document-parsing`
-- Current Phase Status: `REVIEW_CANDIDATE_PENDING_UPSTREAM_REVIEW`
-- Current Review Candidate Commit: `7cf0ee5` (`chore: bootstrap project collaboration infrastructure`; local bootstrap snapshot containing the completed C1 implementation and workflow documents)
-- Current PR: NOT CONFIGURED (no GitHub remote)
+- Current Development Phase: NONE — C1 closeout complete; waiting for authorized Phase C2 design
+- Current Development Branch: `main`
+- Current Phase Status: `PHASE_C1_ACCEPTED_CLOSED; PHASE_C2_NOT_STARTED`
+- Current Review Candidate Commit: `4d95db8` (`docs(c1): record review candidate state`; accepted C1 implementation baseline)
+- Phase C1 Accepted Implementation Commit: `4d95db8`
+- Phase C1 Accepted Tag: `phase-c1-accepted`
+- Current PR: NOT REQUIRED — C1 is the one-time bootstrap accepted phase and no GitHub remote is configured
 
 ## Completed phases
 
 - Phase A: DONE / FROZEN
 - Phase B0: DONE / FROZEN
 - Phase B1: ACCEPTED / FROZEN
+- Phase C1: ACCEPTED / FROZEN
 
 ## Current Phase goal
 
@@ -69,7 +72,8 @@ Build an isolated Buffer + safe metadata document parsing foundation for DOCX, P
 ## Known issues
 
 - GitHub remote, GitHub PR, and CI history are not configured yet.
-- The current Phase C1 implementation is locally review-ready but has not received the upstream ChatGPT/GitHub review decision; it is not marked accepted here.
+- Phase C1 is accepted and frozen under the explicit upstream decision `PHASE_C1_ACCEPTED`.
+- GitHub remote and GitHub push remain unconfigured; the accepted tag and stable baseline are currently local.
 - Client build retains existing non-fatal warnings.
 - C1 intentionally does not connect frontend files, backend multipart upload, storage, tasks, Polish/Revision integration, Context Builder, chunking, RAG, or OCR.
 
@@ -82,11 +86,13 @@ Build an isolated Buffer + safe metadata document parsing foundation for DOCX, P
 
 ## Related documents
 
-- Latest B1 final report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
+- Latest C1 final report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
+- Historical B1 final report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
 - C1 review/design context: [PHASE_C1_CODE_REVIEW.md](PHASE_C1_CODE_REVIEW.md)
 - Report index and naming rules: [docs/reviews/README.md](docs/reviews/README.md)
 
 ## Next Phase
 
-- Next Phase: Phase C2
-- Next Phase Goal: NOT YET AUTHORIZED / record only; do not implement until C1 is explicitly accepted and closed out.
+- Next Phase: Phase C2 — Context Builder
+- Next Phase Status: NOT STARTED
+- Next Phase Goal: NOT YET AUTHORIZED / record only; do not implement until upstream design approval is provided.
