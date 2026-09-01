@@ -27,7 +27,7 @@ Last Updated: 2026-09-02
 - Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; local post-review fix tip, pending GitHub push)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; remote head remains `4983e90` because the post-review push is currently blocked by GitHub HTTPS connectivity.
+- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; post-review local head `29d43b7` is pushed to `origin/phase/c2-context-builder`.
 
 ## Completed phases
 
@@ -81,7 +81,7 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 ## Known issues
 
 - Phase C2 is only a review candidate on `phase/c2-context-builder`; it is not accepted, merged into `main`, or tagged.
-- Post-review local fix `5cda43f` is committed and verified, but its push is not completed because GitHub HTTPS connection to port 443 is unavailable from this environment; PR #1 remains open at the prior remote head until a later push succeeds.
+- Post-review local fix `5cda43f` is committed, verified, and included in the pushed Phase branch; PR #1 remains open and unmerged.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
