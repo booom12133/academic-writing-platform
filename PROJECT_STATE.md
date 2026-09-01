@@ -21,7 +21,7 @@ Last Updated: 2026-09-01
 - Current Development Phase: Phase C1 — Document Parsing Foundation
 - Current Development Branch: `phase/c1-document-parsing`
 - Current Phase Status: `REVIEW_CANDIDATE_PENDING_UPSTREAM_REVIEW`
-- Current Review Candidate Commit: NOT YET CREATED (will be populated after the first Phase branch commit)
+- Current Review Candidate Commit: `7cf0ee5` (`chore: bootstrap project collaboration infrastructure`; local bootstrap snapshot containing the completed C1 implementation and workflow documents)
 - Current PR: NOT CONFIGURED (no GitHub remote)
 
 ## Completed phases
