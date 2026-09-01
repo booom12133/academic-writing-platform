@@ -1,0 +1,30 @@
+{
+  "auditedAt": "2026-08-31",
+  "redistributionPolicy": "Only license-compatible, explicitly adopted snapshots are vendored into this repository.",
+  "records": [
+    {
+      "skill": "codex-academic-humanizer",
+      "source": "https://github.com/henmuc/codex-academic-humanizer",
+      "commit": "496d5d897d920d1c8f0d382e31406eeff0f29e45",
+      "license": "MIT",
+      "licenseFile": "licenses/codex-academic-humanizer-MIT.txt",
+      "upstreamNotice": "vendor/codex-academic-humanizer/NOTICE",
+      "redistribution": "ALLOWED_WITH_MIT_NOTICE_AND_COPYRIGHT_RETENTION"
+    },
+    {
+      "skill": "citation-verification",
+      "source": "https://github.com/ruichenrui/citation-verification",
+      "commit": "61f42ae438afa93fcb3eeb1302f5f4ef7f59e32f",
+      "license": "MIT",
+      "licenseFile": "licenses/citation-verification-MIT.txt",
+      "redistribution": "ALLOWED_WITH_MIT_COPYRIGHT_RETENTION"
+    },
+    {
+      "skill": "chinese-academic-writing-cn",
+      "source": "https://github.com/Findddx/codex-cn-paper-skills",
+      "commit": "81213da48f0edb6a7ab2a79f14a649389d9d7b84",
+      "license": "NO_ROOT_LICENSE_FOUND",
+      "redistribution": "NOT_VENDORED"
+    }
+  ]
+}

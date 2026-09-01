@@ -1,0 +1,56 @@
+{
+  "phase": "B0-3",
+  "auditedAt": "2026-08-31",
+  "policy": {
+    "phaseAFrozen": true,
+    "runtimeIntegration": false,
+    "businessCodeChanged": false,
+    "networkToolsEnabled": false,
+    "unlicensedSourcesVendored": false
+  },
+  "adopted": [
+    {
+      "id": "codex-academic-humanizer",
+      "source": "https://github.com/henmuc/codex-academic-humanizer",
+      "commit": "496d5d897d920d1c8f0d382e31406eeff0f29e45",
+      "license": "MIT",
+      "notice": true,
+      "installedCodexPath": "C:\\Users\\Administrator\\.codex\\skills\\codex-academic-humanizer",
+      "vendorPath": "server/modules/ai-tools/skills/vendor/codex-academic-humanizer",
+      "capabilities": ["academic-naturalization", "semantic-preservation", "chinese-academic-style", "english-academic-style"],
+      "executionRisk": "low",
+      "disposition": "ADOPT"
+    },
+    {
+      "id": "citation-verification",
+      "source": "https://github.com/ruichenrui/citation-verification",
+      "commit": "61f42ae438afa93fcb3eeb1302f5f4ef7f59e32f",
+      "license": "MIT",
+      "notice": false,
+      "installedCodexPath": "C:\\Users\\Administrator\\.codex\\skills\\citation-verification",
+      "vendorPath": "server/modules/ai-tools/skills/vendor/citation-verification",
+      "capabilities": ["citation-existence", "abstract-read", "claim-relevance", "anti-fabrication"],
+      "executionRisk": "low",
+      "disposition": "ADOPT"
+    }
+  ],
+  "localOnly": [
+    {
+      "id": "chinese-academic-writing-cn",
+      "source": "https://github.com/Findddx/codex-cn-paper-skills",
+      "commit": "81213da48f0edb6a7ab2a79f14a649389d9d7b84",
+      "license": "NO_ROOT_LICENSE_FOUND",
+      "installedCodexPath": "C:\\Users\\Administrator\\.codex\\skills\\chinese-academic-writing-cn",
+      "capabilities": ["chinese-academic-writing", "evidence-mapping", "citation-and-variable-checklist"],
+      "executionRisk": "medium",
+      "disposition": "LOCAL_ONLY"
+    }
+  ],
+  "deferredOrRejected": [
+    {"id": "msimchowitz-writing-skills", "commit": "214981fe02326f27b0fc8790d00eb4b731607073", "disposition": "DEFER_DUPLICATE_AND_SIBLING_COUPLED"},
+    {"id": "TobiasLee-Rebuttal-Skill", "commit": "7315391c54b73df96cda47da2a19a5235484c36b", "disposition": "REJECT_NO_LICENSE_AND_OVERLAP"},
+    {"id": "hideshi-scholarly-agent-skills", "commit": "3ef50b4c6a12240a768e7a70ef5b57f2906f10a1", "disposition": "DEFER_VALIDATOR_CANDIDATE_AND_SCOPE"},
+    {"id": "bytedance-deer-flow", "commit": "72ba661b84452ed3b8271d77749b3f0e036e2809", "disposition": "TOOL_ONLY_SANDBOX_REQUIRED"},
+    {"id": "zLanqing-codex-claude-academic-skills", "commit": "7ed6377f0efb6a38951b48ef03b19d996e454b1f", "disposition": "REJECT_REQUESTED_SKILL_PATH_MISSING"}
+  ]
+}
