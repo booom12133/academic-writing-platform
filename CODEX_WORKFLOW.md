@@ -129,3 +129,24 @@ Codex/Work 只修复当前 Phase 所需的最小问题：
 ## Reports and state
 
 历史报告不得删除。当前根目录已有的 B1 报告保留原路径，由 `docs/reviews/README.md` 索引；新的正式报告统一放在 `docs/reviews/PHASE_<ID>_FINAL_ACCEPTANCE_REPORT.md`。`PROJECT_STATE.md` 是动态状态文件，Review Candidate、FIX_REQUIRED、Accepted 和 Final Closeout 时都必须更新。
+
+## GitHub Bootstrap Exception
+
+Phase C1 was implemented and accepted before a GitHub remote became the project's source of truth. It is therefore the initial accepted stable baseline for this repository. The historical B1 acceptance report remains preserved as evidence, but the local C1 closeout is the first accepted Git baseline.
+
+Beginning with Phase C2, every Phase must use:
+
+```text
+main
+  → phase branch
+  → implementation
+  → tests
+  → push
+  → PR
+  → ChatGPT review
+  → explicit PHASE_x_ACCEPTED
+  → merge main
+  → accepted tag
+```
+
+This exception does not weaken the permanent rule that `main` represents the latest formally accepted stable version. C2 is recorded only as `NOT_STARTED`; no C2 branch or implementation is created by this closeout.

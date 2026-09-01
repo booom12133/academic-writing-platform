@@ -7,8 +7,8 @@ Only the already established project phases are listed here. No phase below C1 i
 | A | DeepSeek foundation | Initial AI/LLM project foundation and local development path | ACCEPTED | Yes |
 | B0 | Existing platform baseline | Existing product modules and baseline stabilization | ACCEPTED | Yes |
 | B1 | Skill Runtime and academic safeguards | Skill loading/composition, invariant extraction/validation, academic polish/revision safeguards | ACCEPTED | Yes |
-| C1 | Document Parsing Foundation | Buffer-based DOCX/PDF/TXT/Markdown parsing into deterministic `ParsedDocument` | IN_PROGRESS / REVIEW CANDIDATE PENDING | No, until accepted |
-| C2 | Context Builder | NOT YET AUTHORIZED; record only | PLANNED | No |
+| C1 | Document Parsing Foundation | Buffer-based DOCX/PDF/TXT/Markdown parsing into deterministic `ParsedDocument` | ACCEPTED | Yes |
+| C2 | Context Builder | Context assembly for later document-aware tools; design approval required | NOT_STARTED (NEXT) | No |
 | C3 | Chunking | NOT YET AUTHORIZED; record only | PLANNED | No |
 | C4 | File Integration | NOT YET AUTHORIZED; record only | PLANNED | No |
 | D | Tool Migration | NOT YET AUTHORIZED; record only | PLANNED | No |
