@@ -86,7 +86,7 @@ Convert one validated C2 `TaskContext` and an explicit `ChunkingPolicy` into a d
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
-- GitHub Actions `verify` reaches full tests after the lockfile repair, then fails on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; C2 tests and the other 20 suites pass. This unrelated cross-platform baseline issue is intentionally not changed in Phase C2.
+- GitHub Actions `verify` may fail on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; the local Windows full regression passes. This unrelated cross-platform baseline issue is intentionally not changed in Phase C3.
 - C3 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, prompt rendering, tokenizer/model windows, OCR, retrieval, or multi-document orchestration.
 
 ## Do not modify
