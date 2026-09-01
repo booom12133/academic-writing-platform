@@ -21,13 +21,13 @@ Last Updated: 2026-09-01
 
 ## Current development
 
-- Current Development Phase: NONE — C1 closeout complete; waiting for authorized Phase C2 design
-- Current Development Branch: `main`
-- Current Phase Status: `PHASE_C1_ACCEPTED_CLOSED; PHASE_C2_NOT_STARTED`
-- Current Review Candidate Commit: `4d95db8` (`docs(c1): record review candidate state`; accepted C1 implementation baseline)
+- Current Development Phase: Phase C2 — Context Builder
+- Current Development Branch: `phase/c2-context-builder`
+- Current Phase Status: `IN_PROGRESS / REVIEW_CANDIDATE`
+- Current Review Candidate Commit: `ce1103d` (`fix(c2): validate reference section object`; C2 implementation review-candidate tip before state-record commit)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: C1 PR NOT REQUIRED — one-time bootstrap accepted phase.
+- Current PR: NOT YET CREATED — pending Phase C2 review-candidate push.
 
 ## Completed phases
 
@@ -38,32 +38,35 @@ Last Updated: 2026-09-01
 
 ## Current Phase goal
 
-Build an isolated Buffer + safe metadata document parsing foundation for DOCX, PDF, TXT, and Markdown, returning deterministic `ParsedDocument` values without upload, storage, task, AI, OCR, or RAG integration.
+Convert one validated C1 `ParsedDocument`, a narrow academic task type, and optional user instructions into a deterministic, provenance-aware `TaskContext` without chunking, truncation, prompt rendering, upload, storage, task submission, OCR, or external AI/service calls.
 
 ## Current Phase implemented items
 
-- Deterministic `ParsedDocument` contract, draft contract, parser interface, error model, and normalizer.
-- DOCX structured parsing through Mammoth and htmlparser2.
-- PDF selectable-text parsing with page provenance and simplified layout warning.
-- TXT UTF-8 parsing with BOM/CRLF handling and fatal invalid encoding rejection.
-- Markdown token parsing with headings, lists, code blocks, tables, and display formulas.
-- Extension, MIME, size, signature, path-metadata, corrupt-document, password-PDF, and no-selectable-text protections.
-- Independent `DocumentParsingModule`, intentionally not imported into `AppModule` or AI tools.
+- Independent `ContextBuilderModule` exporting `ContextBuilderService`, intentionally not registered in `AppModule`, `AiToolsModule`, or `TasksModule`.
+- Narrow C2 context contract for `'polish' | 'paper-revision'` inputs and `TaskContext` outputs with fixed source ID `document-1`.
+- Deterministic one-pass mapping from C1 `document.blocks` into `ContextUnit` records with stable unit IDs, preserved source block IDs/indexes, and no reordering, chunking, filtering, or rewriting.
+- Heading-path derivation from preceding heading blocks with ancestor replacement/pop semantics and self-inclusive heading paths for heading blocks.
+- Reference-section classification derived only from the optional C1 `referenceSection` bounds; no keyword re-detection or fabricated headings.
+- Explicit C2 runtime validation for malformed task input, missing/empty documents, duplicate block IDs, invalid block shapes, invalid reference bounds, and non-object reference sections.
+- Preservation of source metadata, warnings, page provenance, table row/cell arrays, and separation between `task.userInstructions` and document evidence.
 
 ## Test baseline and current results
 
-- Pre-C1 baseline: 13 suites / 75 tests PASS; lint, server/client type-check and server/client build PASS after the Windows `cross-env` script repair.
-- Current targeted C1: 7 suites / 31 tests PASS.
-- Current full regression: 20 suites / 106 tests PASS.
+- Stable accepted baseline: Phase C1 on `main` remains the frozen accepted implementation baseline.
+- Current targeted C2: PASS — `npx jest server/modules/context-builder/context-builder.service.spec.ts --runInBand` → 1 suite / 20 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 21 suites / 126 tests.
 - Current lint: PASS.
-- Current server type-check: PASS.
-- Current client type-check: PASS.
+- Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
+- Current server type-check: PASS (covered by `npm run type:check` and the lint pipeline).
+- Current client type-check: PASS (covered by `npm run type:check` and the lint pipeline).
 - Current server build: PASS.
-- Current client build: PASS, with existing non-blocking bundle-size/module-type warnings.
-- DeepSeek API calls during C1: 0.
+- Current client build: PASS, with existing non-blocking module-type and chunk-size warnings.
+- DeepSeek API calls during C2 verification: 0.
 
 ## Frozen components / interfaces
 
+- `client/**`
+- `server/modules/document-parsing/**`
 - `shared/api.interface.ts`
 - `server/app.module.ts`
 - `server/modules/ai-tools/**`
@@ -74,30 +77,28 @@ Build an isolated Buffer + safe metadata document parsing foundation for DOCX, P
 
 ## Known issues
 
-- Phase C1 is accepted and frozen under the explicit upstream decision `PHASE_C1_ACCEPTED`.
-- GitHub remote is configured and the accepted C1 baseline has been pushed.
-- `main` is the stable accepted branch.
-- `phase-c1-accepted` remains the canonical C1 acceptance tag.
-- Phase C2 remains `NOT_STARTED`.
-- Client build retains existing non-fatal warnings.
-- C1 intentionally does not connect frontend files, backend multipart upload, storage, tasks, Polish/Revision integration, Context Builder, chunking, RAG, or OCR.
+- Phase C2 is only a review candidate on `phase/c2-context-builder`; it is not accepted, merged into `main`, or tagged.
+- Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
+- `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
+- Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
+- C2 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, chunking, OCR, retrieval, or multi-document orchestration.
 
 ## Do not modify
 
-- Frontend and shared API files during C1.
-- Existing B1 frozen production modules and skills.
-- Database schema, migrations, task/file attachment contracts, and AI tool integration unless a future Phase explicitly authorizes them.
+- Frontend and shared API files during C2.
+- Existing B1 and C1 frozen production modules and skills.
+- Database schema, migrations, task/file attachment contracts, upload/storage integration, and AI tool integration unless a future Phase explicitly authorizes them.
 - Historical acceptance and diagnostic reports.
 
 ## Related documents
 
 - Latest C1 final report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
 - Historical B1 final report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
-- C1 review/design context: [PHASE_C1_CODE_REVIEW.md](PHASE_C1_CODE_REVIEW.md)
+- C2 design context: [2026-09-01-phase-c2-context-builder-design.md](docs/superpowers/specs/2026-09-01-phase-c2-context-builder-design.md)
 - Report index and naming rules: [docs/reviews/README.md](docs/reviews/README.md)
 
 ## Next Phase
 
 - Next Phase: Phase C2 — Context Builder
-- Next Phase Status: NOT STARTED
-- Next Phase Goal: NOT YET AUTHORIZED / record only; do not implement until upstream design approval is provided.
+- Next Phase Status: CURRENT AUTHORIZED PHASE / IN_PROGRESS / REVIEW_CANDIDATE
+- Next Phase Goal: Deterministic context assembly from one validated C1 parsed document for later document-aware tools; do not advance to C3 before explicit C2 acceptance.
