@@ -134,6 +134,13 @@ export class ContextBuilderService {
     });
 
     if (document.referenceSection !== undefined) {
+      if (!this.isObject(document.referenceSection)) {
+        throw new ContextBuilderError(
+          'INVALID_PARSED_DOCUMENT',
+          'Parsed document is invalid.',
+        );
+      }
+
       this.validateReferenceSection(document.blocks, document.referenceSection);
     }
   }

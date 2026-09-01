@@ -106,6 +106,18 @@ describe('ContextBuilderService', () => {
     );
   });
 
+  it.each([null, 'not-an-object'])('rejects a non-object referenceSection: %p', (referenceSection) => {
+    const invalid = {
+      ...document,
+      referenceSection: referenceSection as never,
+    };
+
+    expectInvalidInput(
+      { taskType: 'polish', document: invalid },
+      'INVALID_PARSED_DOCUMENT',
+    );
+  });
+
   it('rejects a reference headingBlockId that does not match the range start', () => {
     const invalid = {
       ...document,
