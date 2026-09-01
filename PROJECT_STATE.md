@@ -27,7 +27,7 @@ Last Updated: 2026-09-02
 - Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; post-review implementation tip included in the pushed Phase branch)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; current branch head `b79776b` is pushed to `origin/phase/c2-context-builder`.
+- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; branch-head SHA is intentionally not recorded here.
 
 ## Completed phases
 
