@@ -82,7 +82,6 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 
 ## Known issues
 
-- Phase C2 has been formally accepted; the acceptance merge and `phase-c2-accepted` tag are the remaining closeout operations.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
