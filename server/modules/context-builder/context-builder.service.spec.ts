@@ -90,4 +90,64 @@ describe('ContextBuilderService', () => {
     tableBlock.rows[0].cells[0] = 'Changed';
     expect(sourceTableBlock.rows[0].cells[0]).toBe('Method');
   });
+
+  it('preserves deterministic heading paths and reference sections from C1 metadata', () => {
+    const contextDocument: ParsedDocument = {
+      source,
+      title: 'Paper',
+      blocks: [
+        { id: 'b000001', type: 'heading', level: 1, text: 'Introduction' },
+        { id: 'b000002', type: 'paragraph', text: 'Intro paragraph.' },
+        { id: 'b000003', type: 'heading', level: 2, text: 'Background' },
+        { id: 'b000004', type: 'paragraph', text: 'Background paragraph.' },
+        { id: 'b000005', type: 'heading', level: 3, text: 'Design' },
+        { id: 'b000006', type: 'paragraph', text: 'Design paragraph.' },
+        { id: 'b000007', type: 'heading', level: 2, text: 'Results' },
+        { id: 'b000008', type: 'paragraph', text: 'Results paragraph.' },
+        { id: 'b000009', type: 'heading', level: 1, text: 'References' },
+        { id: 'b000010', type: 'paragraph', text: 'Reference entry.' },
+      ],
+      outline: [],
+      referenceSection: {
+        headingBlockId: 'b000009',
+        startBlockIndex: 8,
+        endBlockIndexExclusive: 10,
+        detection: 'explicit-heading',
+      },
+      plainText: '',
+      metadata: {},
+      warnings: [],
+    };
+
+    const result = new ContextBuilderService().build({ taskType: 'polish', document: contextDocument });
+
+    expect(result.units.map((unit) => unit.headingPath.map((heading) => heading.title))).toEqual([
+      ['Introduction'], ['Introduction'],
+      ['Introduction', 'Background'], ['Introduction', 'Background'],
+      ['Introduction', 'Background', 'Design'], ['Introduction', 'Background', 'Design'],
+      ['Introduction', 'Results'], ['Introduction', 'Results'],
+      ['References'], ['References'],
+    ]);
+    expect(result.units.slice(8).map((unit) => unit.section)).toEqual(['references', 'references']);
+    expect(result.units.slice(0, 8).every((unit) => unit.section === 'content')).toBe(true);
+  });
+
+  it('keeps every unit in content when C1 provides no reference section', () => {
+    const contextDocument: ParsedDocument = {
+      source,
+      title: 'Paper',
+      blocks: [
+        { id: 'b000001', type: 'heading', level: 1, text: 'References' },
+        { id: 'b000002', type: 'paragraph', text: 'Still content.' },
+      ],
+      outline: [],
+      plainText: '',
+      metadata: {},
+      warnings: [],
+    };
+
+    const result = new ContextBuilderService().build({ taskType: 'polish', document: contextDocument });
+
+    expect(result.units.every((unit) => unit.section === 'content')).toBe(true);
+  });
 });
