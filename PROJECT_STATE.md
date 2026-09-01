@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-01
+Last Updated: 2026-09-02
 
 ## Project
 
@@ -13,21 +13,24 @@ Last Updated: 2026-09-01
 
 ## Stable state
 
-- Current Stable Phase: Phase C1 — Document Parsing Foundation
-- Stable Status: ACCEPTED / FROZEN (`PHASE_C1_ACCEPTED`)
-- Stable Main Commit: canonical pointer is the annotated tag `phase-c1-accepted` on final `main` HEAD; the exact merge hash is intentionally not self-recorded in the merge commit
-- Latest Final Acceptance Report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, and Phase C1 are completed/frozen by project records
+- Current Stable Phase: Phase C2 — Context Builder
+- Stable Status: ACCEPTED / FROZEN (`PHASE_C2_ACCEPTED`)
+- Stable Branch: `main`
+- Stable Main Commit: to be recorded after the Phase C2 acceptance merge; the accepted implementation is `5cda43f`
+- Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, and Phase C2 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: NONE — C1 closeout complete; waiting for authorized Phase C2 design
-- Current Development Branch: `main`
-- Current Phase Status: `PHASE_C1_ACCEPTED_CLOSED; PHASE_C2_NOT_STARTED`
-- Current Review Candidate Commit: `4d95db8` (`docs(c1): record review candidate state`; accepted C1 implementation baseline)
+- Current Development Phase: NONE
+- Current Development Branch: NONE
+- Current Phase Status: `PHASE_C2_ACCEPTED_CLOSED; PHASE_C3_NOT_STARTED`
+- Phase C2 Accepted Implementation Commit: `5cda43f`
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: C1 PR NOT REQUIRED — one-time bootstrap accepted phase.
+- Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — acceptance closeout in progress before merge
+- Phase C2 Accepted Tag: `phase-c2-accepted` — to be created on the final accepted `main` commit
+- Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 
 ## Completed phases
 
@@ -35,35 +38,40 @@ Last Updated: 2026-09-01
 - Phase B0: DONE / FROZEN
 - Phase B1: ACCEPTED / FROZEN
 - Phase C1: ACCEPTED / FROZEN
+- Phase C2: ACCEPTED / FROZEN
 
 ## Current Phase goal
 
-Build an isolated Buffer + safe metadata document parsing foundation for DOCX, PDF, TXT, and Markdown, returning deterministic `ParsedDocument` values without upload, storage, task, AI, OCR, or RAG integration.
+Convert one validated C1 `ParsedDocument`, a narrow academic task type, and optional user instructions into a deterministic, provenance-aware `TaskContext` without chunking, truncation, prompt rendering, upload, storage, task submission, OCR, or external AI/service calls.
 
 ## Current Phase implemented items
 
-- Deterministic `ParsedDocument` contract, draft contract, parser interface, error model, and normalizer.
-- DOCX structured parsing through Mammoth and htmlparser2.
-- PDF selectable-text parsing with page provenance and simplified layout warning.
-- TXT UTF-8 parsing with BOM/CRLF handling and fatal invalid encoding rejection.
-- Markdown token parsing with headings, lists, code blocks, tables, and display formulas.
-- Extension, MIME, size, signature, path-metadata, corrupt-document, password-PDF, and no-selectable-text protections.
-- Independent `DocumentParsingModule`, intentionally not imported into `AppModule` or AI tools.
+- Independent `ContextBuilderModule` exporting `ContextBuilderService`, intentionally not registered in `AppModule`, `AiToolsModule`, or `TasksModule`.
+- Narrow C2 context contract for `'polish' | 'paper-revision'` inputs and `TaskContext` outputs with fixed source ID `document-1`.
+- Deterministic one-pass mapping from C1 `document.blocks` into `ContextUnit` records with stable unit IDs, preserved source block IDs/indexes, and no reordering, chunking, filtering, or rewriting.
+- Heading-path derivation from preceding heading blocks with ancestor replacement/pop semantics and self-inclusive heading paths for heading blocks.
+- Reference-section classification derived only from the optional C1 `referenceSection` bounds; no keyword re-detection or fabricated headings.
+- Explicit C2 runtime validation for malformed task input, missing/empty documents, duplicate block IDs, invalid block shapes, invalid reference bounds, and non-object reference sections.
+- Preservation of source metadata, warnings, page provenance, table row/cell arrays, and separation between `task.userInstructions` and document evidence.
 
 ## Test baseline and current results
 
-- Pre-C1 baseline: 13 suites / 75 tests PASS; lint, server/client type-check and server/client build PASS after the Windows `cross-env` script repair.
-- Current targeted C1: 7 suites / 31 tests PASS.
-- Current full regression: 20 suites / 106 tests PASS.
+- Stable accepted baseline: Phase C1 on `main` remains the frozen accepted implementation baseline.
+- Current targeted C2: PASS — `npx jest server/modules/context-builder/context-builder.service.spec.ts --runInBand` → 44 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 21 suites / 150 tests.
 - Current lint: PASS.
-- Current server type-check: PASS.
-- Current client type-check: PASS.
+- Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
+- Current server type-check: PASS (covered by `npm run type:check` and the lint pipeline).
+- Current client type-check: PASS (covered by `npm run type:check` and the lint pipeline).
 - Current server build: PASS.
-- Current client build: PASS, with existing non-blocking bundle-size/module-type warnings.
-- DeepSeek API calls during C1: 0.
+- Current client build: PASS, with existing non-blocking module-type and chunk-size warnings.
+- Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
+- DeepSeek API calls during C2 verification: 0.
 
 ## Frozen components / interfaces
 
+- `client/**`
+- `server/modules/document-parsing/**`
 - `shared/api.interface.ts`
 - `server/app.module.ts`
 - `server/modules/ai-tools/**`
@@ -74,30 +82,30 @@ Build an isolated Buffer + safe metadata document parsing foundation for DOCX, P
 
 ## Known issues
 
-- Phase C1 is accepted and frozen under the explicit upstream decision `PHASE_C1_ACCEPTED`.
-- GitHub remote is configured and the accepted C1 baseline has been pushed.
-- `main` is the stable accepted branch.
-- `phase-c1-accepted` remains the canonical C1 acceptance tag.
-- Phase C2 remains `NOT_STARTED`.
-- Client build retains existing non-fatal warnings.
-- C1 intentionally does not connect frontend files, backend multipart upload, storage, tasks, Polish/Revision integration, Context Builder, chunking, RAG, or OCR.
+- Phase C2 has been formally accepted; the acceptance merge and `phase-c2-accepted` tag are the remaining closeout operations.
+- Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
+- `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
+- Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
+- GitHub Actions `verify` reaches full tests after the lockfile repair, then fails on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; C2 tests and the other 20 suites pass. This unrelated cross-platform baseline issue is intentionally not changed in Phase C2.
+- C2 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, chunking, OCR, retrieval, or multi-document orchestration.
 
 ## Do not modify
 
-- Frontend and shared API files during C1.
-- Existing B1 frozen production modules and skills.
-- Database schema, migrations, task/file attachment contracts, and AI tool integration unless a future Phase explicitly authorizes them.
+- Frontend and shared API files during C2.
+- Existing B1 and C1 frozen production modules and skills.
+- Database schema, migrations, task/file attachment contracts, upload/storage integration, and AI tool integration unless a future Phase explicitly authorizes them.
 - Historical acceptance and diagnostic reports.
 
 ## Related documents
 
 - Latest C1 final report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
 - Historical B1 final report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
-- C1 review/design context: [PHASE_C1_CODE_REVIEW.md](PHASE_C1_CODE_REVIEW.md)
+- C2 design context: [2026-09-01-phase-c2-context-builder-design.md](docs/superpowers/specs/2026-09-01-phase-c2-context-builder-design.md)
+- C2 final acceptance report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 - Report index and naming rules: [docs/reviews/README.md](docs/reviews/README.md)
 
 ## Next Phase
 
-- Next Phase: Phase C2 — Context Builder
-- Next Phase Status: NOT STARTED
-- Next Phase Goal: NOT YET AUTHORIZED / record only; do not implement until upstream design approval is provided.
+- Next Phase: Phase C3 — Chunking
+- Next Phase Status: NOT_STARTED; waiting for explicit design authorization
+- Next Phase Goal: Design approval required before implementation; do not begin C3 in this closeout.
