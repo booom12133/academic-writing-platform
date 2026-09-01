@@ -23,3 +23,5 @@ Historical reports are intentionally preserved at their original root paths and 
 - Additional B1 diagnostic/validator reports remain in the project root.
 
 - [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](PHASE_C1_FINAL_ACCEPTANCE_REPORT.md) — accepted C1 closeout report; `PHASE_C1_ACCEPTED` was explicitly provided upstream.
+- [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](PHASE_C2_FINAL_ACCEPTANCE_REPORT.md) — accepted C2 closeout report; `PHASE_C2_ACCEPTED` was explicitly provided upstream.
+- [PHASE_C3_FINAL_ACCEPTANCE_REPORT.md](PHASE_C3_FINAL_ACCEPTANCE_REPORT.md) — accepted C3 closeout report; `PHASE_C3_ACCEPTED` was explicitly provided upstream.

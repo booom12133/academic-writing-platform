@@ -9,8 +9,8 @@ Only the already established project phases are listed here. No phase below C2 i
 | B1 | Skill Runtime and academic safeguards | Skill loading/composition, invariant extraction/validation, academic polish/revision safeguards | ACCEPTED | Yes |
 | C1 | Document Parsing Foundation | Buffer-based DOCX/PDF/TXT/Markdown parsing into deterministic `ParsedDocument` | ACCEPTED | Yes |
 | C2 | Context Builder | Context assembly for later document-aware tools; design approved and implemented | ACCEPTED | Yes |
-| C3 | Chunking | Design approval required before implementation | NOT_STARTED (NEXT) | No |
-| C4 | File Integration | NOT YET AUTHORIZED; record only | PLANNED | No |
+| C3 | Chunking | Deterministic, lossless, structure-aware context partitioning | ACCEPTED | Yes |
+| C4 | File Integration | NOT YET AUTHORIZED; record only | NOT_STARTED (NEXT) | No |
 | D | Tool Migration | NOT YET AUTHORIZED; record only | PLANNED | No |
 | E | RAG / Zotero / Search | NOT YET AUTHORIZED; record only | PLANNED | No |
 | F | Queue / Redis / BullMQ | NOT YET AUTHORIZED; record only | PLANNED | No |
