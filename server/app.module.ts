@@ -14,6 +14,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { PointsModule } from './modules/points/points.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { AiToolsModule } from './modules/ai-tools/ai-tools.module';
+import { DocumentInputModule } from './modules/document-input/document-input.module';
 
 const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
 
@@ -32,6 +33,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
     PointsModule,
     OrdersModule,
     AiToolsModule,
+    DocumentInputModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last
