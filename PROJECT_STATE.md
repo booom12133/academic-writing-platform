@@ -16,7 +16,7 @@ Last Updated: 2026-09-02
 - Current Stable Phase: Phase C3 — Chunking
 - Stable Status: ACCEPTED / FROZEN (`PHASE_C3_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: `54655ec326e8c60324b8ab160db580768212204e` (pre-merge value; final C3 main merge commit recorded after closeout merge)
+- Stable Main Commit: `e97a4372dd265429006aef0675ae7e399b862762` (Phase C3 acceptance merge)
 - Latest Final Acceptance Report: [PHASE_C3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C3_FINAL_ACCEPTANCE_REPORT.md)
 - Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, and Phase C3 are completed/frozen by project records
 
@@ -27,8 +27,8 @@ Last Updated: 2026-09-02
 - Current Phase Status: `PHASE_C3_ACCEPTED_CLOSED; PHASE_C4_NOT_STARTED`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
-- Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — ACCEPTED; merge pending closeout
-- Phase C3 Accepted Tag: `phase-c3-accepted` — to be created on final accepted main state
+- Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
+- Phase C3 Accepted Tag: `phase-c3-accepted` — annotated tag points to the final accepted main state after governance update
 - Phase C2 Accepted Implementation Commit: `5cda43f`
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
