@@ -13,21 +13,24 @@ Last Updated: 2026-09-02
 
 ## Stable state
 
-- Current Stable Phase: Phase C1 — Document Parsing Foundation
-- Stable Status: ACCEPTED / FROZEN (`PHASE_C1_ACCEPTED`)
-- Stable Main Commit: canonical pointer is the annotated tag `phase-c1-accepted` on final `main` HEAD; the exact merge hash is intentionally not self-recorded in the merge commit
-- Latest Final Acceptance Report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, and Phase C1 are completed/frozen by project records
+- Current Stable Phase: Phase C2 — Context Builder
+- Stable Status: ACCEPTED / FROZEN (`PHASE_C2_ACCEPTED`)
+- Stable Branch: `main`
+- Stable Main Commit: to be recorded after the Phase C2 acceptance merge; the accepted implementation is `5cda43f`
+- Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, and Phase C2 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase C2 — Context Builder
-- Current Development Branch: `phase/c2-context-builder`
-- Current Phase Status: `IN_PROGRESS / REVIEW_CANDIDATE`
-- Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; post-review implementation tip included in the pushed Phase branch)
+- Current Development Phase: NONE
+- Current Development Branch: NONE
+- Current Phase Status: `PHASE_C2_ACCEPTED_CLOSED; PHASE_C3_NOT_STARTED`
+- Phase C2 Accepted Implementation Commit: `5cda43f`
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; branch-head SHA is intentionally not recorded here.
+- Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — acceptance closeout in progress before merge
+- Phase C2 Accepted Tag: `phase-c2-accepted` — to be created on the final accepted `main` commit
+- Latest Final Acceptance Report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 
 ## Completed phases
 
@@ -35,6 +38,7 @@ Last Updated: 2026-09-02
 - Phase B0: DONE / FROZEN
 - Phase B1: ACCEPTED / FROZEN
 - Phase C1: ACCEPTED / FROZEN
+- Phase C2: ACCEPTED / FROZEN
 
 ## Current Phase goal
 
@@ -53,16 +57,14 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 ## Test baseline and current results
 
 - Stable accepted baseline: Phase C1 on `main` remains the frozen accepted implementation baseline.
-- Current targeted C2: PASS — `npx jest server/modules/context-builder/context-builder.service.spec.ts --runInBand` → 1 suite / 20 tests.
-- Current full regression: PASS — `npm test -- --runInBand` → 21 suites / 126 tests.
+- Current targeted C2: PASS — `npx jest server/modules/context-builder/context-builder.service.spec.ts --runInBand` → 44 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 21 suites / 150 tests.
 - Current lint: PASS.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS (covered by `npm run type:check` and the lint pipeline).
 - Current client type-check: PASS (covered by `npm run type:check` and the lint pipeline).
 - Current server build: PASS.
 - Current client build: PASS, with existing non-blocking module-type and chunk-size warnings.
-- Current post-review targeted C2: PASS — 44 tests.
-- Current post-review full regression: PASS — 21 suites / 150 tests.
 - Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
 - DeepSeek API calls during C2 verification: 0.
 
@@ -80,8 +82,7 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 
 ## Known issues
 
-- Phase C2 is only a review candidate on `phase/c2-context-builder`; it is not accepted, merged into `main`, or tagged.
-- Post-review local fix `5cda43f` is committed, verified, and included in the pushed Phase branch; PR #1 remains open and unmerged.
+- Phase C2 has been formally accepted; the acceptance merge and `phase-c2-accepted` tag are the remaining closeout operations.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
@@ -100,10 +101,11 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 - Latest C1 final report: [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C1_FINAL_ACCEPTANCE_REPORT.md)
 - Historical B1 final report: [PHASE_B1_FINAL_ACCEPTANCE_REPORT.md](PHASE_B1_FINAL_ACCEPTANCE_REPORT.md)
 - C2 design context: [2026-09-01-phase-c2-context-builder-design.md](docs/superpowers/specs/2026-09-01-phase-c2-context-builder-design.md)
+- C2 final acceptance report: [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C2_FINAL_ACCEPTANCE_REPORT.md)
 - Report index and naming rules: [docs/reviews/README.md](docs/reviews/README.md)
 
 ## Next Phase
 
-- Next Phase: Phase C2 — Context Builder
-- Next Phase Status: CURRENT AUTHORIZED PHASE / IN_PROGRESS / REVIEW_CANDIDATE
-- Next Phase Goal: Deterministic context assembly from one validated C1 parsed document for later document-aware tools; do not advance to C3 before explicit C2 acceptance.
+- Next Phase: Phase C3 — Chunking
+- Next Phase Status: NOT_STARTED; waiting for explicit design authorization
+- Next Phase Goal: Design approval required before implementation; do not begin C3 in this closeout.
