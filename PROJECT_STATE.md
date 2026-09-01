@@ -24,10 +24,10 @@ Last Updated: 2026-09-02
 - Current Development Phase: Phase C2 — Context Builder
 - Current Development Branch: `phase/c2-context-builder`
 - Current Phase Status: `IN_PROGRESS / REVIEW_CANDIDATE`
-- Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; local post-review fix tip, pending GitHub push)
+- Current Review Candidate Commit: `5cda43f` (`fix(c2): harden context builder validation`; post-review implementation tip included in the pushed Phase branch)
 - Phase C1 Accepted Implementation Commit: `4d95db8`
 - Phase C1 Accepted Tag: `phase-c1-accepted`
-- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; post-review local head `b5bb473` is pushed to `origin/phase/c2-context-builder`.
+- Current PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) OPEN against `main`; current branch head `b79776b` is pushed to `origin/phase/c2-context-builder`.
 
 ## Completed phases
 
@@ -85,6 +85,7 @@ Convert one validated C1 `ParsedDocument`, a narrow academic task type, and opti
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
+- GitHub Actions `verify` reaches full tests after the lockfile repair, then fails on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; C2 tests and the other 20 suites pass. This unrelated cross-platform baseline issue is intentionally not changed in Phase C2.
 - C2 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, chunking, OCR, retrieval, or multi-document orchestration.
 
 ## Do not modify
