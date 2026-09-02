@@ -40,6 +40,7 @@ Create only the following D2-owned files unless an implementation task proves th
 - `server/modules/ai-tools/polish/polish-input.normalizer.spec.ts` — request-mode, ownership-reference, and untrusted-client-field tests.
 - `server/modules/ai-tools/polish/polish-billing.service.ts` — derives canonical prepared billing text and the unchanged UTF-16/500 formula from trusted prepared records.
 - `server/modules/ai-tools/polish/polish-billing.service.spec.ts` — billing authority, formula, Unicode metric, and References billing tests.
+- `server/modules/ai-tools/polish/polish-source-boundary.ts` — shared trusted D1 source/provenance boundary helper used by billing and aggregation.
 - `server/modules/ai-tools/polish/polish-chunk.executor.ts` — adapts one eligible D1 content chunk to one existing `PolishGenerator.generate` call; it has no References pass-through branch.
 - `server/modules/ai-tools/polish/polish-chunk.executor.spec.ts` — one-call content mapping, defensive rejection of non-content/non-eligible direct calls, and output sanitization tests.
 - `server/modules/ai-tools/polish/polish-result.aggregator.ts` — deterministic source reconstruction and one final legacy-compatible Polish result.

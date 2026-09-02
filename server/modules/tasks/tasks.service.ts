@@ -22,62 +22,29 @@ export class TasksService {
     inputData: Record<string, any>;
   }): Promise<Task> {
     const { userId, taskType, title, inputData } = params;
+    return this.createTaskWithPoints({
+      userId,
+      taskType,
+      title,
+      inputData,
+      pointsCost: this.calculatePoints(taskType, inputData),
+    });
+  }
 
-    const toolConfig = TOOL_CONFIGS.find((t) => t.type === taskType);
-    if (!toolConfig) {
-      throw new BadRequestException('未知的工具类型');
-    }
-
-    const pointsCost = this.calculatePoints(taskType, inputData);
-
-    return this.db.transaction(async (tx) => {
-      // 1. 查询用户积分
-      const userRows = await tx
-        .select({ points: appUsers.points, memberLevel: appUsers.memberLevel })
-        .from(appUsers)
-        .where(eq(appUsers.userId, userId))
-        .limit(1);
-
-      if (userRows.length === 0) {
-        throw new BadRequestException('用户不存在');
-      }
-
-      const currentPoints: number = userRows[0].points;
-      if (currentPoints < pointsCost) {
-        throw new BadRequestException('积分不足，请先充值');
-      }
-
-      // 2. 扣减积分
-      const newBalance: number = currentPoints - pointsCost;
-      await tx.update(appUsers).set({ points: newBalance }).where(eq(appUsers.userId, userId));
-
-      // 3. 创建任务
-      const inserted = await tx
-        .insert(tasks)
-        .values({
-          userId,
-          taskType,
-          title,
-          status: 'pending',
-          progress: 0,
-          pointsCost,
-          inputData,
-        })
-        .returning();
-
-      const taskId: string = inserted[0].id;
-
-      // 4. 写入积分流水
-      await tx.insert(pointRecords).values({
-        userId,
-        type: 'consume',
-        amount: -pointsCost,
-        balanceAfter: newBalance,
-        taskId,
-        description: `${toolConfig.name}`,
-      });
-
-      return this.mapRowToTask(inserted[0]);
+  async createPreparedPolishTask(params: {
+    userId: string;
+    title: string;
+    inputData: Record<string, any>;
+    preparedBillingText: string;
+  }): Promise<Task> {
+    const charCount = params.preparedBillingText.length;
+    const pointsCost = Math.max(10, Math.ceil(charCount / 500) * 10);
+    return this.createTaskWithPoints({
+      userId: params.userId,
+      taskType: 'polish',
+      title: params.title,
+      inputData: params.inputData,
+      pointsCost,
     });
   }
 
@@ -164,6 +131,66 @@ export class TasksService {
     }
 
     return toolConfig.basePoints;
+  }
+
+  private async createTaskWithPoints(params: {
+    userId: string;
+    taskType: TaskType;
+    title: string;
+    inputData: Record<string, any>;
+    pointsCost: number;
+  }): Promise<Task> {
+    const { userId, taskType, title, inputData, pointsCost } = params;
+    const toolConfig = TOOL_CONFIGS.find((t) => t.type === taskType);
+    if (!toolConfig) {
+      throw new BadRequestException('未知的工具类型');
+    }
+
+    return this.db.transaction(async (tx) => {
+      const userRows = await tx
+        .select({ points: appUsers.points, memberLevel: appUsers.memberLevel })
+        .from(appUsers)
+        .where(eq(appUsers.userId, userId))
+        .limit(1);
+
+      if (userRows.length === 0) {
+        throw new BadRequestException('用户不存在');
+      }
+
+      const currentPoints: number = userRows[0].points;
+      if (currentPoints < pointsCost) {
+        throw new BadRequestException('积分不足，请先充值');
+      }
+
+      const newBalance: number = currentPoints - pointsCost;
+      await tx.update(appUsers).set({ points: newBalance }).where(eq(appUsers.userId, userId));
+
+      const inserted = await tx
+        .insert(tasks)
+        .values({
+          userId,
+          taskType,
+          title,
+          status: 'pending',
+          progress: 0,
+          pointsCost,
+          inputData,
+        })
+        .returning();
+
+      const taskId: string = inserted[0].id;
+
+      await tx.insert(pointRecords).values({
+        userId,
+        type: 'consume',
+        amount: -pointsCost,
+        balanceAfter: newBalance,
+        taskId,
+        description: `${toolConfig.name}`,
+      });
+
+      return this.mapRowToTask(inserted[0]);
+    });
   }
 
   async getStatsByUser(userId: string): Promise<{
