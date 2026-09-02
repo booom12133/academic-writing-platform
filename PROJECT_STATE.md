@@ -26,7 +26,7 @@ Last Updated: 2026-09-02
 - Current Development Branch: `phase/d1-tool-execution-foundation`
 - Current Phase Status: `REVIEW_CANDIDATE` / awaiting ChatGPT review and explicit acceptance
 - Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
-- Phase D1 candidate implementation commit: `cdeafa9`
+- Phase D1 candidate implementation commit: `9903208`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -107,7 +107,7 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 - Stable accepted baseline: Phase C2 on `main` remains the frozen accepted implementation baseline.
 - Current targeted D1: PASS — execution preparation, execution aggregation, DI, and contract suites.
-- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 244 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 245 tests.
 - Current lint: PASS — `npm run lint`.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS.
