@@ -1,4 +1,4 @@
-import type { AcademicToolExecutionResult, RenderedToolChunk, ToolExecutionChunkRecord } from '../execution/tool-execution.types';
+import type { AcademicToolExecutionResult, AggregatedValidation, RenderedToolChunk, ToolExecutionChunkRecord } from '../execution/tool-execution.types';
 import type { InvariantValidationResult } from '../skills/validators/invariant.types';
 import { PolishResultAggregator } from './polish-result.aggregator';
 
@@ -8,9 +8,9 @@ const chunkValidation: InvariantValidationResult = {
   summary: { errors: 0, warnings: 0 },
 };
 
-const aggregatedValidation = {
-  status: 'PASS' as const,
-  results: [] as Array<{ chunkId: string; validation: InvariantValidationResult }>,
+const aggregatedValidation: AggregatedValidation = {
+  status: 'PASS',
+  results: [],
   summary: { errors: 0, warnings: 0 },
 };
 
@@ -122,7 +122,7 @@ function referenceRecord(chunkValue: RenderedToolChunk): ToolExecutionChunkRecor
 
 function execution(
   records: ToolExecutionChunkRecord[],
-  validation = aggregatedValidation,
+  validation: AggregatedValidation = aggregatedValidation,
 ): AcademicToolExecutionResult {
   return {
     version: 1,

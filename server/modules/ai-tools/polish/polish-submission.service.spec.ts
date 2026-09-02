@@ -76,6 +76,10 @@ describe('PolishSubmissionService', () => {
       }),
     };
     const execution = {
+      render: jest.fn().mockReturnValue([{
+        section: 'content',
+        eligibleForExecution: true,
+      }]),
       execute: jest.fn(async () => {
         calls.push('execute');
         return executionDeferred.promise;
@@ -158,6 +162,10 @@ describe('PolishSubmissionService', () => {
         patch.status === 'processing' ? processing : failed),
     };
     const execution = {
+      render: jest.fn().mockReturnValue([{
+        section: 'content',
+        eligibleForExecution: true,
+      }]),
       execute: jest.fn().mockRejectedValue(new Error('first chunk failed')),
     };
     const executor = { execute: jest.fn() };
@@ -182,6 +190,116 @@ describe('PolishSubmissionService', () => {
       errorMessage: 'first chunk failed',
     });
     expect(tasks.updateTask.mock.calls.some((call) => call[1].status === 'completed')).toBe(false);
+  });
+
+  it('rejects an empty prepared context before billing, Task creation, or async execution', async () => {
+    const preparation = {
+      prepareBeforeBilling: jest.fn(async (_input, callback) => callback({ context: preparedContext })),
+    };
+    const billing = {
+      calculate: jest.fn().mockReturnValue({ billingText: '', charCount: 0, pointsCost: 10 }),
+    };
+    const tasks = {
+      createPreparedPolishTask: jest.fn().mockResolvedValue(task()),
+      updateTask: jest.fn().mockResolvedValue(task({ status: 'processing', progress: 10 })),
+    };
+    const execution = {
+      render: jest.fn().mockReturnValue([]),
+      execute: jest.fn(),
+    };
+    const generator = { generate: jest.fn() };
+    const executor = new PolishChunkExecutor(generator as never);
+    const executorExecuteSpy = jest.spyOn(executor, 'execute');
+    const service = new PolishSubmissionService(
+      preparation as unknown as ToolSubmissionPreparationService,
+      billing as unknown as PolishBillingService,
+      tasks as unknown as TasksService,
+      execution as unknown as AcademicToolExecutionService,
+      executor,
+      { aggregate: jest.fn() } as unknown as PolishResultAggregator,
+    );
+
+    await expect(service.submit(request)).rejects.toThrow('executable content');
+
+    expect(billing.calculate).not.toHaveBeenCalled();
+    expect(tasks.createPreparedPolishTask).not.toHaveBeenCalled();
+    expect(tasks.updateTask).not.toHaveBeenCalled();
+    expect(execution.execute).not.toHaveBeenCalled();
+    expect(executorExecuteSpy).not.toHaveBeenCalled();
+    expect(generator.generate).not.toHaveBeenCalled();
+  });
+
+  it('rejects a references-only prepared context before billing, Task creation, or async execution', async () => {
+    const preparation = {
+      prepareBeforeBilling: jest.fn(async (_input, callback) => callback({ context: preparedContext })),
+    };
+    const billing = {
+      calculate: jest.fn().mockReturnValue({ billingText: 'Ref.', charCount: 4, pointsCost: 10 }),
+    };
+    const tasks = {
+      createPreparedPolishTask: jest.fn().mockResolvedValue(task()),
+      updateTask: jest.fn().mockResolvedValue(task({ status: 'processing', progress: 10 })),
+    };
+    const execution = {
+      render: jest.fn().mockReturnValue([{
+        section: 'references',
+        eligibleForExecution: false,
+      }]),
+      execute: jest.fn(),
+    };
+    const generator = { generate: jest.fn() };
+    const executor = new PolishChunkExecutor(generator as never);
+    const executorExecuteSpy = jest.spyOn(executor, 'execute');
+    const service = new PolishSubmissionService(
+      preparation as unknown as ToolSubmissionPreparationService,
+      billing as unknown as PolishBillingService,
+      tasks as unknown as TasksService,
+      execution as unknown as AcademicToolExecutionService,
+      executor,
+      { aggregate: jest.fn() } as unknown as PolishResultAggregator,
+    );
+
+    await expect(service.submit(request)).rejects.toThrow('executable content');
+
+    expect(billing.calculate).not.toHaveBeenCalled();
+    expect(tasks.createPreparedPolishTask).not.toHaveBeenCalled();
+    expect(tasks.updateTask).not.toHaveBeenCalled();
+    expect(execution.execute).not.toHaveBeenCalled();
+    expect(executorExecuteSpy).not.toHaveBeenCalled();
+    expect(generator.generate).not.toHaveBeenCalled();
+  });
+
+  it('fails submission when the processing update cannot be persisted', async () => {
+    const preparation = {
+      prepareBeforeBilling: jest.fn(async (_input, callback) => callback({ context: preparedContext })),
+    };
+    const billing = {
+      calculate: jest.fn().mockReturnValue({ billingText: 'source', charCount: 6, pointsCost: 10 }),
+    };
+    const tasks = {
+      createPreparedPolishTask: jest.fn().mockResolvedValue(task()),
+      updateTask: jest.fn().mockResolvedValue(null),
+    };
+    const execution = {
+      render: jest.fn().mockReturnValue([{
+        section: 'content',
+        eligibleForExecution: true,
+      }]),
+      execute: jest.fn(),
+    };
+    const service = new PolishSubmissionService(
+      preparation as unknown as ToolSubmissionPreparationService,
+      billing as unknown as PolishBillingService,
+      tasks as unknown as TasksService,
+      execution as unknown as AcademicToolExecutionService,
+      { execute: jest.fn() } as unknown as PolishChunkExecutorType,
+      { aggregate: jest.fn() } as unknown as PolishResultAggregator,
+    );
+
+    await expect(service.submit(request)).rejects.toThrow('processing');
+
+    expect(tasks.updateTask).toHaveBeenCalledTimes(1);
+    expect(execution.execute).not.toHaveBeenCalled();
   });
 
   it('lets D1 own Reference pass-through with zero executor and generator calls', async () => {

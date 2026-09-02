@@ -30,6 +30,14 @@ export class PolishSubmissionService {
     await this.preparation.prepareBeforeBilling(
       normalized.preparation,
       async (prepared) => {
+        const rendered = this.execution.render(prepared.context);
+        const hasExecutableContent = rendered.some(
+          (chunk) => chunk.section === 'content' && chunk.eligibleForExecution,
+        );
+        if (!hasExecutableContent) {
+          throw new Error('Academic polish requires executable content');
+        }
+
         const preparedBilling = this.billing.calculate(prepared.context);
         const created = await this.tasks.createPreparedPolishTask({
           userId: request.userId,
@@ -37,17 +45,18 @@ export class PolishSubmissionService {
           inputData: request.inputData,
           preparedBillingText: preparedBilling.billingText,
         });
-        processingTask = await this.tasks.updateTask(created.id, {
+        const updated = await this.tasks.updateTask(created.id, {
           status: 'processing',
           progress: 10,
-        }) ?? { ...created, status: 'processing', progress: 10 };
+        });
+        if (!updated) {
+          throw new Error('Failed to update Polish task to processing');
+        }
+        processingTask = updated;
 
+        const taskId = updated.id;
         setTimeout(() => {
-          void this.processAsync(
-            processingTask!.id,
-            prepared.context,
-            normalized.options,
-          );
+          void this.processAsync(taskId, prepared.context, normalized.options);
         }, 0);
       },
     );

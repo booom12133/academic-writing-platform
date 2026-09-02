@@ -87,15 +87,20 @@ describe('PolishBillingService', () => {
     expect(result.pointsCost).toBe(30);
   });
 
-  it('uses the minimum ten points for an empty prepared source', () => {
+  it('uses the minimum ten points for a nonempty prepared source below 500 units', () => {
     const execution = {
-      render: jest.fn().mockReturnValue([]),
+      render: jest.fn().mockReturnValue([
+        rendered({
+          text: 'short source',
+          items: [item('c1', 'short source', 'content', 'block-a')],
+        }),
+      ]),
     } as unknown as AcademicToolExecutionService;
     const service = new PolishBillingService(execution);
 
     expect(service.calculate({} as ChunkedTaskContext)).toEqual({
-      billingText: '',
-      charCount: 0,
+      billingText: 'short source',
+      charCount: 12,
       pointsCost: 10,
     });
   });
