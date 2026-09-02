@@ -28,7 +28,7 @@ const REVISION_TYPES = [
   { value: 'academic', label: '学术化提升' },
   { value: 'format', label: '格式调整' },
 ];
-const BASE_POINTS = 20;
+const BASE_POINTS = 30;
 
 const PaperRevisionTool: React.FC = () => {
   const navigate = useNavigate();
@@ -44,9 +44,12 @@ const PaperRevisionTool: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
 
-  const canSubmit =
-    revisionTypes.length > 0 &&
-    inputMode === 'text' && text.trim().length > 0;
+  const canSubmit = aiToolsApi.canSubmitPaperRevision(
+    inputMode,
+    text,
+    documentRef,
+    revisionTypes,
+  );
 
   const toggleType = (v: string) => {
     setRevisionTypes((prev) =>
@@ -55,22 +58,19 @@ const PaperRevisionTool: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!canSubmit || inputMode !== 'text') return;
+    if (!canSubmit) return;
     setLoading(true);
     try {
-      const task: Task = await aiToolsApi.submitTask({
-        taskType: 'paper-revision',
+      const task: Task = await aiToolsApi.submitPaperRevisionTask({
         title: inputMode === 'text'
           ? text.slice(0, 30) + (text.length > 30 ? '...' : '')
-          : '论文修改',
-        inputData: {
-          inputMode,
-          text: inputMode === 'text' ? text : undefined,
-          fileName: undefined,
-          revisionTypes,
-          requirements,
-          wordCount: text.length,
-        },
+          : documentRef?.fileName || '论文修改',
+        inputMode,
+        text: inputMode === 'text' ? text : undefined,
+        documentRef: inputMode === 'file' ? documentRef ?? undefined : undefined,
+        revisionTypes,
+        requirements,
+        wordCount: inputMode === 'text' ? text.length : undefined,
       });
       setResult(task);
     } catch (err) { logger.error('submit pr task failed', JSON.stringify(err)); }
@@ -161,15 +161,19 @@ const PaperRevisionTool: React.FC = () => {
         </FormField>
       </CardContent>
       {inputMode === 'file' ? (
-        <div className="border-t border-slate-100 pt-5">
-          <DocumentInputUploadAction
+      <div className="border-t border-slate-100 pt-5">
+        <DocumentInputUploadAction
             file={files[0] ?? null}
             ready={documentRef !== null && documentDescriptor !== null}
             uploading={uploading}
             error={uploadError}
-            onUpload={handleDocumentUpload}
-          />
-        </div>
+          onUpload={handleDocumentUpload}
+        />
+        {documentRef && documentDescriptor && (
+          <SubmitFooter loading={loading} disabled={!canSubmit}
+            points={BASE_POINTS} onClick={handleSubmit} label="开始修改" />
+        )}
+      </div>
       ) : (
         <SubmitFooter loading={loading} disabled={!canSubmit}
           points={BASE_POINTS} onClick={handleSubmit} label="开始修改" />
