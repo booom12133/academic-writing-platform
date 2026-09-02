@@ -221,4 +221,90 @@ describe('AcademicToolExecutionService', () => {
       totalTokens: 7,
     });
   });
+
+  it('drops executor-supplied provenance before storing the chunk result', async () => {
+    const service = new AcademicToolExecutionService();
+    const executor: ToolChunkExecutor = {
+      execute: jest.fn().mockResolvedValue({
+        output: { revisedContent: 'Revised content.' },
+        provenance: [{ sourceBlockId: 'untrusted-block' }],
+      } as ToolChunkExecutionResult & { provenance: unknown }),
+    };
+
+    const result = await service.execute(context, executor);
+
+    expect(result.chunks[0].result).toEqual({
+      output: { revisedContent: 'Revised content.' },
+    });
+    expect(result.chunks[0].result).not.toHaveProperty('provenance');
+  });
+
+  it('keeps fragmented reference text contiguous and separates reference units deterministically', () => {
+    const service = new AcademicToolExecutionService();
+    const referenceChunk = context.chunks[1];
+    const referenceContext: ChunkedTaskContext = {
+      ...context,
+      chunks: [
+        {
+          ...referenceChunk,
+          items: [
+            {
+              kind: 'text-fragment',
+              sourceUnitId: 'unit-2',
+              sourceBlockId: 'block-2',
+              sourceBlockIndex: 1,
+              section: 'references',
+              headingPath: [],
+              blockType: 'paragraph',
+              fragmentId: 'unit-2:f000001',
+              text: '[1] Reference entry',
+              span: { start: 0, endExclusive: 20 },
+              size: 20,
+            },
+            {
+              kind: 'text-fragment',
+              sourceUnitId: 'unit-2',
+              sourceBlockId: 'block-2',
+              sourceBlockIndex: 1,
+              section: 'references',
+              headingPath: [],
+              blockType: 'paragraph',
+              fragmentId: 'unit-2:f000002',
+              text: ' continued.',
+              span: { start: 20, endExclusive: 31 },
+              size: 11,
+            },
+            {
+              kind: 'whole-unit',
+              size: 22,
+              unit: {
+                id: 'unit-3',
+                sourceId: 'document-1',
+                sourceBlockId: 'block-3',
+                sourceBlockIndex: 2,
+                section: 'references',
+                headingPath: [],
+                block: {
+                  id: 'block-3',
+                  type: 'paragraph',
+                  text: '[2] Another reference.',
+                },
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const [rendered] = service.render(referenceContext);
+
+    expect(rendered.text).toBe(
+      '[1] Reference entry continued.\n[2] Another reference.',
+    );
+    expect(rendered.items.map((item) => item.text)).toEqual([
+      '[1] Reference entry',
+      ' continued.',
+      '[2] Another reference.',
+    ]);
+  });
 });

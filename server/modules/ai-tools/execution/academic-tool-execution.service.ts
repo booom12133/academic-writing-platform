@@ -27,9 +27,7 @@ export class AcademicToolExecutionService {
         sourceId: chunk.sourceId,
         section: chunk.section,
         eligibleForExecution: chunk.section === 'content',
-        text: items
-          .map((item) => item.text)
-          .join(chunk.section === 'references' ? '' : '\n'),
+        text: this.renderText(chunk.section, items),
         items,
         provenance: items.map((item) => item.provenance),
       };
@@ -66,12 +64,12 @@ export class AcademicToolExecutionService {
         continue;
       }
 
-      const result = await executor.execute({
+      const result = this.sanitizeResult(await executor.execute({
         taskType: context.task.type,
         userInstructions: context.task.userInstructions,
         options,
         chunk,
-      });
+      }));
       records.push({
         chunk,
         mode: 'executed',
@@ -119,6 +117,20 @@ export class AcademicToolExecutionService {
       text: item.text,
       provenance,
     };
+  }
+
+  private renderText(
+    section: RenderedToolChunk['section'],
+    items: RenderedToolChunk['items'],
+  ): string {
+    return items.reduce((text, item, index) => {
+      if (index === 0) return item.text;
+      const previous = items[index - 1];
+      const sameReferenceUnit =
+        section === 'references' &&
+        previous.provenance.sourceBlockId === item.provenance.sourceBlockId;
+      return `${text}${sameReferenceUnit ? '' : '\n'}${item.text}`;
+    }, '');
   }
 
   private provenanceForItem(
@@ -174,6 +186,15 @@ export class AcademicToolExecutionService {
     if (result.validation)
       validationResults.push({ chunkId, validation: result.validation });
     if (result.usage) addUsage(result.usage);
+  }
+
+  private sanitizeResult(result: ToolChunkExecutionResult): ToolChunkExecutionResult {
+    return {
+      ...(result.output === undefined ? {} : { output: { ...result.output } }),
+      ...(result.warnings === undefined ? {} : { warnings: [...result.warnings] }),
+      ...(result.validation === undefined ? {} : { validation: result.validation }),
+      ...(result.usage === undefined ? {} : { usage: { ...result.usage } }),
+    };
   }
 
   private aggregateValidation(
