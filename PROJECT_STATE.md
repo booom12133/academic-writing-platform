@@ -24,7 +24,7 @@ Last Updated: 2026-09-02
 
 - Current Development Phase: Phase C4 — File Integration
 - Current Development Branch: `phase/c4-file-integration`
-- Current Phase Status: `PHASE_C4_FIX_REQUIRED`
+- Current Phase Status: `PHASE_C4_REVIEW_PASS`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -34,7 +34,7 @@ Last Updated: 2026-09-02
 - Phase C1 Accepted Tag: `phase-c1-accepted`
 - Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — MERGED
 - Phase C2 Accepted Tag: `phase-c2-accepted` — annotated tag points to the final accepted main state `85ff344`
-- Latest Final Acceptance Report: [PHASE_C3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C3_FINAL_ACCEPTANCE_REPORT.md)
+- Latest Current-Phase Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md) — review-pass record; formal `PHASE_C4_ACCEPTED` remains pending.
 
 ## Completed phases
 
@@ -88,7 +88,10 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - Server build: PASS — `npm run build:server`.
 - Client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
 - Dependency dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
-- Self-hosted server smoke: PENDING — deployment is intentionally not performed from this workspace. The user's Linux server must run the filesystem-mode multipart → durable write/read → size/SHA-256 → `prepare()` → C1 → C2 → C3 smoke with a synthetic document before C4 acceptance. Local compiled AppModule wiring was verified without `FORCE_AUTHN_INNERAPI_DOMAIN`; this is not the server smoke evidence.
+- Self-hosted server smoke: PASS — on the user's real CentOS 8 Linux server using Node v22.23.2 and npm 10.9.8, filesystem mode wrote and read the synthetic `c4-smoke-test.md` below `/var/lib/academic-writing-platform/documents`; size and SHA-256 matched; `DocumentInputService.prepare()` completed C1 → C2 → C3 successfully. The storage root was outside the public web root, no public URL was created, and no `FORCE_AUTHN_INNERAPI_DOMAIN` or DeepSeek/LLM call was used.
+- Self-hosted smoke evidence: HTTP `201`; provider and bucket `self-hosted-filesystem`; file size `138`; SHA-256 `54226ccee52283fc2b751ef107a9e1de7936241c4ab575e2d1113fbe7ba5e2d3`; upload-time C1 title `C4 Smoke Test`, `6` blocks, `1` warning; prepare summary `6` blocks, `3` chunks, `88` content code points, `31` reference code points; byte-for-byte comparison exit code `0`.
+- Self-hosted smoke harness: auth mode `repository local-development test harness`; database mode `repository LocalDevelopmentDatabaseModule test harness`; storage mode `real self-hosted Linux filesystem`. This proves the C4 document-input runtime contract, not production self-hosted authentication, production PostgreSQL deployment, or full self-hosted production readiness.
+- Full self-hosted AppModule bootstrap issue: the frozen `SkillLoader` constructor parameter is interpreted by Nest DI as `Object`. This is inherited unchanged from accepted `main`, is outside C4 scope, and was documented only; it does not invalidate the isolated C4 DocumentInput runtime contract smoke.
 - Review fixes: path validation now rejects raw backslashes and case-insensitive `%2F`/`%5C` before bucket/download access, with canonical path reconstruction; the C4 filter now catches only `DocumentInputError` and Nest `PayloadTooLargeException`.
 - GitHub Actions runs `33555613324`, `33555570549`, `33592919434`, and `33592921452`: all failed only in `Full tests` at `test/unit/platform-command.spec.ts › commandForPlatform › uses npm cli scripts when npm provides its executable path`; Ubuntu expected `/opt/hostedtoolcache/node/22.23.2/x64/bin/node` but received `npx.cmd`. This remains the accepted inherited Windows-path fixture issue and was not changed.
 - DeepSeek / external AI calls during C4 verification: 0.
