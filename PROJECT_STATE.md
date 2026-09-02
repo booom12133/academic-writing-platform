@@ -13,19 +13,27 @@ Last Updated: 2026-09-02
 
 ## Stable state
 
-- Current Stable Phase: Phase D1 — Tool Execution Foundation
-- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D1_ACCEPTED_CLOSED`)
+- Current Stable Phase: Phase D2 — Polish Migration
+- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D2_ACCEPTED_CLOSED`)
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge D1 governance HEAD (this closeout commit)
-- Latest Final Acceptance Report: [PHASE_D1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D1_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, and Phase D1 are completed/frozen by project records
+- Stable Main Commit: final post-merge D2 governance HEAD (this closeout commit)
+- Latest Final Acceptance Report: [PHASE_D2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D2_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, and Phase D2 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase D1 — Tool Execution Foundation (closed on `main`)
+- Current Development Phase: Phase D2 — Polish Migration (closed on `main`)
 - Current Development Branch: `main`
-- Current Phase Status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_D1_ACCEPTED_CLOSED`)
-- Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
+- Current Phase Status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_D2_ACCEPTED_CLOSED`)
+- Phase D2 scope: Polish text/file migration onto the C1 → C2 → C3 → D1 preparation and execution pipeline, server-owned chunking and billing, asynchronous sequential execution, deterministic aggregation, and frontend structured file-reference submission.
+- Phase D2 accepted implementation/final-acceptance HEAD: `56dc2ff48fdf19f3f11ab1cc8270432fda917fd7`
+- Phase D2 Final Acceptance: `PHASE_D2_ACCEPTED` (ChatGPT Review ID `5091748366`)
+- Phase D2 PR: [#5 Phase D2: Polish Migration](https://github.com/booom12133/academic-writing-platform/pull/5) — MERGED
+- Phase D2 PR merge commit: `acfa70a7cc9317946653c4249cb7f2dfad50ab6c`
+- Phase D2 post-merge governance commit: this closeout commit, final `main` HEAD
+- Phase D2 accepted tag: `phase-d2-accepted` — annotated tag points to final `main` HEAD
+- Phase D2 Final Acceptance Report: [PHASE_D2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D2_FINAL_ACCEPTANCE_REPORT.md)
+- Phase D1 historical accepted baseline: Tool Execution Foundation, accepted/frozen/closed on `main`.
 - Phase D1 implementation commit before review fixes: `9903208`
 - Phase D1 review head before current fixes: `1999fd5e0f8e0fe35d90658a12fb4e63cd6be8ac`
 - Phase D1 current review-fix implementation commit: `3dbab6d`
@@ -48,7 +56,7 @@ Last Updated: 2026-09-02
 - Phase C4 Accepted Implementation HEAD: `bdc23099a454eb7e257ae3161b213106c89b8bf4`
 - Phase C4 Merge Commit: `ad8ce030ec1195d924efadf174d1bfaaa36357c5`
 - Phase C4 Accepted Tag: `phase-c4-accepted` — annotated tag points to the final accepted main state after closeout governance.
-- Latest Final Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md)
+- Phase C4 Final Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md)
 
 ## Completed phases
 
@@ -60,6 +68,7 @@ Last Updated: 2026-09-02
 - Phase C3: ACCEPTED / FROZEN
 - Phase C4: ACCEPTED / FROZEN / CLOSED
 - Phase D1: ACCEPTED / FROZEN / CLOSED (`PHASE_D1_ACCEPTED_CLOSED`)
+- Phase D2: ACCEPTED / FROZEN / CLOSED (`PHASE_D2_ACCEPTED_CLOSED`)
 
 ## Previous accepted Phase goal (C3)
 
@@ -114,9 +123,9 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Test baseline and current results
 
-- Stable accepted baseline: Phase C4 on `main` remains the frozen accepted implementation baseline.
-- Current targeted D1: PASS — execution preparation, execution aggregation, DI, and contract suites.
-- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 247 tests.
+- Stable accepted baseline: Phase D2 on `main` is the current frozen accepted implementation baseline.
+- Current focused D2 tests: PASS — 8 suites / 27 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 44 suites / 274 tests.
 - Current lint: PASS — `npm run lint`.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS.
@@ -124,9 +133,8 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - Current server build: PASS — `npm run build:server`.
 - Current client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
 - Current full AppModule bootstrap: PASS — `npm run test:app-bootstrap`; built application context resolved `AiToolsModule` and `AcademicToolExecutionService` without a DeepSeek call.
-- Current DeepSeek / external AI calls during D1 verification: 0.
-- Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
-- DeepSeek / external AI calls during C3 verification: 0.
+- Current DeepSeek / external AI calls during D2 verification: 0.
+- Inherited GitHub Actions issue: `test/unit/platform-command.spec.ts` remains unchanged and out of scope; local Windows full regression passes.
 
 ## Frozen components / interfaces
 
@@ -174,6 +182,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: Phase D2 — Tool Migration
+- Next Phase: Phase D3 — Paper Revision Migration
 - Next Phase Status: PLANNED / NOT_STARTED / NOT_AUTHORIZED
-- Next Phase Goal: Record only; do not enter D2 without a separate explicit authorization.
+- Next Phase Goal: Record only; do not enter D3 without separate Architecture / Design authorization after D2 closeout verification.

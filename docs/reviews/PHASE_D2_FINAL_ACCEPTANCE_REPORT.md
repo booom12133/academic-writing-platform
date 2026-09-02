@@ -1,11 +1,11 @@
 # Phase D2 Final Acceptance Report
 
 Date: 2026-09-02  
-Preparation status: `PHASE_D2_FINAL_ACCEPTANCE_READY`
+Final status: `PHASE_D2_ACCEPTED_CLOSED`
 
-This document prepares Phase D2 for separate ChatGPT Final Acceptance. It does
-not constitute Final Acceptance, merge authorization, tag authorization, or
-authorization to enter D3.
+ChatGPT issued `PHASE_D2_ACCEPTED` under Final Acceptance Review ID
+`5091748366`. This report records the accepted baseline and the post-merge
+governance closeout. D2 is frozen and closed; D3 remains planned only.
 
 ## 1. Governance baseline
 
@@ -14,6 +14,9 @@ authorization to enter D3.
 - PR: [#5 Phase D2: Polish Migration](https://github.com/booom12133/academic-writing-platform/pull/5)
 - Review-pass HEAD: `457cd786260f7fc4822a79d54319fd45f8aa54c2`
 - ChatGPT review result at this boundary: `PHASE_D2_REVIEW_PASS`
+- ChatGPT Final Acceptance: `PHASE_D2_ACCEPTED`
+- Final Acceptance Review ID: `5091748366`
+- Accepted implementation/final-acceptance HEAD: `56dc2ff48fdf19f3f11ab1cc8270432fda917fd7`
 - D2 implementation/review-fix commits:
   - `d14eaf1` — lock Polish submission contract
   - `1a66620` — add prepared Polish billing seam
@@ -27,9 +30,14 @@ authorization to enter D3.
   - `0233a04` — align Polish type contracts
   - `53ec2206fb26d1a8f56895e7d2dd1141fb02d46d` — restore trusted aggregation contracts
   - `457cd786260f7fc4822a79d54319fd45f8aa54c2` — gate submission before billing
+- PR #5 merge commit: `acfa70a7cc9317946653c4249cb7f2dfad50ab6c`
+- PR #5 status: MERGED into `main`
+- Post-merge governance commit: this closeout commit, final `main` HEAD
+- Accepted tag: `phase-d2-accepted` — annotated tag points to final `main` HEAD
 
-No production-code change exists after the Review-pass HEAD. The only change
-made in this preparation step is this report.
+No production-code change exists after the Review-pass HEAD. Changes after that
+HEAD are limited to this report and the post-merge governance metadata in
+`PROJECT_STATE.md`.
 
 ## 2. D2 production flow delivered
 
@@ -168,9 +176,11 @@ The full regression command was:
 npm test -- --runInBand
 ```
 
-No real DeepSeek smoke was executed during this preparation. A real smoke is
-not required for this preparation boundary; if ChatGPT separately authorizes
-one, use only the repository's minimal connectivity smoke:
+No real DeepSeek smoke was executed. It was not required for D2 acceptance
+because the existing `test:deepseek` command bypasses the D2 Polish pipeline
+and only exercises the unchanged `DeepSeekProvider`. If a separately
+authorized connectivity check is needed, use only the repository's minimal
+smoke:
 
 ```powershell
 $env:DEEPSEEK_API_KEY = '<authorized-key>'
@@ -179,8 +189,8 @@ Remove-Item Env:DEEPSEEK_API_KEY
 ```
 
 Expected output is one successful JSON response containing the selected model,
-usage, latency, and `{"ok":true}` content. This command must not be run without
-separate authorization.
+usage, latency, and `{"ok":true}` content. This command was not run during D2
+closeout.
 
 ## 5. Frozen and inherited boundaries
 
@@ -199,12 +209,18 @@ while the inherited fixture returns `npx.cmd`. The local Windows full
 regression passes, the fixture was not modified, and this issue is not a D2
 acceptance finding.
 
-## 6. Final Acceptance boundary
+## 6. Final Acceptance and closeout
 
-This is a Final Acceptance preparation artifact only. ChatGPT must perform the
-separate Final Acceptance decision. Codex does not declare this Phase accepted,
-does not merge PR #5, does not create a tag, and does not enter D3.
+ChatGPT explicitly issued `PHASE_D2_ACCEPTED`. PR #5 was merged normally into
+`main` with merge commit `acfa70a7cc9317946653c4249cb7f2dfad50ab6c`. The
+post-merge governance commit records the accepted stable state, and the
+annotated tag `phase-d2-accepted` is created only after that governance commit.
 
-Candidate status:
+The inherited `test/unit/platform-command.spec.ts` CI issue remains accepted as
+out of scope and unchanged. D2 production implementation and tests were not
+modified during closeout. D3 is `PLANNED / NOT_STARTED / NOT_AUTHORIZED`; no
+D3 branch or implementation is created here.
 
-`PHASE_D2_FINAL_ACCEPTANCE_READY`
+Final status:
+
+`PHASE_D2_ACCEPTED_CLOSED`
