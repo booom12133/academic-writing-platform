@@ -20,6 +20,7 @@
     "build:client": "cross-env NODE_ENV=production vite build --config vite.config.ts",
     "start": "NODE_ENV=production node main.js",
     "test": "jest",
+    "test:app-bootstrap": "npm run build:server && node scripts/test-app-bootstrap.js",
     "test:deepseek": "ts-node --project tsconfig.smoke.json scripts/test-deepseek.ts",
     "test:deepseek:health": "ts-node --project tsconfig.smoke.json scripts/test-deepseek-health.ts",
     "test:watch": "jest --watch",

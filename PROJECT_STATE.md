@@ -22,9 +22,15 @@ Last Updated: 2026-09-02
 
 ## Current development
 
-- Current Development Phase: NONE
-- Current Development Branch: `NONE`
-- Current Phase Status: `PHASE_C4_ACCEPTED` / CLOSED
+- Current Development Phase: Phase D1 — Tool Execution Foundation
+- Current Development Branch: `phase/d1-tool-execution-foundation`
+- Current Phase Status: `FINAL_ACCEPTANCE_CANDIDATE` / awaiting ChatGPT Final Acceptance
+- Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
+- Phase D1 implementation commit before review fixes: `9903208`
+- Phase D1 review head before current fixes: `1999fd5e0f8e0fe35d90658a12fb4e63cd6be8ac`
+- Phase D1 current review-fix implementation commit: `3dbab6d`
+- Phase D1 Final Acceptance Candidate Head: `9c2ed7a28f23924dbf3269961f04b77e3c43f83a`
+- Phase D1 Final Acceptance Report: [PHASE_D1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D1_FINAL_ACCEPTANCE_REPORT.md)
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -103,15 +109,17 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Test baseline and current results
 
-- Stable accepted baseline: Phase C2 on `main` remains the frozen accepted implementation baseline.
-- Current targeted C3: PASS — `npx jest server/modules/chunking/chunking.service.spec.ts --runInBand` → 39 tests.
-- Current full regression: PASS — `npm test -- --runInBand` → 22 suites / 189 tests.
+- Stable accepted baseline: Phase C4 on `main` remains the frozen accepted implementation baseline.
+- Current targeted D1: PASS — execution preparation, execution aggregation, DI, and contract suites.
+- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 247 tests.
 - Current lint: PASS — `npm run lint`.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS.
 - Current client type-check: PASS.
 - Current server build: PASS — `npm run build:server`.
 - Current client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
+- Current full AppModule bootstrap: PASS — `npm run test:app-bootstrap`; built application context resolved `AiToolsModule` and `AcademicToolExecutionService` without a DeepSeek call.
+- Current DeepSeek / external AI calls during D1 verification: 0.
 - Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
 - DeepSeek / external AI calls during C3 verification: 0.
 
@@ -122,19 +130,20 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - `server/modules/context-builder/**`
 - `server/modules/chunking/**`
 - `shared/api.interface.ts`
-- `server/modules/ai-tools/**`
+- Existing `server/modules/ai-tools/**` production flows remain frozen except for the D1-authorized execution foundation and minimal DI/bootstrap bindings.
 - `server/modules/tasks/**`
 - `server/database/schema.ts`
 - `server/common/filters/exception.filter.ts`
-- B1 SkillLoader, SkillRegistry, SkillComposer, InvariantValidator, InvariantExtractor, project skills, generators, DeepSeekProvider, and LlmService
+- Existing B1 SkillLoader, SkillRegistry, SkillComposer, InvariantValidator, InvariantExtractor, project skills, generators, DeepSeekProvider, and LlmService behavior remains frozen; D1 only changes the runtime DI registration for SkillLoader and InvariantValidator.
 - Existing file-only guards in Polish and Revision generators
 
 ## Known issues
 
-- Inherited full self-hosted `AppModule` bootstrap issue: the frozen `SkillLoader` constructor parameter is interpreted by Nest DI as `Object`. This was present unchanged on accepted `main`, was not introduced or fixed by C4, and remains out of scope.
+- Historical C4 report: the inherited full self-hosted `AppModule` bootstrap issue interpreted the SkillLoader constructor parameter as `Object`. D1 resolves this through explicit runtime DI factories; the historical C4 report remains unchanged.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
+- On Windows, the aggregate `npm run build` wrapper remains non-portable because it invokes `./scripts/build.sh`; D1 verification therefore runs the existing `build:server` and `build:client` scripts directly, both passing.
 - GitHub Actions `verify` may fail on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; the local Windows full regression passes. This unrelated cross-platform baseline issue is intentionally not changed in Phase C3.
 - C3 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, prompt rendering, tokenizer/model windows, OCR, retrieval, or multi-document orchestration.
 

@@ -9,6 +9,7 @@ import type {
 } from './invariant.types';
 
 @Injectable()
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through a factory with the module-owned extractor.
 export class InvariantValidator {
   constructor(private readonly extractor = new InvariantExtractor()) {}
 
