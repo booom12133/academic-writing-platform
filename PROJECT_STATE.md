@@ -26,7 +26,9 @@ Last Updated: 2026-09-02
 - Current Development Branch: `phase/d1-tool-execution-foundation`
 - Current Phase Status: `REVIEW_CANDIDATE` / awaiting ChatGPT review and explicit acceptance
 - Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
-- Phase D1 candidate implementation commit: `9903208`
+- Phase D1 implementation commit before review fixes: `9903208`
+- Phase D1 review head before current fixes: `1999fd5e0f8e0fe35d90658a12fb4e63cd6be8ac`
+- Phase D1 current review-fix implementation commit: `3dbab6d`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -105,9 +107,9 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Test baseline and current results
 
-- Stable accepted baseline: Phase C2 on `main` remains the frozen accepted implementation baseline.
+- Stable accepted baseline: Phase C4 on `main` remains the frozen accepted implementation baseline.
 - Current targeted D1: PASS — execution preparation, execution aggregation, DI, and contract suites.
-- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 245 tests.
+- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 247 tests.
 - Current lint: PASS — `npm run lint`.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS.
@@ -126,16 +128,16 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - `server/modules/context-builder/**`
 - `server/modules/chunking/**`
 - `shared/api.interface.ts`
-- `server/modules/ai-tools/**`
+- Existing `server/modules/ai-tools/**` production flows remain frozen except for the D1-authorized execution foundation and minimal DI/bootstrap bindings.
 - `server/modules/tasks/**`
 - `server/database/schema.ts`
 - `server/common/filters/exception.filter.ts`
-- B1 SkillLoader, SkillRegistry, SkillComposer, InvariantValidator, InvariantExtractor, project skills, generators, DeepSeekProvider, and LlmService
+- Existing B1 SkillLoader, SkillRegistry, SkillComposer, InvariantValidator, InvariantExtractor, project skills, generators, DeepSeekProvider, and LlmService behavior remains frozen; D1 only changes the runtime DI registration for SkillLoader and InvariantValidator.
 - Existing file-only guards in Polish and Revision generators
 
 ## Known issues
 
-- Inherited full self-hosted `AppModule` bootstrap issue: the frozen `SkillLoader` constructor parameter is interpreted by Nest DI as `Object`. This was present unchanged on accepted `main`, was not introduced or fixed by C4, and remains out of scope.
+- Historical C4 report: the inherited full self-hosted `AppModule` bootstrap issue interpreted the SkillLoader constructor parameter as `Object`. D1 resolves this through explicit runtime DI factories; the historical C4 report remains unchanged.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
