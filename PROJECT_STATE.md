@@ -13,18 +13,18 @@ Last Updated: 2026-09-02
 
 ## Stable state
 
-- Current Stable Phase: Phase C3 — Chunking
-- Stable Status: ACCEPTED / FROZEN (`PHASE_C3_ACCEPTED`)
+- Current Stable Phase: Phase C4 — File Integration
+- Stable Status: ACCEPTED / FROZEN (`PHASE_C4_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: `e97a4372dd265429006aef0675ae7e399b862762` (Phase C3 acceptance merge)
-- Latest Final Acceptance Report: [PHASE_C3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C3_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, and Phase C3 are completed/frozen by project records
+- Stable Main Commit: `ad8ce030ec1195d924efadf174d1bfaaa36357c5` (Phase C4 PR #3 merge commit; final accepted main state is the post-merge closeout commit recorded by `phase-c4-accepted`.)
+- Latest Final Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, and Phase C4 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase C4 — File Integration
-- Current Development Branch: `phase/c4-file-integration`
-- Current Phase Status: `PHASE_C4_REVIEW_PASS`
+- Current Development Phase: NONE
+- Current Development Branch: `NONE`
+- Current Phase Status: `PHASE_C4_ACCEPTED` / CLOSED
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -34,7 +34,11 @@ Last Updated: 2026-09-02
 - Phase C1 Accepted Tag: `phase-c1-accepted`
 - Phase C2 Accepted PR: [#1 Phase C2: Context Builder](https://github.com/booom12133/academic-writing-platform/pull/1) — MERGED
 - Phase C2 Accepted Tag: `phase-c2-accepted` — annotated tag points to the final accepted main state `85ff344`
-- Latest Current-Phase Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md) — review-pass record; formal `PHASE_C4_ACCEPTED` remains pending.
+- Phase C4 Accepted PR: [#3 Phase C4: File Integration](https://github.com/booom12133/academic-writing-platform/pull/3) — MERGED
+- Phase C4 Accepted Implementation HEAD: `bdc23099a454eb7e257ae3161b213106c89b8bf4`
+- Phase C4 Merge Commit: `ad8ce030ec1195d924efadf174d1bfaaa36357c5`
+- Phase C4 Accepted Tag: `phase-c4-accepted` — annotated tag points to the final accepted main state after closeout governance.
+- Latest Final Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md)
 
 ## Completed phases
 
@@ -44,12 +48,13 @@ Last Updated: 2026-09-02
 - Phase C1: ACCEPTED / FROZEN
 - Phase C2: ACCEPTED / FROZEN
 - Phase C3: ACCEPTED / FROZEN
+- Phase C4: ACCEPTED / FROZEN / CLOSED
 
-## Stable Phase goal (C3)
+## Previous accepted Phase goal (C3)
 
 Phase C3 converted one validated C2 `TaskContext` and an explicit `ChunkingPolicy` into a deterministic, lossless, model-agnostic, structure-aware `ChunkedTaskContext` using Unicode code-point sizing and zero overlap.
 
-## Stable Phase implemented items (C3)
+## Previous accepted Phase implemented items (C3)
 
 - Independent `ChunkingModule` exporting `ChunkingService`, intentionally not registered in `AppModule`, `AiToolsModule`, or `TasksModule`.
 - C3 input contract for one C2 `TaskContext` plus `{ maxSize }`, with output policy explicitly recording version `1`, Unicode code-point sizing, and overlap `0`.
@@ -59,14 +64,14 @@ Phase C3 converted one validated C2 `TaskContext` and an explicit `ChunkingPolic
 - Fragment items contain only required provenance and metadata; they do not carry a complete `ContextUnit` or original block text.
 - Defensive copying, C3 runtime validation, instruction/evidence separation, and no filesystem/network/database/LLM integration.
 
-## Current Phase goal (C4)
+## Accepted Phase goal (C4)
 
 Integrate one explicit user-triggered multipart document upload with selectable
 durable storage and a server-side validated preparation path into the frozen
 C1 → C2 → C3 pipeline, without creating an AI task or deducting points in
 file mode. C4 self-hosted acceptance uses filesystem storage.
 
-## Current Phase implemented items (C4)
+## Accepted Phase implemented items (C4)
 
 - Actual dependency preflight completed against `@lark-apaas/fullstack-nestjs-core@1.1.60`, `@lark-apaas/file-service@0.1.2`, and Multer `2.0.2`; platform mode remains supported but is optional for self-hosted acceptance.
 - The verified platform import is `@lark-apaas/fullstack-nestjs-core`; its Nest `FileService` provider is registered by global `PlatformModule.forRoot()`.
@@ -78,7 +83,7 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - Added `DOCUMENT_STORAGE_DRIVER=filesystem` with an absolute non-public `DOCUMENT_STORAGE_ROOT`, a durable self-hosted filesystem adapter, strict generated-key/root containment, exact-object compensation removal, and provider identity `self-hosted-filesystem`.
 - Filesystem mode wires the filesystem adapter without `PlatformModule.forRoot()` or a `FileService` provider; invalid driver/root configuration fails clearly. Platform mode continues to use the preflight-confirmed FileService adapter.
 
-## Current Phase verification (C4)
+## Accepted Phase verification (C4)
 
 - Targeted C4 server: PASS — `npx jest server/modules/document-input --runInBand` → 8 suites / 45 tests.
 - Targeted client multipart API: PASS — `npx jest test/unit/document-input-client.spec.ts --runInBand` → 1 test.
@@ -126,6 +131,7 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Known issues
 
+- Inherited full self-hosted `AppModule` bootstrap issue: the frozen `SkillLoader` constructor parameter is interpreted by Nest DI as `Object`. This was present unchanged on accepted `main`, was not introduced or fixed by C4, and remains out of scope.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
@@ -155,5 +161,5 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 ## Next Phase
 
 - Next Phase: Phase D — Tool Migration
-- Next Phase Status: PLANNED; not authorized.
-- Next Phase Goal: Record only; do not enter Phase D before explicit C4 acceptance and closeout.
+- Next Phase Status: PLANNED / NOT_STARTED / NOT_AUTHORIZED
+- Next Phase Goal: Record only; do not enter Phase D without a separate explicit authorization.

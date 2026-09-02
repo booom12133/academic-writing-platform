@@ -1,16 +1,16 @@
 # Phase C4 Final Acceptance Report
 
-## 1. Phase and current review status
+## 1. Phase and final status
 
 ```text
 Phase C4 — File Integration
-PHASE_C4_REVIEW_PASS
+PHASE_C4_ACCEPTED
 ```
 
-The C4 implementation and mandatory real self-hosted Linux filesystem smoke
-passed ChatGPT's final GitHub/runtime review. This report records the evidence
-for final acceptance review; it does not claim `PHASE_C4_ACCEPTED`. The branch
-remains open in PR #3, with no merge and no accepted tag.
+The C4 implementation, governance record, and mandatory real self-hosted Linux
+filesystem smoke were accepted by ChatGPT. This report is the canonical C4
+closeout record. C4 is accepted, frozen, and closed; Phase D remains planned,
+not started, and not authorized.
 
 ## 2. Goal
 
@@ -203,7 +203,7 @@ automatic deletion in C4. If persistence is partial or finalization fails
 after upload, best-effort compensation removes the exact object to prevent an
 orphan. General retention/deletion management is out of scope.
 
-## 7. Verification before review pass
+## 7. Verification before final acceptance
 
 - C4 targeted server tests: `8 suites / 45 tests` passed.
 - C4 targeted client multipart API test: `1 test` passed.
@@ -237,18 +237,20 @@ this phase.
 ## 9. GitHub/PR state
 
 - Branch: `phase/c4-file-integration`.
-- Reviewed implementation HEAD: `7295a34095a16c2248c45da1826468327a5c6aa6`.
+- Accepted implementation HEAD: `bdc23099a454eb7e257ae3161b213106c89b8bf4`.
 - PR: [#3 Phase C4: File Integration](https://github.com/booom12133/academic-writing-platform/pull/3).
-- PR state: OPEN.
-- Required PR guard remains: `Do not merge before acceptance`.
-- No merge was performed.
-- No `phase-c4-accepted` tag was created.
-- `PHASE_C4_ACCEPTED` was not declared.
+- PR state: MERGED.
+- PR merge commit: `ad8ce030ec1195d924efadf174d1bfaaa36357c5`.
+- Required PR guard was satisfied before merge: `Do not merge before acceptance`.
+- Annotated tag: `phase-c4-accepted`, created after final main governance closeout.
+- Final main HEAD and tag target are recorded after the post-merge governance commit.
+- `PHASE_C4_ACCEPTED` was explicitly authorized by ChatGPT.
 - Phase D was not started.
 
-## 10. Final acceptance handoff
+## 10. Final closeout
 
-This governance record is ready for ChatGPT Final Acceptance Review. The
-current repository state remains `PHASE_C4_REVIEW_PASS`; formal acceptance,
-merge to `main`, and creation of an accepted tag remain outside this task and
-require an explicit `PHASE_C4_ACCEPTED` decision.
+The final main state contains the accepted C4 implementation and the required
+post-merge governance. `phase-c4-accepted` points to that final main HEAD.
+Phase C4 is `ACCEPTED / FROZEN / CLOSED`. Phase D remains
+`PLANNED / NOT_STARTED / NOT_AUTHORIZED` and no Phase D branch, PR, or design
+work was created.

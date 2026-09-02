@@ -25,4 +25,4 @@ Historical reports are intentionally preserved at their original root paths and 
 - [PHASE_C1_FINAL_ACCEPTANCE_REPORT.md](PHASE_C1_FINAL_ACCEPTANCE_REPORT.md) — accepted C1 closeout report; `PHASE_C1_ACCEPTED` was explicitly provided upstream.
 - [PHASE_C2_FINAL_ACCEPTANCE_REPORT.md](PHASE_C2_FINAL_ACCEPTANCE_REPORT.md) — accepted C2 closeout report; `PHASE_C2_ACCEPTED` was explicitly provided upstream.
 - [PHASE_C3_FINAL_ACCEPTANCE_REPORT.md](PHASE_C3_FINAL_ACCEPTANCE_REPORT.md) — accepted C3 closeout report; `PHASE_C3_ACCEPTED` was explicitly provided upstream.
-- [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](PHASE_C4_FINAL_ACCEPTANCE_REPORT.md) — C4 review-pass governance record; real self-hosted filesystem smoke passed, but `PHASE_C4_ACCEPTED` has not been issued and no accepted tag exists.
+- [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](PHASE_C4_FINAL_ACCEPTANCE_REPORT.md) — accepted C4 closeout report; `PHASE_C4_ACCEPTED` was explicitly provided upstream and `phase-c4-accepted` points to the final accepted main state.

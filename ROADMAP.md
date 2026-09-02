@@ -1,6 +1,7 @@
 # Project Roadmap
 
-Only the already established project phases are listed here. No phase below C2 is being implemented by this acceptance-closeout task.
+Only the already established project phases are listed here. Phase D and later
+phases remain record-only and are not authorized by this C4 closeout.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -10,8 +11,8 @@ Only the already established project phases are listed here. No phase below C2 i
 | C1 | Document Parsing Foundation | Buffer-based DOCX/PDF/TXT/Markdown parsing into deterministic `ParsedDocument` | ACCEPTED | Yes |
 | C2 | Context Builder | Context assembly for later document-aware tools; design approved and implemented | ACCEPTED | Yes |
 | C3 | Chunking | Deterministic, lossless, structure-aware context partitioning | ACCEPTED | Yes |
-| C4 | File Integration | NOT YET AUTHORIZED; record only | NOT_STARTED (NEXT) | No |
-| D | Tool Migration | NOT YET AUTHORIZED; record only | PLANNED | No |
+| C4 | File Integration | Explicit multipart upload, durable storage, and C1 → C2 → C3 preparation | ACCEPTED | Yes |
+| D | Tool Migration | NOT AUTHORIZED; record only | PLANNED / NOT_STARTED / NOT_AUTHORIZED | No |
 | E | RAG / Zotero / Search | NOT YET AUTHORIZED; record only | PLANNED | No |
 | F | Queue / Redis / BullMQ | NOT YET AUTHORIZED; record only | PLANNED | No |
 
