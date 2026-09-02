@@ -28,10 +28,15 @@ export class PolishResultAggregator {
       }
 
       const output = this.readOutput(record);
-      const firstProvenance = record.provenance[0] ?? record.chunk.provenance[0];
+      const trustedProvenance = record.provenance.length > 0
+        ? record.provenance
+        : record.chunk.provenance;
+      const firstProvenance = trustedProvenance[0];
+      const lastProvenance = trustedProvenance[trustedProvenance.length - 1];
       revisedSegments.push({
         section: record.chunk.section,
-        sourceBlockId: firstProvenance?.sourceBlockId ?? record.chunk.chunkId,
+        firstSourceBlockId: firstProvenance?.sourceBlockId ?? record.chunk.chunkId,
+        lastSourceBlockId: lastProvenance?.sourceBlockId ?? record.chunk.chunkId,
         text: output.revisedContent,
       });
       changes.push(...output.changes);
@@ -49,7 +54,13 @@ export class PolishResultAggregator {
       revisedContent: joinTrustedSegments(revisedSegments),
       changes,
       warnings: [...execution.warnings],
-      validation: execution.validation as unknown as PolishOutput['validation'],
+      validation: {
+        status: execution.validation.status,
+        violations: execution.validation.results.flatMap(
+          (item) => item.validation.violations,
+        ),
+        summary: execution.validation.summary,
+      },
       metadata: {
         provider: firstMetadata.provider,
         model: firstMetadata.model,

@@ -2,7 +2,8 @@ import type { RenderedToolChunk } from '../execution/tool-execution.types';
 
 export interface TrustedTextSegment {
   section: 'content' | 'references';
-  sourceBlockId: string;
+  firstSourceBlockId: string;
+  lastSourceBlockId: string;
   text: string;
 }
 
@@ -11,7 +12,8 @@ export function renderedChunksToTrustedSegments(
 ): TrustedTextSegment[] {
   return chunks.flatMap((chunk) => chunk.items.map((item) => ({
     section: chunk.section,
-    sourceBlockId: item.provenance.sourceBlockId,
+    firstSourceBlockId: item.provenance.sourceBlockId,
+    lastSourceBlockId: item.provenance.sourceBlockId,
     text: item.text,
   })));
 }
@@ -29,10 +31,10 @@ function separatorBetween(
   current: TrustedTextSegment,
 ): string {
   if (previous.section === 'references' && current.section === 'references') {
-    return previous.sourceBlockId === current.sourceBlockId ? '' : '\n';
+    return previous.lastSourceBlockId === current.firstSourceBlockId ? '' : '\n';
   }
   if (previous.section === 'content' && current.section === 'content') {
-    return previous.sourceBlockId === current.sourceBlockId ? '' : '\n\n';
+    return previous.lastSourceBlockId === current.firstSourceBlockId ? '' : '\n\n';
   }
   return '\n\n';
 }
