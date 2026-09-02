@@ -208,14 +208,15 @@ const PolishTool: React.FC = () => {
       </CardContent>
       <CardFooter className="flex-col gap-3 border-t border-slate-100 pt-5">
         {inputMode === 'file' ? (
-          <DocumentInputUploadAction
-            file={files[0] ?? null}
-            ready={documentRef !== null && documentDescriptor !== null}
-            uploading={uploading}
-            error={uploadError}
-            onUpload={handleDocumentUpload}
-          />
-          {documentRef && documentDescriptor && (
+          <>
+            <DocumentInputUploadAction
+              file={files[0] ?? null}
+              ready={documentRef !== null && documentDescriptor !== null}
+              uploading={uploading}
+              error={uploadError}
+              onUpload={handleDocumentUpload}
+            />
+            {documentRef && documentDescriptor && (
             <>
               <Button
                 className="w-full"
@@ -229,7 +230,8 @@ const PolishTool: React.FC = () => {
                 页面仅显示文本估算，最终积分以服务器准备后的内容计费为准
               </p>
             </>
-          )}
+            )}
+          </>
         ) : (
           <>
             <Button
