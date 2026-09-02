@@ -11,6 +11,10 @@ import type {
 import type { DocumentParserService } from '../../document-parsing/document-parser.service';
 import type { ContextBuilderService } from '../../context-builder/context-builder.service';
 import type { ChunkingService } from '../../chunking/chunking.service';
+import { ChunkingService as RealChunkingService } from '../../chunking/chunking.service';
+import { ContextBuilderService as RealContextBuilderService } from '../../context-builder/context-builder.service';
+import { DocumentParserService as RealDocumentParserService } from '../../document-parsing/document-parser.service';
+import { TxtParser } from '../../document-parsing/parsers/txt.parser';
 
 import { ToolInputPreparationService } from './tool-input-preparation.service';
 import type { ToolPreparationInput } from './tool-execution.types';
@@ -132,5 +136,40 @@ describe('ToolInputPreparationService', () => {
     expect(parser.parse).not.toHaveBeenCalled();
     expect(contextBuilder.build).not.toHaveBeenCalled();
     expect(chunker.chunk).not.toHaveBeenCalled();
+  });
+
+  it('prepares real text through the frozen C1 to C2 to C3 chain', async () => {
+    const parser = new RealDocumentParserService([new TxtParser()]);
+    const contextBuilder = new RealContextBuilderService();
+    const chunker = new RealChunkingService();
+    const documentInput = {
+      prepare: jest.fn(),
+    } as unknown as DocumentInputService;
+    const service = new ToolInputPreparationService(
+      parser,
+      contextBuilder,
+      chunker,
+      documentInput,
+    );
+
+    const prepared = await service.prepare({
+      userId: 'user-1',
+      taskType: 'polish',
+      userInstructions: 'Keep the citations unchanged.',
+      chunkingPolicy: { maxSize: 100 },
+      source: {
+        mode: 'text',
+        text: 'First paragraph.\n\nSecond paragraph.',
+      },
+    });
+
+    expect(prepared.documentRef).toBeUndefined();
+    expect(prepared.context.source.fileName).toBe('pasted-text.txt');
+    expect(prepared.context.task.userInstructions).toBe(
+      'Keep the citations unchanged.',
+    );
+    expect(prepared.context.chunks).toHaveLength(1);
+    expect(prepared.context.chunks[0].items).toHaveLength(2);
+    expect(documentInput.prepare).not.toHaveBeenCalled();
   });
 });

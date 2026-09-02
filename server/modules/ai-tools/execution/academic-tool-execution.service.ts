@@ -27,7 +27,9 @@ export class AcademicToolExecutionService {
         sourceId: chunk.sourceId,
         section: chunk.section,
         eligibleForExecution: chunk.section === 'content',
-        text: items.map((item) => item.text).join('\n'),
+        text: items
+          .map((item) => item.text)
+          .join(chunk.section === 'references' ? '' : '\n'),
         items,
         provenance: items.map((item) => item.provenance),
       };
@@ -41,7 +43,14 @@ export class AcademicToolExecutionService {
   ): Promise<AcademicToolExecutionResult> {
     const renderedChunks = this.render(context);
     const records: ToolExecutionChunkRecord[] = [];
-    const warnings: string[] = [];
+    const warnings: string[] = [
+      ...context.source.warnings.map(
+        (warning) => `${warning.code}: ${warning.message}`,
+      ),
+      ...context.warnings.map(
+        (warning) => `${warning.code}: ${warning.message}`,
+      ),
+    ];
     const validationResults: AggregatedValidation['results'] = [];
     let promptTokens = 0;
     let completionTokens = 0;

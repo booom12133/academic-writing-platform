@@ -17,7 +17,12 @@ const context: ChunkedTaskContext = {
     mimeType: 'text/plain',
     sizeBytes: 35,
     metadata: {},
-    warnings: [],
+    warnings: [
+      {
+        code: 'REFERENCE_SECTION_HEURISTIC',
+        message: 'Reference heading inferred.',
+      },
+    ],
   },
   policy: {
     version: 1,
@@ -25,7 +30,17 @@ const context: ChunkedTaskContext = {
     sizeMetric: 'unicode-code-points',
     overlap: 0,
   },
-  warnings: [],
+  warnings: [
+    {
+      code: 'OVERSIZED_ATOMIC_UNIT',
+      message: 'Atomic unit retained.',
+      chunkId: 'document-1:c000001',
+      sourceUnitId: 'unit-1',
+      sourceBlockId: 'block-1',
+      size: 14,
+      maxSize: 100,
+    },
+  ],
   chunks: [
     {
       id: 'document-1:c000001',
@@ -191,7 +206,11 @@ describe('AcademicToolExecutionService', () => {
       chunk: { text: '[1] Reference entry.' },
     });
     expect(result.task.userInstructions).toBe('Preserve citations.');
-    expect(result.warnings).toEqual(['content warning']);
+    expect(result.warnings).toEqual([
+      'REFERENCE_SECTION_HEURISTIC: Reference heading inferred.',
+      'OVERSIZED_ATOMIC_UNIT: Atomic unit retained.',
+      'content warning',
+    ]);
     expect(result.validation).toMatchObject({
       status: 'WARN',
       summary: { errors: 0, warnings: 1 },

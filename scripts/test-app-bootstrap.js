@@ -4,7 +4,8 @@ process.env.NODE_ENV = 'development';
 process.env.MIAODA_LOCAL_DEV = '1';
 process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
 process.env.DOCUMENT_STORAGE_ROOT =
-  'D:\\CodexGlobal\\academic-writing-platform-d1-bootstrap-storage';
+  process.env.D1_BOOTSTRAP_STORAGE_ROOT ||
+  require('node:path').resolve(process.cwd(), '.d1-bootstrap-storage');
 
 const { AppModule } = require('../dist/server/app.module.js');
 const {
