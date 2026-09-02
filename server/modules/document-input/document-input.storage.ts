@@ -1,3 +1,5 @@
+import type { DocumentInputProvider } from '@shared/document-input.interface';
+
 export const DOCUMENT_STORAGE = Symbol('DOCUMENT_STORAGE');
 
 export interface UploadedDocument {
@@ -7,6 +9,7 @@ export interface UploadedDocument {
 }
 
 export interface DocumentStoragePort {
+  getProvider(): DocumentInputProvider;
   getDefaultBucketId(): Promise<string>;
   upload(input: {
     bucketId: string;

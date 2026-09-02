@@ -9,9 +9,11 @@ Implementation is limited to the C4 branch and must not enter Phase D.
 ## Goal
 
 Accept one DOCX, PDF, TXT, or Markdown document through a real multipart
-upload, persist the original through the approved platform FileService, return
+upload, persist the original through a selected durable storage adapter, return
 an opaque-but-validatable `DocumentInputRef`, and provide a server-side
-prepare path that downloads, verifies, and invokes frozen C1 → C2 → C3.
+prepare path that downloads, verifies, and invokes frozen C1 → C2 → C3. C4
+self-hosted acceptance uses the filesystem adapter; platform storage remains
+an optional compatible mode.
 
 ## Frozen boundaries
 
@@ -24,16 +26,19 @@ DeepSeek, execute chunks, merge results, persist derived documents, or add
 general document deletion/retention management. It handles one document of at
 most 20 MB.
 
-## Storage preflight gate
+## Storage adapters and configuration
 
 Before implementing the adapter, inspect the installed packages under
 `node_modules/@lark-apaas/fullstack-nestjs-core/**` and
 `node_modules/@lark-apaas/file-service/**`. Record the actual package versions,
 import path, Nest provider/token, appId acquisition, default-bucket API,
 upload/download/remove signatures and return types, Buffer support, and whether
-`PlatformModule.forRoot()` registers the provider. If the approved durable
-storage design cannot be satisfied by the installed runtime, report
-`C4_ARCHITECTURE_ISSUE` and stop without adding another storage architecture.
+`PlatformModule.forRoot()` registers the provider for optional platform mode.
+The self-hosted mode uses `DOCUMENT_STORAGE_DRIVER=filesystem` and an absolute
+`DOCUMENT_STORAGE_ROOT` outside the public web root. Invalid configuration
+fails clearly; filesystem mode does not load or instantiate PlatformModule or
+inject FileService. The two adapters implement the existing
+`DocumentStoragePort`; no generalized storage subsystem is added.
 
 ## Upload boundary
 
@@ -90,20 +95,21 @@ remain future-phase scope.
 
 ## Runtime gate
 
-Review Candidate requires a real Platform runtime smoke using a synthetic,
-non-sensitive small document:
+The user's Linux self-hosted server must execute the mandatory smoke using a
+synthetic, non-sensitive small document:
 
 ```text
 POST /api/document-inputs
-→ real platform FileService upload
+→ real self-hosted filesystem write
 → DocumentInputRef
-→ real storage download
+→ real filesystem download
 → size/SHA-256 verification
 → DocumentInputService.prepare()
 → C1 → C2 → C3
 → PASS
 ```
 
-Local unavailable-adapter tests do not satisfy this gate. If the smoke cannot
-be executed, the status is `PHASE_C4_REVIEW_BLOCKED_PLATFORM_RUNTIME` and the
-branch must not be described as a complete Review Candidate.
+No AI task, points deduction, or LLM call may occur. Local filesystem adapter
+tests do not replace the user's server evidence. Do not deploy from this
+workspace; report the evidence after the user's server smoke and wait for
+ChatGPT GitHub Review.

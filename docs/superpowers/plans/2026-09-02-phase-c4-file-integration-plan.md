@@ -6,6 +6,9 @@
 
 Implement only the approved C4 file-input boundary. C1/C2/C3, AI Tools,
 Tasks, schema, shared API, and the global exception filter are frozen.
+Storage is selectable between the existing platform adapter and the minimal
+self-hosted filesystem adapter. Filesystem mode is the C4 self-hosted
+acceptance path and does not require PlatformModule/FileService credentials.
 
 ## Mandatory preflight
 
@@ -14,10 +17,10 @@ Tasks, schema, shared API, and the global exception filter are frozen.
 2. Inspect the locally installed `fullstack-nestjs-core` and `file-service`
    packages. Record the actual import/provider/token, appId/default bucket,
    upload/download/remove signatures and data types, Buffer support, and
-   `PlatformModule.forRoot()` registration behavior.
-3. If the approved platform adapter cannot work in the installed runtime,
-   report `C4_ARCHITECTURE_ISSUE` and stop. Do not invent a second storage
-   architecture.
+   `PlatformModule.forRoot()` registration behavior for optional platform mode.
+3. Validate the filesystem configuration contract: `filesystem` requires an
+   absolute non-public `DOCUMENT_STORAGE_ROOT`; invalid driver/configuration
+   fails clearly and never silently falls back to another backend.
 
 ## TDD implementation sequence
 
@@ -28,12 +31,15 @@ Create the C4 ref/descriptor types, independent C4 errors, storage port, and
 best-effort compensation, ref validation, ownership, size/hash integrity, and
 the ordered C1 → C2 → C3 calls. Implement the service only after the RED tests.
 
-### 2. Platform adapter
+### 2. Storage adapters and configuration
 
-Add tests for the exact preflight-confirmed FileService calls. Implement the
-adapter against the real provider and default bucket. Use an unavailable local
-adapter only to make local behavior explicit; it is not platform smoke
-evidence.
+Add tests for the exact preflight-confirmed FileService calls and retain the
+platform adapter. Add the minimal self-hosted filesystem adapter under the
+same `DocumentStoragePort`: one absolute configured root, canonical generated
+keys only, root containment, durable Buffer writes, Buffer reads, exact-object
+compensation removal, and no public URL operation. In filesystem mode, wire
+the filesystem adapter without loading/instantiating PlatformModule or
+injecting FileService. Do not add a generalized storage subsystem.
 
 ### 3. Controller and exception boundary
 
@@ -74,12 +80,18 @@ npm run build:client
 npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error
 ```
 
-Then execute the real Platform runtime smoke with a synthetic small document:
-multipart upload → real FileService persistence → download → size/SHA-256 →
-`prepare()` → C1 → C2 → C3. Local unavailable-adapter tests cannot replace
-this gate. If the runtime is unavailable, report
-`PHASE_C4_REVIEW_BLOCKED_PLATFORM_RUNTIME` and do not claim complete Review
-Candidate readiness.
+After implementation/push, do not deploy. The user's Linux self-hosted server
+will execute the mandatory smoke with:
+
+```text
+DOCUMENT_STORAGE_DRIVER=filesystem
+DOCUMENT_STORAGE_ROOT=/var/lib/academic-writing-platform/documents
+```
+
+The smoke must prove real multipart upload → durable filesystem write →
+durable filesystem read → size/SHA-256 → `prepare()` → C1 → C2 → C3, with no
+AI task, points deduction, or LLM call. Local adapter tests are not a
+substitute for that server evidence.
 
 ## Handoff
 

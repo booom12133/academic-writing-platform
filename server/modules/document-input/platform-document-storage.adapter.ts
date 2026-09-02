@@ -1,9 +1,14 @@
-import { FileService } from '@lark-apaas/fullstack-nestjs-core';
+import type { FileService } from '@lark-apaas/fullstack-nestjs-core';
 
+import type { DocumentInputProvider } from '@shared/document-input.interface';
 import type { DocumentStoragePort } from './document-input.storage';
 
 export class PlatformDocumentStorageAdapter implements DocumentStoragePort {
   constructor(private readonly fileService: FileService) {}
+
+  getProvider(): DocumentInputProvider {
+    return 'platform-file';
+  }
 
   getDefaultBucketId(): Promise<string> {
     return this.fileService.getDefaultBucket();

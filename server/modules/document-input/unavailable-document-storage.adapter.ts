@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common';
-
 import { DocumentInputError } from './document-input.errors';
 import type { DocumentStoragePort } from './document-input.storage';
+import type { DocumentInputProvider } from '@shared/document-input.interface';
 
-@Injectable()
 export class UnavailableDocumentStorageAdapter implements DocumentStoragePort {
+  getProvider(): DocumentInputProvider {
+    return 'platform-file';
+  }
+
   async getDefaultBucketId(): Promise<string> {
     throw this.error();
   }

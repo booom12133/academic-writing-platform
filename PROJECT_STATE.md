@@ -24,7 +24,7 @@ Last Updated: 2026-09-02
 
 - Current Development Phase: Phase C4 — File Integration
 - Current Development Branch: `phase/c4-file-integration`
-- Current Phase Status: `PHASE_C4_REVIEW_BLOCKED_PLATFORM_RUNTIME`
+- Current Phase Status: `PHASE_C4_FIX_REQUIRED`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -61,34 +61,36 @@ Phase C3 converted one validated C2 `TaskContext` and an explicit `ChunkingPolic
 
 ## Current Phase goal (C4)
 
-Integrate one explicit user-triggered multipart document upload with durable
-platform FileService storage and a server-side validated preparation path into
-the frozen C1 → C2 → C3 pipeline, without creating an AI task or deducting
-points in file mode.
+Integrate one explicit user-triggered multipart document upload with selectable
+durable storage and a server-side validated preparation path into the frozen
+C1 → C2 → C3 pipeline, without creating an AI task or deducting points in
+file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Current Phase implemented items (C4)
 
-- Actual dependency preflight completed against `@lark-apaas/fullstack-nestjs-core@1.1.60`, `@lark-apaas/file-service@0.1.2`, and Multer `2.0.2`.
+- Actual dependency preflight completed against `@lark-apaas/fullstack-nestjs-core@1.1.60`, `@lark-apaas/file-service@0.1.2`, and Multer `2.0.2`; platform mode remains supported but is optional for self-hosted acceptance.
 - The verified platform import is `@lark-apaas/fullstack-nestjs-core`; its Nest `FileService` provider is registered by global `PlatformModule.forRoot()`.
 - Verified API contract: `getDefaultBucket(): Promise<string>`, `from(bucket).upload(Buffer, options)`, `from(bucket).download(path)` returning a PromiseLike result with `Blob` content, and `from(bucket).remove(string[])`. App identity is acquired internally by the platform FileService from request context; Buffer upload is supported.
 - Added `DocumentInputRef` / `DocumentInputDescriptor`, C4 storage port, platform adapter, explicit unavailable local adapter, upload controller, and controller-local C4 exception filter.
 - Upload validates through frozen C1 before persistence, persists the original durably, returns metadata-only descriptor evidence, and best-effort compensates partial persistence with remove.
 - `prepare()` treats every client ref field as untrusted, validates version/provider, default bucket, generated path grammar, user scope, path-derived filename/extension/source type, optional MIME, downloaded size, and recomputed SHA-256 before frozen C1 → C2 → C3.
 - Polish and Paper Revision file mode now retains a selected File locally and uploads only after explicit `上传并准备文档`; it stores the returned ref and stops without `/api/ai-tools/submit`, task creation, generator execution, or point deduction. Re-selection clears client descriptor/ref state without deleting persisted originals. Text mode remains on existing `submitTask` behavior.
+- Added `DOCUMENT_STORAGE_DRIVER=filesystem` with an absolute non-public `DOCUMENT_STORAGE_ROOT`, a durable self-hosted filesystem adapter, strict generated-key/root containment, exact-object compensation removal, and provider identity `self-hosted-filesystem`.
+- Filesystem mode wires the filesystem adapter without `PlatformModule.forRoot()` or a `FileService` provider; invalid driver/root configuration fails clearly. Platform mode continues to use the preflight-confirmed FileService adapter.
 
 ## Current Phase verification (C4)
 
-- Targeted C4 server: PASS — `npx jest server/modules/document-input --runInBand` → 5 suites / 27 tests.
+- Targeted C4 server: PASS — `npx jest server/modules/document-input --runInBand` → 8 suites / 45 tests.
 - Targeted client multipart API: PASS — `npx jest test/unit/document-input-client.spec.ts --runInBand` → 1 test.
-- Full regression: PASS — `npm test -- --runInBand` → 28 suites / 217 tests.
+- Full regression: PASS — `npm test -- --runInBand` → 31 suites / 235 tests.
 - Lint: PASS — `npm run lint`.
 - Type-check: PASS — `npm run type:check`.
 - Server build: PASS — `npm run build:server`.
 - Client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
 - Dependency dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
-- Platform runtime smoke: BLOCKED — the real PlatformModule startup attempt stopped because this environment has no `FORCE_AUTHN_INNERAPI_DOMAIN`; no local unavailable-adapter result is being counted as platform evidence. Status remains `PHASE_C4_REVIEW_BLOCKED_PLATFORM_RUNTIME`.
+- Self-hosted server smoke: PENDING — deployment is intentionally not performed from this workspace. The user's Linux server must run the filesystem-mode multipart → durable write/read → size/SHA-256 → `prepare()` → C1 → C2 → C3 smoke with a synthetic document before C4 acceptance. Local compiled AppModule wiring was verified without `FORCE_AUTHN_INNERAPI_DOMAIN`; this is not the server smoke evidence.
 - Review fixes: path validation now rejects raw backslashes and case-insensitive `%2F`/`%5C` before bucket/download access, with canonical path reconstruction; the C4 filter now catches only `DocumentInputError` and Nest `PayloadTooLargeException`.
-- GitHub Actions runs `33555613324` and `33555570549`: both failed only in `Full tests` at `test/unit/platform-command.spec.ts › commandForPlatform › uses npm cli scripts when npm provides its executable path`; Ubuntu expected `/opt/hostedtoolcache/node/22.23.2/x64/bin/node` but received `npx.cmd`. This remains the accepted inherited Windows-path fixture issue and was not changed.
+- GitHub Actions runs `33555613324`, `33555570549`, `33592919434`, and `33592921452`: all failed only in `Full tests` at `test/unit/platform-command.spec.ts › commandForPlatform › uses npm cli scripts when npm provides its executable path`; Ubuntu expected `/opt/hostedtoolcache/node/22.23.2/x64/bin/node` but received `npx.cmd`. This remains the accepted inherited Windows-path fixture issue and was not changed.
 - DeepSeek / external AI calls during C4 verification: 0.
 
 ## Test baseline and current results

@@ -13,6 +13,7 @@ import type {
 } from '../document-parsing/document-parser.types';
 import type {
   DocumentInputDescriptor,
+  DocumentInputProvider,
   DocumentInputRef,
   DocumentInputSourceType,
 } from '@shared/document-input.interface';
@@ -108,10 +109,11 @@ export class DocumentInputService {
     }
 
     const bucketId = await this.getBucketId();
+    const provider = this.storage.getProvider();
     const filePath = `academic-writing/users/${this.userScope(userId)}/${randomUUID()}/${fileName}`;
     const document: DocumentInputRef = {
       version: 1,
-      provider: 'platform-file',
+      provider,
       bucketId,
       filePath,
       fileName,
@@ -201,7 +203,7 @@ export class DocumentInputService {
 
   private async validateRef(userId: string, ref: unknown): Promise<{
     version: 1;
-    provider: 'platform-file';
+    provider: DocumentInputProvider;
     bucketId: string;
     filePath: string;
     fileName: string;
@@ -210,7 +212,8 @@ export class DocumentInputService {
     sizeBytes: number;
     sha256: string;
   }> {
-    if (!this.isRecord(ref) || ref.version !== 1 || ref.provider !== 'platform-file') {
+    const provider = this.storage.getProvider();
+    if (!this.isRecord(ref) || ref.version !== 1 || ref.provider !== provider) {
       throw new DocumentInputError('DOCUMENT_PREPARATION_FAILED', 'The document descriptor is invalid.');
     }
 
@@ -253,7 +256,7 @@ export class DocumentInputService {
 
     return {
       version: 1,
-      provider: 'platform-file',
+      provider,
       bucketId,
       filePath: ref.filePath,
       fileName,

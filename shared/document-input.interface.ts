@@ -1,8 +1,9 @@
 export type DocumentInputSourceType = 'docx' | 'pdf' | 'txt' | 'markdown';
+export type DocumentInputProvider = 'platform-file' | 'self-hosted-filesystem';
 
 export interface DocumentInputRef {
   version: 1;
-  provider: 'platform-file';
+  provider: DocumentInputProvider;
   bucketId: string;
   filePath: string;
   fileName: string;

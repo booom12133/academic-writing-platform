@@ -1,9 +1,13 @@
 import { createHash } from 'node:crypto';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { DocumentInputError } from './document-input.errors';
 import { DocumentInputService } from './document-input.service';
 import type { DocumentStoragePort } from './document-input.storage';
-import type { DocumentInputRef } from '@shared/document-input.interface';
+import type { DocumentInputProvider, DocumentInputRef } from '@shared/document-input.interface';
+import { SelfHostedFilesystemDocumentStorageAdapter } from './filesystem-document-storage.adapter';
 
 const bytes = Buffer.from('## Title\n\nEvidence.');
 const sha256 = (value: Buffer): string => createHash('sha256').update(value).digest('hex');
@@ -26,6 +30,7 @@ const makeStorage = (stored: Buffer | null = bytes): DocumentStoragePort & {
   download: jest.Mock;
   remove: jest.Mock;
 } => ({
+  getProvider: jest.fn().mockReturnValue('platform-file'),
   getDefaultBucketId: jest.fn().mockResolvedValue('bucket-1'),
   upload: jest.fn().mockResolvedValue(undefined),
   download: jest.fn().mockResolvedValue(stored),
@@ -88,7 +93,7 @@ const chunked = {
   warnings: [],
 };
 
-const makeService = (storage = makeStorage()) => {
+const buildService = <T extends DocumentStoragePort>(storage: T) => {
   const parser = { parse: jest.fn().mockResolvedValue(parsed) };
   const builder = { build: jest.fn().mockReturnValue(context) };
   const chunker = { chunk: jest.fn().mockReturnValue(chunked) };
@@ -96,7 +101,49 @@ const makeService = (storage = makeStorage()) => {
   return { service, storage, parser, builder, chunker };
 };
 
+const makeService = (storage: ReturnType<typeof makeStorage> = makeStorage()) =>
+  buildService(storage);
+
 describe('DocumentInputService', () => {
+  it('uses the storage provider when creating a descriptor', async () => {
+    const storage = makeStorage();
+    (storage.getProvider as jest.Mock).mockReturnValue('self-hosted-filesystem' satisfies DocumentInputProvider);
+    const { service } = makeService(storage);
+
+    await expect(service.upload('user-1', {
+      buffer: bytes,
+      originalname: 'paper.md',
+      mimetype: 'text/markdown',
+    })).resolves.toMatchObject({
+      document: { provider: 'self-hosted-filesystem' },
+    });
+  });
+
+  it('prepares a ref created by the filesystem adapter through C1, C2, and C3', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'academic-writing-c4-service-'));
+    try {
+      const storage = new SelfHostedFilesystemDocumentStorageAdapter(root);
+      const { service, parser, builder, chunker } = buildService(storage);
+      const descriptor = await service.upload('user-1', {
+        buffer: bytes,
+        originalname: 'paper.md',
+        mimetype: 'text/markdown',
+      });
+
+      await expect(service.prepare({
+        userId: 'user-1',
+        documentRef: descriptor.document,
+        taskType: 'polish',
+        chunkingPolicy: { maxSize: 100 },
+      })).resolves.toMatchObject({ document: { provider: 'self-hosted-filesystem' } });
+      expect(parser.parse).toHaveBeenCalledTimes(2);
+      expect(builder.build).toHaveBeenCalledTimes(1);
+      expect(chunker.chunk).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('persists only after parsing and returns a descriptor without document content', async () => {
     const { service, storage, parser } = makeService();
     const result = await service.upload('user-1', {
