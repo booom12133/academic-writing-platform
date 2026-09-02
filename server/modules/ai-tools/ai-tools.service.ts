@@ -2,6 +2,7 @@ import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { TasksService } from '../tasks/tasks.service';
 import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
+import { PolishSubmissionService } from './polish/polish-submission.service';
 
 import { generate as generateOutline } from './generators/outline.generator';
 import { generate as generateLiterature } from './generators/literature.generator';
@@ -18,7 +19,6 @@ import { generate as generateCoursePaper } from './generators/course-paper.gener
 import { generate as generateJournalPaper } from './generators/journal-paper.generator';
 import { generate as generatePracticeReport } from './generators/practice-report.generator';
 import { generate as generateProjectApplication } from './generators/project-application.generator';
-import { PolishGenerator } from './generators/polish.generator';
 import { PaperRevisionGenerator } from './generators/paper-revision.generator';
 import { generate as generateCommentRevision } from './generators/comment-revision.generator';
 import { generate as generateDataAnalysis } from './generators/data-analysis.generator';
@@ -34,8 +34,8 @@ export class AiToolsService {
   constructor(
     private readonly tasksService: TasksService,
     private readonly topicGenerationGenerator: TopicGenerationGenerator,
-    private readonly polishGenerator: PolishGenerator,
     private readonly paperRevisionGenerator: PaperRevisionGenerator,
+    private readonly polishSubmissionService: PolishSubmissionService,
   ) {}
 
   getToolConfigs(): ToolConfig[] {
@@ -62,6 +62,14 @@ export class AiToolsService {
     const toolConfig = TOOL_CONFIGS.find((t) => t.type === taskType);
     if (!toolConfig) {
       throw new BadRequestException(`不支持的工具类型: ${taskType}`);
+    }
+
+    if (taskType === 'polish') {
+      return this.polishSubmissionService.submit({
+        userId,
+        title,
+        inputData,
+      });
     }
 
     // 1. 创建任务（扣积分，状态 pending）
@@ -110,9 +118,6 @@ export class AiToolsService {
             break;
           case 'literature':
             resultData = await generateLiterature(inputData);
-            break;
-          case 'polish':
-            resultData = await this.polishGenerator.generate(inputData);
             break;
           case 'format':
             resultData = await generateFormat(inputData);
