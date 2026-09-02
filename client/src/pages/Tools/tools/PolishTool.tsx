@@ -54,24 +54,22 @@ const PolishTool: React.FC = () => {
   const pointsCost = Math.max(10, Math.ceil(wordCount / 1000) * 10);
 
   const canSubmit =
-    inputMode === 'text' && text.trim().length > 0;
+    (inputMode === 'text' && text.trim().length > 0) ||
+    (inputMode === 'file' && documentRef !== null && documentDescriptor !== null);
 
   const handleSubmit = async () => {
-    if (!canSubmit || inputMode !== 'text') return;
+    if (!canSubmit) return;
     setLoading(true);
     try {
-      const task: Task = await aiToolsApi.submitTask({
-        taskType: 'polish',
+      const task: Task = await aiToolsApi.submitPolishTask({
+        inputMode,
         title: inputMode === 'text'
           ? text.slice(0, 30) + (text.length > 30 ? '...' : '')
-          : '',
-        inputData: {
-          inputMode,
-          text: inputMode === 'text' ? text : undefined,
-          fileName: undefined,
-          polishType,
-          wordCount,
-        },
+          : documentRef?.fileName || '文档润色',
+        text: inputMode === 'text' ? text : undefined,
+        documentRef: inputMode === 'file' ? documentRef ?? undefined : undefined,
+        polishType,
+        wordCount: inputMode === 'text' ? wordCount : undefined,
       });
       setResult(task);
     } catch (err) {
@@ -210,13 +208,30 @@ const PolishTool: React.FC = () => {
       </CardContent>
       <CardFooter className="flex-col gap-3 border-t border-slate-100 pt-5">
         {inputMode === 'file' ? (
-          <DocumentInputUploadAction
-            file={files[0] ?? null}
-            ready={documentRef !== null && documentDescriptor !== null}
-            uploading={uploading}
-            error={uploadError}
-            onUpload={handleDocumentUpload}
-          />
+          <>
+            <DocumentInputUploadAction
+              file={files[0] ?? null}
+              ready={documentRef !== null && documentDescriptor !== null}
+              uploading={uploading}
+              error={uploadError}
+              onUpload={handleDocumentUpload}
+            />
+            {documentRef && documentDescriptor && (
+            <>
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={loading}
+              >
+                <Sparkles className="h-4 w-4" />
+                {loading ? '提交中...' : '开始润色'}
+              </Button>
+              <p className="text-xs text-slate-500">
+                页面仅显示文本估算，最终积分以服务器准备后的内容计费为准
+              </p>
+            </>
+            )}
+          </>
         ) : (
           <>
             <Button
@@ -228,7 +243,7 @@ const PolishTool: React.FC = () => {
               {loading ? '提交中...' : `开始润色（${pointsCost}积分起）`}
             </Button>
             <p className="text-xs text-slate-500">
-              按字数计费，每千字10积分，不足千字按10积分计
+              页面仅显示估算，最终积分以服务器准备后的内容计费为准
             </p>
           </>
         )}

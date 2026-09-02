@@ -21,6 +21,10 @@ import { ChunkingModule } from '../chunking/chunking.module';
 import { ToolInputPreparationService } from './execution/tool-input-preparation.service';
 import { ToolSubmissionPreparationService } from './execution/tool-submission-preparation.service';
 import { AcademicToolExecutionService } from './execution/academic-tool-execution.service';
+import { PolishBillingService } from './polish/polish-billing.service';
+import { PolishChunkExecutor } from './polish/polish-chunk.executor';
+import { PolishResultAggregator } from './polish/polish-result.aggregator';
+import { PolishSubmissionService } from './polish/polish-submission.service';
 
 @Module({
   imports: [
@@ -60,6 +64,10 @@ import { AcademicToolExecutionService } from './execution/academic-tool-executio
     ToolInputPreparationService,
     ToolSubmissionPreparationService,
     AcademicToolExecutionService,
+    PolishBillingService,
+    PolishChunkExecutor,
+    PolishResultAggregator,
+    PolishSubmissionService,
   ],
 })
 export class AiToolsModule {}
