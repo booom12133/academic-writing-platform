@@ -14,6 +14,7 @@ export class SkillLoaderError extends Error {
 type SkillMetadata = Record<string, string | number | boolean>;
 
 @Injectable()
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through a factory so the skills root is explicit.
 export class SkillLoader {
   private readonly cache = new Map<string, SkillDefinition>();
 

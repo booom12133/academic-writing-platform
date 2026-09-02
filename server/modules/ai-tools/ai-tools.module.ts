@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import * as path from 'node:path';
 import { AiToolsController } from './ai-tools.controller';
 import { AiToolsService } from './ai-tools.service';
 import { TasksModule } from '../tasks/tasks.module';
@@ -12,22 +13,53 @@ import { SkillRegistry } from './skills/skill.registry';
 import { SkillComposer } from './skills/skill.composer';
 import { InvariantExtractor } from './skills/validators/invariant.extractor';
 import { InvariantValidator } from './skills/validators/invariant.validator';
+import { SKILLS_ROOT } from './skills/skills-root.token';
+import { DocumentInputModule } from '../document-input/document-input.module';
+import { DocumentParsingModule } from '../document-parsing/document-parsing.module';
+import { ContextBuilderModule } from '../context-builder/context-builder.module';
+import { ChunkingModule } from '../chunking/chunking.module';
+import { ToolInputPreparationService } from './execution/tool-input-preparation.service';
+import { ToolSubmissionPreparationService } from './execution/tool-submission-preparation.service';
+import { AcademicToolExecutionService } from './execution/academic-tool-execution.service';
 
 @Module({
-  imports: [TasksModule],
+  imports: [
+    TasksModule,
+    DocumentInputModule,
+    DocumentParsingModule,
+    ContextBuilderModule,
+    ChunkingModule,
+  ],
   controllers: [AiToolsController],
   providers: [
     AiToolsService,
     DeepSeekProvider,
     LlmService,
     TopicGenerationGenerator,
-    SkillLoader,
+    {
+      provide: SkillLoader,
+      useFactory: (skillsRoot: string) => new SkillLoader(skillsRoot),
+      inject: [SKILLS_ROOT],
+    },
     SkillRegistry,
     SkillComposer,
     InvariantExtractor,
-    InvariantValidator,
+    {
+      provide: InvariantValidator,
+      useFactory: (extractor: InvariantExtractor) =>
+        new InvariantValidator(extractor),
+      inject: [InvariantExtractor],
+    },
+    {
+      provide: SKILLS_ROOT,
+      useFactory: () =>
+        path.resolve(process.cwd(), 'server/modules/ai-tools/skills'),
+    },
     PolishGenerator,
     PaperRevisionGenerator,
+    ToolInputPreparationService,
+    ToolSubmissionPreparationService,
+    AcademicToolExecutionService,
   ],
 })
 export class AiToolsModule {}
