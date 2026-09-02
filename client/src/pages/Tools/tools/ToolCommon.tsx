@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, FileText, X, Info } from 'lucide-react';
+import { Button } from '@client/src/components/ui/button';
 
 // ============= File Upload Zone =============
 
@@ -93,6 +94,34 @@ export const FileUploadZone: React.FC<FileUploadZoneProps> = ({
     </div>
   );
 };
+
+interface DocumentInputUploadActionProps {
+  file: File | null;
+  ready: boolean;
+  uploading?: boolean;
+  error?: string | null;
+  onUpload: () => void;
+}
+
+export const DocumentInputUploadAction: React.FC<DocumentInputUploadActionProps> = ({
+  file,
+  ready,
+  uploading = false,
+  error,
+  onUpload,
+}) => (
+  <div className="space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+    {ready ? (
+      <p className="text-sm font-medium text-emerald-700">文档已准备就绪：{file?.name}</p>
+    ) : (
+      <Button className="w-full" onClick={onUpload} disabled={!file || uploading}>
+        {uploading ? '上传并准备中...' : '上传并准备文档'}
+      </Button>
+    )}
+    {error && <p className="text-xs text-red-600">{error}</p>}
+    <p className="text-xs text-slate-500">C4 仅完成文档上传与准备，不会创建 AI 任务或扣除积分。</p>
+  </div>
+);
 
 // ============= Step Indicator =============
 

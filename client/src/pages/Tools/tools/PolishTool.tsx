@@ -25,8 +25,10 @@ import {
 import { Button } from '@client/src/components/ui/button';
 import { Badge } from '@client/src/components/ui/badge';
 import { Sparkles, CheckCircle, ArrowRight, Upload, FileText } from 'lucide-react';
-import { aiToolsApi } from '@client/src/api/index';
+import { aiToolsApi, documentInputApi } from '@client/src/api/index';
 import type { Task } from '@shared/api.interface';
+import type { DocumentInputDescriptor, DocumentInputRef } from '@shared/document-input.interface';
+import { DocumentInputUploadAction, FileUploadZone } from './ToolCommon';
 
 const POLISH_TYPES = [
   { value: 'grammar', label: '语法纠错' },
@@ -40,8 +42,11 @@ const PolishTool: React.FC = () => {
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
   const [text, setText] = useState('');
   const [polishType, setPolishType] = useState('grammar');
-  const [fileName, setFileName] = useState('');
-  const [isDragging, setIsDragging] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [documentDescriptor, setDocumentDescriptor] = useState<DocumentInputDescriptor | null>(null);
+  const [documentRef, setDocumentRef] = useState<DocumentInputRef | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
 
@@ -49,22 +54,21 @@ const PolishTool: React.FC = () => {
   const pointsCost = Math.max(10, Math.ceil(wordCount / 1000) * 10);
 
   const canSubmit =
-    (inputMode === 'text' && text.trim().length > 0) ||
-    (inputMode === 'file' && fileName);
+    inputMode === 'text' && text.trim().length > 0;
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    if (!canSubmit || inputMode !== 'text') return;
     setLoading(true);
     try {
       const task: Task = await aiToolsApi.submitTask({
         taskType: 'polish',
         title: inputMode === 'text'
           ? text.slice(0, 30) + (text.length > 30 ? '...' : '')
-          : fileName,
+          : '',
         inputData: {
           inputMode,
           text: inputMode === 'text' ? text : undefined,
-          fileName: inputMode === 'file' ? fileName : undefined,
+          fileName: undefined,
           polishType,
           wordCount,
         },
@@ -77,8 +81,28 @@ const PolishTool: React.FC = () => {
     }
   };
 
-  const handleFileSelect = (file: File | null) => {
-    if (file) setFileName(file.name);
+  const handleFileSelect = (nextFiles: File[]) => {
+    setFiles(nextFiles.slice(0, 1));
+    setDocumentDescriptor(null);
+    setDocumentRef(null);
+    setUploadError(null);
+  };
+
+  const handleDocumentUpload = async () => {
+    const file = files[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const descriptor = await documentInputApi.uploadDocument(file);
+      setDocumentDescriptor(descriptor);
+      setDocumentRef(descriptor.document);
+    } catch (error) {
+      logger.error('upload polish document failed', JSON.stringify(error));
+      setUploadError(error instanceof Error ? error.message : '文档上传失败，请重试');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (result) {
@@ -157,50 +181,14 @@ const PolishTool: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="file" className="mt-4">
-            <div
-              className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-10 transition-colors ${
-                isDragging
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-slate-200 bg-slate-50'
-              }`}
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsDragging(false);
-                const file = e.dataTransfer.files?.[0];
-                if (file) handleFileSelect(file);
-              }}
-            >
-              <Upload className="mb-3 h-8 w-8 text-slate-400" />
-              {fileName ? (
-                <div className="text-center">
-                  <p className="text-sm font-medium text-slate-700">{fileName}</p>
-                  <button
-                    className="mt-2 text-xs text-blue-600 hover:underline"
-                    onClick={() => setFileName('')}
-                  >
-                    重新选择
-                  </button>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <p className="text-sm text-slate-600">
-                    拖拽文件到此处，或
-                    <label className="cursor-pointer text-blue-600 hover:underline">
-                      {' '}点击上传
-                      <input
-                        type="file"
-                        accept=".docx"
-                        className="hidden"
-                        onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
-                      />
-                    </label>
-                  </p>
-                  <p className="mt-1 text-xs text-slate-500">支持 .docx 格式</p>
-                </div>
-              )}
-            </div>
+            <FileUploadZone
+              files={files}
+              onChange={handleFileSelect}
+              accept=".docx,.pdf,.txt,.md,.markdown"
+              multiple={false}
+              label="上传润色文档"
+              hint="支持 .docx、.pdf、.txt、.md、.markdown 格式"
+            />
           </TabsContent>
         </Tabs>
 
@@ -221,17 +209,29 @@ const PolishTool: React.FC = () => {
         </div>
       </CardContent>
       <CardFooter className="flex-col gap-3 border-t border-slate-100 pt-5">
-        <Button
-          className="w-full"
-          onClick={handleSubmit}
-          disabled={!canSubmit || loading}
-        >
-          <Sparkles className="h-4 w-4" />
-          {loading ? '提交中...' : `开始润色（${pointsCost}积分起）`}
-        </Button>
-        <p className="text-xs text-slate-500">
-          按字数计费，每千字10积分，不足千字按10积分计
-        </p>
+        {inputMode === 'file' ? (
+          <DocumentInputUploadAction
+            file={files[0] ?? null}
+            ready={documentRef !== null && documentDescriptor !== null}
+            uploading={uploading}
+            error={uploadError}
+            onUpload={handleDocumentUpload}
+          />
+        ) : (
+          <>
+            <Button
+              className="w-full"
+              onClick={handleSubmit}
+              disabled={!canSubmit || loading}
+            >
+              <Sparkles className="h-4 w-4" />
+              {loading ? '提交中...' : `开始润色（${pointsCost}积分起）`}
+            </Button>
+            <p className="text-xs text-slate-500">
+              按字数计费，每千字10积分，不足千字按10积分计
+            </p>
+          </>
+        )}
       </CardFooter>
     </Card>
   );
