@@ -22,9 +22,11 @@ Last Updated: 2026-09-02
 
 ## Current development
 
-- Current Development Phase: NONE
-- Current Development Branch: `NONE`
-- Current Phase Status: `PHASE_C4_ACCEPTED` / CLOSED
+- Current Development Phase: Phase D1 — Tool Execution Foundation
+- Current Development Branch: `phase/d1-tool-execution-foundation`
+- Current Phase Status: `REVIEW_CANDIDATE` / awaiting ChatGPT review and explicit acceptance
+- Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
+- Phase D1 candidate implementation commit: `cdeafa9`
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
 - Phase C3 Acceptance PR: [#2 Phase C3: Chunking](https://github.com/booom12133/academic-writing-platform/pull/2) — MERGED
@@ -104,14 +106,16 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 ## Test baseline and current results
 
 - Stable accepted baseline: Phase C2 on `main` remains the frozen accepted implementation baseline.
-- Current targeted C3: PASS — `npx jest server/modules/chunking/chunking.service.spec.ts --runInBand` → 39 tests.
-- Current full regression: PASS — `npm test -- --runInBand` → 22 suites / 189 tests.
+- Current targeted D1: PASS — execution preparation, execution aggregation, DI, and contract suites.
+- Current full regression: PASS — `npm test -- --runInBand` → 36 suites / 244 tests.
 - Current lint: PASS — `npm run lint`.
 - Current combined type-check: PASS — `npm run type:check` completed with both server and client subprocesses passing.
 - Current server type-check: PASS.
 - Current client type-check: PASS.
 - Current server build: PASS — `npm run build:server`.
 - Current client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
+- Current full AppModule bootstrap: PASS — `npm run test:app-bootstrap`; built application context resolved `AiToolsModule` and `AcademicToolExecutionService` without a DeepSeek call.
+- Current DeepSeek / external AI calls during D1 verification: 0.
 - Current npm 10 clean-install dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
 - DeepSeek / external AI calls during C3 verification: 0.
 
@@ -135,6 +139,7 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 - Targeted/full Jest runs emit the existing non-blocking `ts-jest` `TS151001` `esModuleInterop` warning.
 - `npm test -- --runInBand` logs expected DeepSeek provider auth/rate-limit warnings from existing unit tests; DeepSeek API calls remain `0`.
 - Client build retains existing non-fatal `[MODULE_TYPELESS_PACKAGE_JSON]` and chunk-size warnings.
+- On Windows, the aggregate `npm run build` wrapper remains non-portable because it invokes `./scripts/build.sh`; D1 verification therefore runs the existing `build:server` and `build:client` scripts directly, both passing.
 - GitHub Actions `verify` may fail on the pre-existing `test/unit/platform-command.spec.ts` Windows-path fixture when running on Linux; the local Windows full regression passes. This unrelated cross-platform baseline issue is intentionally not changed in Phase C3.
 - C3 intentionally does not connect frontend files, upload/storage flows, tasks, AI tools, prompt rendering, tokenizer/model windows, OCR, retrieval, or multi-document orchestration.
 
