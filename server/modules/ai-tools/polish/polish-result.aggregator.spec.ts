@@ -3,6 +3,7 @@ import { PolishResultAggregator } from './polish-result.aggregator';
 
 const validation = {
   status: 'PASS' as const,
+  violations: [],
   summary: { errors: 0, warnings: 0 },
   results: [],
 };
@@ -81,6 +82,11 @@ function execution(records: ToolExecutionChunkRecord[]): AcademicToolExecutionRe
     version: 1,
     task: { type: 'polish', userInstructions: 'Keep terminology stable.' },
     source: {
+      id: 'document-1',
+      kind: 'parsed-document',
+      extension: '.txt',
+      sizeBytes: 42,
+      metadata: {},
       sourceType: 'txt',
       fileName: 'source.txt',
       warnings: [],

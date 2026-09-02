@@ -20,7 +20,7 @@ export interface PolishSubmissionRequest {
   inputData: PolishSubmissionInputData;
 }
 
-export interface PolishChunkOptions {
+export interface PolishChunkOptions extends Record<string, unknown> {
   polishType?: string;
   language?: 'zh' | 'en';
 }

@@ -3,6 +3,7 @@ import { TasksService } from '../tasks/tasks.service';
 import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
 import { PolishSubmissionService } from './polish/polish-submission.service';
+import type { PolishSubmissionInputData } from './polish/polish-input.types';
 
 import { generate as generateOutline } from './generators/outline.generator';
 import { generate as generateLiterature } from './generators/literature.generator';
@@ -68,7 +69,7 @@ export class AiToolsService {
       return this.polishSubmissionService.submit({
         userId,
         title,
-        inputData,
+        inputData: inputData as PolishSubmissionInputData,
       });
     }
 
