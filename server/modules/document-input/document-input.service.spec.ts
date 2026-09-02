@@ -161,6 +161,7 @@ describe('DocumentInputService', () => {
       taskType: 'polish',
       chunkingPolicy: { maxSize: 100 },
     })).rejects.toMatchObject({ code: 'DOCUMENT_OWNERSHIP_MISMATCH' });
+    expect(storage.getDefaultBucketId).not.toHaveBeenCalled();
     expect(storage.download).not.toHaveBeenCalled();
   });
 
@@ -266,5 +267,30 @@ describe('DocumentInputService', () => {
       chunkingPolicy: { maxSize: 100 },
     })).rejects.toMatchObject({ code: 'DOCUMENT_NOT_FOUND' });
     expect(parser.parse).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['raw backslash', 'paper\\evil.docx'],
+    ['encoded slash uppercase', 'paper%2Fother.docx'],
+    ['encoded slash lowercase', 'paper%2fother.docx'],
+    ['encoded backslash uppercase', 'paper%5Cother.docx'],
+    ['encoded backslash lowercase', 'paper%5cother.docx'],
+  ])('rejects non-canonical storage basename before download: %s', async (_case, basename) => {
+    const storage = makeStorage();
+    const { service } = makeService(storage);
+    const untrustedRef = ref({
+      filePath: 'academic-writing/users/' + sha256(Buffer.from('user-1')) + '/550e8400-e29b-41d4-a716-446655440000/' + basename,
+      fileName: basename,
+      sourceType: 'docx',
+      mimeType: 'application/octet-stream',
+    });
+
+    await expect(service.prepare({
+      userId: 'user-1',
+      documentRef: untrustedRef,
+      taskType: 'polish',
+      chunkingPolicy: { maxSize: 100 },
+    })).rejects.toBeInstanceOf(DocumentInputError);
+    expect(storage.download).not.toHaveBeenCalled();
   });
 });

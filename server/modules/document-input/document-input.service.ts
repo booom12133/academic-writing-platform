@@ -44,7 +44,8 @@ const MIME_TYPES: Record<string, Set<string>> = {
   '.markdown': new Set(['text/markdown', 'text/x-markdown', 'text/plain', 'application/octet-stream']),
 };
 
-const PATH_PATTERN = /^academic-writing\/users\/([a-f0-9]{64})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([^/]+)$/;
+const PATH_PATTERN = /^academic-writing\/users\/([a-f0-9]{64})\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/([^/\\\u0000-\u001f\u007f]+)$/;
+const ENCODED_PATH_SEPARATOR_PATTERN = /%(?:2f|5c)/iu;
 
 export interface PrepareDocumentInput {
   userId: string;
@@ -213,8 +214,7 @@ export class DocumentInputService {
       throw new DocumentInputError('DOCUMENT_PREPARATION_FAILED', 'The document descriptor is invalid.');
     }
 
-    const bucketId = await this.getBucketId();
-    if (ref.bucketId !== bucketId || typeof ref.filePath !== 'string') {
+    if (typeof ref.filePath !== 'string' || ENCODED_PATH_SEPARATOR_PATTERN.test(ref.filePath)) {
       throw new DocumentInputError('DOCUMENT_OWNERSHIP_MISMATCH', 'The document does not belong to the current user.');
     }
 
@@ -224,6 +224,16 @@ export class DocumentInputService {
     }
 
     const fileName = match[3];
+    const canonicalPath = `academic-writing/users/${match[1]}/${match[2]}/${fileName}`;
+    if (ref.filePath !== canonicalPath || fileName === '.' || fileName === '..') {
+      throw new DocumentInputError('DOCUMENT_PREPARATION_FAILED', 'The document descriptor path is not canonical.');
+    }
+
+    const bucketId = await this.getBucketId();
+    if (ref.bucketId !== bucketId) {
+      throw new DocumentInputError('DOCUMENT_OWNERSHIP_MISMATCH', 'The document does not belong to the current user.');
+    }
+
     const extension = this.getExtension(fileName);
     const sourceType = SOURCE_TYPES[extension] as DocumentInputSourceType | undefined;
     if (!sourceType || ref.fileName !== fileName || ref.sourceType !== sourceType) {

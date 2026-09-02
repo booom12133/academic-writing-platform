@@ -25,18 +25,14 @@ describe('DocumentInputExceptionFilter', () => {
     }));
   });
 
-  it('maps Multer size-limit errors to DOCUMENT_TOO_LARGE', () => {
-    const json = jest.fn();
-    const response = { status: jest.fn().mockReturnValue({ json }) };
+  it('does not handle unrelated exceptions', () => {
+    const exception = new Error('unrelated');
+    const response = { status: jest.fn() };
     const host = {
       switchToHttp: () => ({ getResponse: () => response }),
     } as never;
 
-    new DocumentInputExceptionFilter().catch({ code: 'LIMIT_FILE_SIZE', message: 'too large' }, host);
-
-    expect(response.status).toHaveBeenCalledWith(HttpStatus.PAYLOAD_TOO_LARGE);
-    expect(json).toHaveBeenCalledWith(expect.objectContaining({
-      error: expect.objectContaining({ code: 'DOCUMENT_TOO_LARGE' }),
-    }));
+    expect(() => new DocumentInputExceptionFilter().catch(exception, host)).toThrow(exception);
+    expect(response.status).not.toHaveBeenCalled();
   });
 });

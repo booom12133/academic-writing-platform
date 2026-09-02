@@ -78,15 +78,17 @@ points in file mode.
 
 ## Current Phase verification (C4)
 
-- Targeted C4 server: PASS — `npx jest server/modules/document-input --runInBand` → 4 suites / 21 tests.
+- Targeted C4 server: PASS — `npx jest server/modules/document-input --runInBand` → 5 suites / 27 tests.
 - Targeted client multipart API: PASS — `npx jest test/unit/document-input-client.spec.ts --runInBand` → 1 test.
-- Full regression: PASS — `npm test -- --runInBand` → 27 suites / 211 tests.
+- Full regression: PASS — `npm test -- --runInBand` → 28 suites / 217 tests.
 - Lint: PASS — `npm run lint`.
 - Type-check: PASS — `npm run type:check`.
 - Server build: PASS — `npm run build:server`.
 - Client build: PASS — `npm run build:client`, with existing non-blocking module-type and chunk-size warnings.
 - Dependency dry-run: PASS — `npx --yes npm@10.9.2 ci --ignore-scripts --dry-run --loglevel=error`.
 - Platform runtime smoke: BLOCKED — the real PlatformModule startup attempt stopped because this environment has no `FORCE_AUTHN_INNERAPI_DOMAIN`; no local unavailable-adapter result is being counted as platform evidence. Status remains `PHASE_C4_REVIEW_BLOCKED_PLATFORM_RUNTIME`.
+- Review fixes: path validation now rejects raw backslashes and case-insensitive `%2F`/`%5C` before bucket/download access, with canonical path reconstruction; the C4 filter now catches only `DocumentInputError` and Nest `PayloadTooLargeException`.
+- GitHub Actions runs `33555613324` and `33555570549`: both failed only in `Full tests` at `test/unit/platform-command.spec.ts › commandForPlatform › uses npm cli scripts when npm provides its executable path`; Ubuntu expected `/opt/hostedtoolcache/node/22.23.2/x64/bin/node` but received `npx.cmd`. This remains the accepted inherited Windows-path fixture issue and was not changed.
 - DeepSeek / external AI calls during C4 verification: 0.
 
 ## Test baseline and current results

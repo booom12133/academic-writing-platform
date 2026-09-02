@@ -3,6 +3,7 @@ import {
   Catch,
   ExceptionFilter,
   HttpStatus,
+  PayloadTooLargeException,
 } from '@nestjs/common';
 import type { Response } from 'express';
 
@@ -19,10 +20,10 @@ const STATUS_BY_CODE: Record<DocumentInputErrorCode, HttpStatus> = {
   DOCUMENT_PREPARATION_FAILED: HttpStatus.BAD_REQUEST,
 };
 
-@Catch()
+@Catch(DocumentInputError, PayloadTooLargeException)
 export class DocumentInputExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
-    if (!(exception instanceof DocumentInputError) && !this.isMulterSizeError(exception)) {
+    if (!(exception instanceof DocumentInputError) && !(exception instanceof PayloadTooLargeException)) {
       throw exception;
     }
 
@@ -41,11 +42,5 @@ export class DocumentInputExceptionFilter implements ExceptionFilter {
         timestamp: Date.now(),
       },
     });
-  }
-
-  private isMulterSizeError(exception: unknown): exception is { code: 'LIMIT_FILE_SIZE' } {
-    return typeof exception === 'object'
-      && exception !== null
-      && (exception as { code?: unknown }).code === 'LIMIT_FILE_SIZE';
   }
 }
