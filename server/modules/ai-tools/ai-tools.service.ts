@@ -4,6 +4,8 @@ import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
 import { PolishSubmissionService } from './polish/polish-submission.service';
 import type { PolishSubmissionInputData } from './polish/polish-input.types';
+import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
+import type { PaperRevisionSubmissionInputData } from './paper-revision/paper-revision-input.types';
 
 import { generate as generateOutline } from './generators/outline.generator';
 import { generate as generateLiterature } from './generators/literature.generator';
@@ -20,7 +22,6 @@ import { generate as generateCoursePaper } from './generators/course-paper.gener
 import { generate as generateJournalPaper } from './generators/journal-paper.generator';
 import { generate as generatePracticeReport } from './generators/practice-report.generator';
 import { generate as generateProjectApplication } from './generators/project-application.generator';
-import { PaperRevisionGenerator } from './generators/paper-revision.generator';
 import { generate as generateCommentRevision } from './generators/comment-revision.generator';
 import { generate as generateDataAnalysis } from './generators/data-analysis.generator';
 import { generate as generateQuestionnaireDesign } from './generators/questionnaire-design.generator';
@@ -35,8 +36,8 @@ export class AiToolsService {
   constructor(
     private readonly tasksService: TasksService,
     private readonly topicGenerationGenerator: TopicGenerationGenerator,
-    private readonly paperRevisionGenerator: PaperRevisionGenerator,
     private readonly polishSubmissionService: PolishSubmissionService,
+    private readonly paperRevisionSubmissionService: PaperRevisionSubmissionService,
   ) {}
 
   getToolConfigs(): ToolConfig[] {
@@ -70,6 +71,14 @@ export class AiToolsService {
         userId,
         title,
         inputData: inputData as PolishSubmissionInputData,
+      });
+    }
+
+    if (taskType === 'paper-revision') {
+      return this.paperRevisionSubmissionService.submit({
+        userId,
+        title,
+        inputData: inputData as PaperRevisionSubmissionInputData,
       });
     }
 
@@ -172,9 +181,6 @@ export class AiToolsService {
             break;
           case 'project-application':
             resultData = await generateProjectApplication(inputData);
-            break;
-          case 'paper-revision':
-            resultData = await this.paperRevisionGenerator.generate(inputData);
             break;
           case 'comment-revision':
             resultData = await generateCommentRevision(inputData);
