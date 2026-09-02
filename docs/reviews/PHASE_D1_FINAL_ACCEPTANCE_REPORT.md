@@ -1,15 +1,15 @@
 # Phase D1 Final Acceptance Report
 
-## 1. Candidate status
+## 1. Final status and closeout metadata
 
 ```text
 Phase D1 — Tool Execution Foundation
-FINAL_ACCEPTANCE_CANDIDATE
+PHASE_D1_ACCEPTED_CLOSED
 ```
 
-This report prepares the current PR head for ChatGPT Final Acceptance. It does
-not declare `PHASE_D1_ACCEPTED`. Codex must not merge, tag, or enter D2 without
-explicit ChatGPT Final Acceptance.
+ChatGPT explicitly issued `PHASE_D1_ACCEPTED`. This post-acceptance metadata
+records the completed merge and closeout only; the D1 technical scope,
+acceptance conclusions, and known issues below are unchanged.
 
 ## 2. Accepted baseline and candidate
 
@@ -17,7 +17,11 @@ explicit ChatGPT Final Acceptance.
 - Accepted baseline tag: `phase-c4-accepted`.
 - Candidate branch: `phase/d1-tool-execution-foundation`.
 - Candidate PR: [#4 Phase D1: Tool Execution Foundation](https://github.com/booom12133/academic-writing-platform/pull/4).
-- Candidate head: `9c2ed7a28f23924dbf3269961f04b77e3c43f83a`.
+- Accepted candidate/PR head: `ce5f96cdcfded501576e92262d7090dfd9d96ee1`.
+- PR state: `MERGED`.
+- PR merge commit: `2ee5680169fcf1eeb03816d41a55267d9488e460`.
+- Annotated tag: `phase-d1-accepted`, created after post-merge governance closeout
+  and pointing to the final `main` HEAD.
 
 ## 3. D1 scope
 
@@ -97,11 +101,13 @@ DeepSeekProvider, queues, RAG, and parallel execution remain outside this phase.
   DI wiring resolves the previously documented AppModule bootstrap issue in the
   current candidate.
 
-## 9. Final acceptance gate
+## 9. Final acceptance and closeout
 
 ```text
-WAITING_FOR_CHATGPT_FINAL_ACCEPTANCE
+PHASE_D1_ACCEPTED_CLOSED
 ```
 
-ChatGPT must explicitly issue `PHASE_D1_ACCEPTED` before any merge or tag.
-Codex does not self-declare acceptance and does not enter D2 in this state.
+The Phase D1 candidate was accepted by ChatGPT, PR #4 was merged normally into
+`main`, and the post-merge governance closeout was recorded. D1 is frozen and
+closed. Phase D2 remains `PLANNED / NOT_STARTED / NOT_AUTHORIZED`; no D2 work
+was started.

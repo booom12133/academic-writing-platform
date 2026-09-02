@@ -13,23 +13,27 @@ Last Updated: 2026-09-02
 
 ## Stable state
 
-- Current Stable Phase: Phase C4 — File Integration
-- Stable Status: ACCEPTED / FROZEN (`PHASE_C4_ACCEPTED`)
+- Current Stable Phase: Phase D1 — Tool Execution Foundation
+- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D1_ACCEPTED_CLOSED`)
 - Stable Branch: `main`
-- Stable Main Commit: `ad8ce030ec1195d924efadf174d1bfaaa36357c5` (Phase C4 PR #3 merge commit; final accepted main state is the post-merge closeout commit recorded by `phase-c4-accepted`.)
-- Latest Final Acceptance Report: [PHASE_C4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_C4_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, and Phase C4 are completed/frozen by project records
+- Stable Main Commit: final post-merge D1 governance HEAD (this closeout commit)
+- Latest Final Acceptance Report: [PHASE_D1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D1_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, and Phase D1 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase D1 — Tool Execution Foundation
-- Current Development Branch: `phase/d1-tool-execution-foundation`
-- Current Phase Status: `FINAL_ACCEPTANCE_CANDIDATE` / awaiting ChatGPT Final Acceptance
+- Current Development Phase: Phase D1 — Tool Execution Foundation (closed on `main`)
+- Current Development Branch: `main`
+- Current Phase Status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_D1_ACCEPTED_CLOSED`)
 - Phase D1 scope: execution contracts, deterministic chunk rendering/aggregation, text/file preparation reuse, provenance, reference pass-through, and preparation-before-billing safety boundary. Existing Polish/Paper Revision production submission flows remain unchanged.
 - Phase D1 implementation commit before review fixes: `9903208`
 - Phase D1 review head before current fixes: `1999fd5e0f8e0fe35d90658a12fb4e63cd6be8ac`
 - Phase D1 current review-fix implementation commit: `3dbab6d`
-- Phase D1 Final Acceptance Candidate Head: `9c2ed7a28f23924dbf3269961f04b77e3c43f83a`
+- Phase D1 accepted candidate/PR head: `ce5f96cdcfded501576e92262d7090dfd9d96ee1`
+- Phase D1 PR: [#4 Phase D1: Tool Execution Foundation](https://github.com/booom12133/academic-writing-platform/pull/4) — MERGED
+- Phase D1 PR merge commit: `2ee5680169fcf1eeb03816d41a55267d9488e460`
+- Phase D1 post-merge governance commit: this closeout commit, final `main` HEAD
+- Phase D1 accepted tag: `phase-d1-accepted` — annotated tag points to final `main` HEAD
 - Phase D1 Final Acceptance Report: [PHASE_D1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D1_FINAL_ACCEPTANCE_REPORT.md)
 - Phase C3 Review Candidate Commit: `9f0df1f`
 - Phase C3 Accepted Implementation Commit: `728e8e2`
@@ -55,6 +59,7 @@ Last Updated: 2026-09-02
 - Phase C2: ACCEPTED / FROZEN
 - Phase C3: ACCEPTED / FROZEN
 - Phase C4: ACCEPTED / FROZEN / CLOSED
+- Phase D1: ACCEPTED / FROZEN / CLOSED (`PHASE_D1_ACCEPTED_CLOSED`)
 
 ## Previous accepted Phase goal (C3)
 
@@ -169,6 +174,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: Phase D — Tool Migration
+- Next Phase: Phase D2 — Tool Migration
 - Next Phase Status: PLANNED / NOT_STARTED / NOT_AUTHORIZED
-- Next Phase Goal: Record only; do not enter Phase D without a separate explicit authorization.
+- Next Phase Goal: Record only; do not enter D2 without a separate explicit authorization.
