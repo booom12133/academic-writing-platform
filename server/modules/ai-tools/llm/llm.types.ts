@@ -5,13 +5,12 @@ export interface LlmMessage {
   content: string;
 }
 
-export interface LlmGenerateOptions {
+export interface TextGenerationRequest {
   messages: LlmMessage[];
   model?: string;
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
-  thinking?: boolean;
 }
 
 export interface LlmUsage {
@@ -20,16 +19,21 @@ export interface LlmUsage {
   totalTokens?: number;
 }
 
-export interface LlmGenerateResult {
+export interface TextGenerationResult {
   content: string;
+  provider: string;
   model: string;
   usage?: LlmUsage;
 }
 
-export interface LlmHealthResult {
+export interface TextGenerationHealth {
   configured: boolean;
-  provider: 'deepseek';
+  provider: string;
   reachable: boolean;
   defaultModel: string;
   error?: string;
 }
+
+export type LlmGenerateOptions = TextGenerationRequest;
+export type LlmGenerateResult = TextGenerationResult;
+export type LlmHealthResult = TextGenerationHealth;

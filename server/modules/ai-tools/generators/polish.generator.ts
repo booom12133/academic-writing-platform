@@ -69,7 +69,6 @@ export class PolishGenerator {
         { role: 'user', content: composed.user },
       ],
       jsonMode: true,
-      thinking: false,
       temperature: 0.4,
       maxTokens: 4000,
     });

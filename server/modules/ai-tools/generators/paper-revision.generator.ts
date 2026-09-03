@@ -69,7 +69,6 @@ export class PaperRevisionGenerator {
         { role: 'user', content: composed.user },
       ],
       jsonMode: true,
-      thinking: false,
       temperature: 0.5,
       maxTokens: 5000,
     });

@@ -96,7 +96,6 @@ export class TopicGenerationGenerator {
       const response = await this.llmService.generate({
         messages: requestMessages,
         jsonMode: true,
-        thinking: false,
         temperature: 0.7,
         maxTokens: 1600,
       });

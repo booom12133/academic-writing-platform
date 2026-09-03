@@ -40,7 +40,6 @@ describe('DeepSeekProvider', () => {
     const result = await new DeepSeekProvider().generate({
       messages: [{ role: 'user', content: 'test' }],
       jsonMode: true,
-      thinking: false,
     });
 
     expect(mockedAxios.post).toHaveBeenCalledWith(
@@ -60,6 +59,7 @@ describe('DeepSeekProvider', () => {
       },
     );
     expect(result.content).toBe('{"ok":true}');
+    expect(result.provider).toBe('deepseek');
     expect(result.model).toBe('deepseek-v4-flash');
   });
 
@@ -93,6 +93,7 @@ describe('DeepSeekProvider', () => {
       }),
     ).resolves.toEqual({
       content: 'generated text',
+      provider: 'deepseek',
       model: 'deepseek-v4-flash',
       usage: {
         promptTokens: 12,
@@ -122,5 +123,66 @@ describe('DeepSeekProvider', () => {
         messages: [{ role: 'user', content: 'test' }],
       }),
     ).rejects.toThrow('DeepSeek rate limit reached');
+  });
+
+  it('preserves empty-content errors as safe provider errors', async () => {
+    mockedAxios.post.mockResolvedValueOnce({
+      data: { choices: [{ message: { content: '   ' } }] },
+    });
+
+    await expect(
+      new DeepSeekProvider().generate({
+        messages: [{ role: 'user', content: 'test' }],
+      }),
+    ).rejects.toThrow('DeepSeek returned empty response');
+  });
+
+  it('maps timeout, billing, and generic status failures safely', async () => {
+    mockedAxios.post.mockRejectedValueOnce({ code: 'ETIMEDOUT', message: 'socket timeout' });
+    await expect(
+      new DeepSeekProvider().generate({ messages: [{ role: 'user', content: 'test' }] }),
+    ).rejects.toThrow('DeepSeek request timed out');
+
+    mockedAxios.post.mockRejectedValueOnce({
+      response: { status: 402, data: { error: { message: 'insufficient balance' } } },
+    });
+    await expect(
+      new DeepSeekProvider().generate({ messages: [{ role: 'user', content: 'test' }] }),
+    ).rejects.toThrow('DeepSeek billing error: insufficient balance');
+
+    mockedAxios.post.mockRejectedValueOnce({
+      response: { status: 500, data: { error: { message: 'upstream details' } } },
+    });
+    await expect(
+      new DeepSeekProvider().generate({ messages: [{ role: 'user', content: 'test' }] }),
+    ).rejects.toThrow('DeepSeek API request failed (500): upstream details');
+  });
+
+  it('returns a neutral health result without calling the API when unconfigured', async () => {
+    delete process.env.DEEPSEEK_API_KEY;
+
+    await expect(new DeepSeekProvider().checkHealth()).resolves.toEqual({
+      configured: false,
+      provider: 'deepseek',
+      reachable: false,
+      defaultModel: 'deepseek-v4-flash',
+      error: 'DeepSeek API key is not configured',
+    });
+    expect(mockedAxios.get).not.toHaveBeenCalled();
+  });
+
+  it('returns a reachable health result from the models endpoint', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ data: { data: [] } });
+
+    await expect(new DeepSeekProvider().checkHealth()).resolves.toEqual({
+      configured: true,
+      provider: 'deepseek',
+      reachable: true,
+      defaultModel: 'deepseek-v4-flash',
+    });
+    expect(mockedAxios.get).toHaveBeenCalledWith(
+      'https://api.deepseek.com/models',
+      expect.objectContaining({ timeout: 90_000 }),
+    );
   });
 });

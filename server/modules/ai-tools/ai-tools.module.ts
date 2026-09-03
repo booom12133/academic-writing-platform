@@ -5,6 +5,7 @@ import { AiToolsService } from './ai-tools.service';
 import { TasksModule } from '../tasks/tasks.module';
 import { DeepSeekProvider } from './llm/deepseek.provider';
 import { LlmService } from './llm/llm.service';
+import { TEXT_GENERATION_PROVIDER } from './llm/text-generation.provider';
 import { TopicGenerationGenerator } from './generators/topic-generation.generator';
 import { PolishGenerator } from './generators/polish.generator';
 import { PaperRevisionGenerator } from './generators/paper-revision.generator';
@@ -40,7 +41,10 @@ import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-
   controllers: [AiToolsController],
   providers: [
     AiToolsService,
-    DeepSeekProvider,
+    {
+      provide: TEXT_GENERATION_PROVIDER,
+      useClass: DeepSeekProvider,
+    },
     LlmService,
     TopicGenerationGenerator,
     {
