@@ -22,7 +22,6 @@ async function main(): Promise<void> {
         },
       ],
       jsonMode: true,
-      thinking: false,
       maxTokens: 40,
     });
     const latency = Date.now() - startedAt;

@@ -78,8 +78,10 @@ export class PolishResultAggregator {
       typeof output.revisedContent !== 'string' ||
       !Array.isArray(output.changes) ||
       !output.metadata ||
-      output.metadata.provider !== 'deepseek' ||
+      typeof output.metadata.provider !== 'string' ||
+      output.metadata.provider.trim().length === 0 ||
       typeof output.metadata.model !== 'string' ||
+      output.metadata.model.trim().length === 0 ||
       typeof output.metadata.latencyMs !== 'number'
     ) {
       throw new Error(`Invalid Polish chunk output for ${record.chunk.chunkId}`);

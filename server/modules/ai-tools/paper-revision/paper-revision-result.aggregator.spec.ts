@@ -60,6 +60,7 @@ function executed(
   chunkValue: RenderedToolChunk,
   revisedContent: string,
   overrides: Partial<NonNullable<ToolExecutionChunkRecord['result']>> = {},
+  metadata: Partial<{ provider: string; model: string; latencyMs: number }> = {},
 ): ToolExecutionChunkRecord {
   return {
     chunk: chunkValue,
@@ -72,7 +73,7 @@ function executed(
         changeSummary: [`summary-${chunkValue.chunkId}`],
         unresolvedIssues: [],
         authorInputNeeded: false,
-        metadata: { provider: 'deepseek', model: 'model', latencyMs: 5 },
+        metadata: { provider: 'deepseek', model: 'model', latencyMs: 5, ...metadata },
       },
       warnings: [`chunk warning ${chunkValue.chunkId}`],
       validation: chunkValidation,
@@ -220,5 +221,27 @@ describe('PaperRevisionResultAggregator', () => {
 
     expect(() => new PaperRevisionResultAggregator().aggregate(execution([malformed])))
       .toThrow('Invalid Paper Revision chunk output');
+  });
+
+  it('accepts structurally valid non-DeepSeek provider metadata', () => {
+    const source = chunk('chunk-1', 'content', [item('chunk-1', 'content', 'a', 'A', 0)]);
+    const result = new PaperRevisionResultAggregator().aggregate(execution([
+      executed(source, 'RA', {}, { provider: 'fake-generation', model: 'fake-model' }),
+    ]));
+
+    expect(result.metadata).toMatchObject({
+      provider: 'fake-generation',
+      model: 'fake-model',
+    });
+  });
+
+  it('rejects empty provider or model metadata structurally', () => {
+    const source = chunk('chunk-1', 'content', [item('chunk-1', 'content', 'a', 'A', 0)]);
+    expect(() => new PaperRevisionResultAggregator().aggregate(execution([
+      executed(source, 'RA', {}, { provider: '' }),
+    ]))).toThrow('Invalid Paper Revision chunk output');
+    expect(() => new PaperRevisionResultAggregator().aggregate(execution([
+      executed(source, 'RA', {}, { model: '   ' }),
+    ]))).toThrow('Invalid Paper Revision chunk output');
   });
 });

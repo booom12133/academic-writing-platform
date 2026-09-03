@@ -6,13 +6,15 @@ import type {
   LlmGenerateResult,
   LlmHealthResult,
 } from './llm.types';
+import type { TextGenerationProvider } from './text-generation.provider';
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com';
 const DEFAULT_MODEL = 'deepseek-v4-flash';
 const REQUEST_TIMEOUT_MS = 90_000;
 
 @Injectable()
-export class DeepSeekProvider {
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through the TEXT_GENERATION_PROVIDER token.
+export class DeepSeekProvider implements TextGenerationProvider {
   private readonly logger = new Logger(DeepSeekProvider.name);
 
   async generate(options: LlmGenerateOptions): Promise<LlmGenerateResult> {
@@ -30,9 +32,7 @@ export class DeepSeekProvider {
     if (options.temperature !== undefined) body.temperature = options.temperature;
     if (options.maxTokens !== undefined) body.max_tokens = options.maxTokens;
     if (options.jsonMode) body.response_format = { type: 'json_object' };
-    if (options.thinking !== undefined) {
-      body.thinking = { type: options.thinking ? 'enabled' : 'disabled' };
-    }
+    body.thinking = { type: 'disabled' };
 
     try {
       const response = await axios.post(
@@ -55,6 +55,7 @@ export class DeepSeekProvider {
       const usage = response.data?.usage;
       return {
         content,
+        provider: 'deepseek',
         model: response.data?.model || model,
         usage: usage
           ? {
@@ -71,7 +72,7 @@ export class DeepSeekProvider {
     }
   }
 
-  async checkConnectivity(): Promise<LlmHealthResult> {
+  async checkHealth(): Promise<LlmHealthResult> {
     const configured = Boolean(process.env.DEEPSEEK_API_KEY?.trim());
     const defaultModel = this.getDefaultModel();
 
@@ -103,6 +104,10 @@ export class DeepSeekProvider {
         error: this.toSafeError(error).message,
       };
     }
+  }
+
+  async checkConnectivity(): Promise<LlmHealthResult> {
+    return this.checkHealth();
   }
 
   private getBaseUrl(): string {

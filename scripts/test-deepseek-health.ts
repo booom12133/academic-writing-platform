@@ -1,19 +1,27 @@
 import 'dotenv/config';
 
 import axios from 'axios';
-import { Module } from '@nestjs/common';
+import { Controller, Get, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 
-import { AiToolsController } from '../server/modules/ai-tools/ai-tools.controller';
-import { AiToolsService } from '../server/modules/ai-tools/ai-tools.service';
 import { DeepSeekProvider } from '../server/modules/ai-tools/llm/deepseek.provider';
 import { LlmService } from '../server/modules/ai-tools/llm/llm.service';
+import { TEXT_GENERATION_PROVIDER } from '../server/modules/ai-tools/llm/text-generation.provider';
+
+@Controller('api/ai-tools')
+class HealthController {
+  constructor(private readonly llmService: LlmService) {}
+
+  @Get('llm/health')
+  getLlmHealth() {
+    return this.llmService.checkHealth();
+  }
+}
 
 @Module({
-  controllers: [AiToolsController],
+  controllers: [HealthController],
   providers: [
-    { provide: AiToolsService, useValue: { getToolConfigs: () => [] } },
-    DeepSeekProvider,
+    { provide: TEXT_GENERATION_PROVIDER, useClass: DeepSeekProvider },
     LlmService,
   ],
 })

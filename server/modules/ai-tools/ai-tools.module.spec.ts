@@ -1,4 +1,11 @@
 jest.mock('../tasks/tasks.service', () => ({ TasksService: class {} }));
+jest.mock('../tasks/tasks.module', () => ({ TasksModule: class {} }));
+jest.mock('../document-input/document-input.module', () => ({ DocumentInputModule: class {} }));
+jest.mock('../document-parsing/document-parsing.module', () => ({ DocumentParsingModule: class {} }));
+jest.mock('../context-builder/context-builder.module', () => ({ ContextBuilderModule: class {} }));
+jest.mock('../chunking/chunking.module', () => ({ ChunkingModule: class {} }));
+jest.mock('./ai-tools.controller', () => ({ AiToolsController: class {} }));
+jest.mock('@shared/api.interface', () => ({ TOOL_CONFIGS: [] }), { virtual: true });
 
 import { Test } from '@nestjs/testing';
 import { TOOL_CONFIGS } from '../../../shared/api.interface';
@@ -14,8 +21,21 @@ import { PaperRevisionGenerator } from './generators/paper-revision.generator';
 import { ToolSubmissionPreparationService } from './execution/tool-submission-preparation.service';
 import { AcademicToolExecutionService } from './execution/academic-tool-execution.service';
 import { TasksService } from '../tasks/tasks.service';
+import { AiToolsModule } from './ai-tools.module';
+import { DeepSeekProvider } from './llm/deepseek.provider';
+import { TEXT_GENERATION_PROVIDER } from './llm/text-generation.provider';
 
 describe('AI tools runtime dependency bootstrap', () => {
+  it('binds the sole production generation seam to DeepSeek', () => {
+    const providers = Reflect.getMetadata('providers', AiToolsModule);
+
+    expect(providers).toContainEqual({
+      provide: TEXT_GENERATION_PROVIDER,
+      useClass: DeepSeekProvider,
+    });
+    expect(providers).not.toContain(DeepSeekProvider);
+  });
+
   it('uses an overridable skills root injection token', async () => {
     const moduleRef = await Test.createTestingModule({
       providers: [

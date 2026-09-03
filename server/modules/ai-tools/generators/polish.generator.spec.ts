@@ -17,6 +17,7 @@ describe('PolishGenerator', () => {
       changes: [],
       warnings: [],
     }),
+    provider: 'fake-generation',
     model: 'deepseek-v4-flash',
     usage: { promptTokens: 20, completionTokens: 15, totalTokens: 35 },
   }, validation: InvariantValidationResult = { status: 'PASS', violations: [], summary: { errors: 0, warnings: 0 } }) => {
@@ -60,7 +61,7 @@ describe('PolishGenerator', () => {
       originalContent: input.text,
       revisedContent: input.text,
       metadata: {
-        provider: 'deepseek',
+        provider: 'fake-generation',
         model: 'deepseek-v4-flash',
         usage: { promptTokens: 20, completionTokens: 15, totalTokens: 35 },
         latencyMs: expect.any(Number),
@@ -76,5 +77,17 @@ describe('PolishGenerator', () => {
     });
 
     await expect(context.generator.generate(input)).rejects.toThrow('Invariant validation failed');
+  });
+
+  it('reports malformed output without naming a concrete provider', async () => {
+    const context = createGenerator({
+      content: 'not json',
+      provider: 'fake-generation',
+      model: 'fake-model',
+      usage: undefined,
+    });
+
+    await expect(context.generator.generate(input)).rejects.toThrow('invalid academic polish JSON');
+    await expect(context.generator.generate(input)).rejects.not.toThrow('DeepSeek');
   });
 });

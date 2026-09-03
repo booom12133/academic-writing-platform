@@ -26,7 +26,7 @@ export interface PaperRevisionOutput {
   warnings: string[];
   validation: InvariantValidationResult;
   metadata: {
-    provider: 'deepseek';
+    provider: string;
     model: string;
     usage?: LlmGenerateResult['usage'];
     latencyMs: number;
@@ -69,7 +69,6 @@ export class PaperRevisionGenerator {
         { role: 'user', content: composed.user },
       ],
       jsonMode: true,
-      thinking: false,
       temperature: 0.5,
       maxTokens: 5000,
     });
@@ -96,7 +95,7 @@ export class PaperRevisionGenerator {
       ],
       validation,
       metadata: {
-        provider: 'deepseek',
+        provider: response.provider,
         model: response.model,
         usage: response.usage,
         latencyMs: Date.now() - startedAt,
@@ -119,7 +118,7 @@ function parseRevisionResponse(content: string): z.infer<typeof revisionResponse
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error('JSON parse error: DeepSeek returned invalid academic revision JSON');
+    throw new Error('JSON parse error: generator returned invalid academic revision JSON');
   }
   const result = revisionResponseSchema.safeParse(parsed);
   if (!result.success) throw new Error('Zod validation error: invalid academic revision output');

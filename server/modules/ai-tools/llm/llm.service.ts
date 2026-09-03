@@ -1,6 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 
-import { DeepSeekProvider } from './deepseek.provider';
+import {
+  TEXT_GENERATION_PROVIDER,
+  type TextGenerationProvider,
+} from './text-generation.provider';
 import type {
   LlmGenerateOptions,
   LlmGenerateResult,
@@ -9,13 +12,16 @@ import type {
 
 @Injectable()
 export class LlmService {
-  constructor(private readonly deepSeekProvider: DeepSeekProvider) {}
+  constructor(
+    @Inject(TEXT_GENERATION_PROVIDER)
+    private readonly textGenerationProvider: TextGenerationProvider,
+  ) {}
 
   generate(options: LlmGenerateOptions): Promise<LlmGenerateResult> {
-    return this.deepSeekProvider.generate(options);
+    return this.textGenerationProvider.generate(options);
   }
 
   checkHealth(): Promise<LlmHealthResult> {
-    return this.deepSeekProvider.checkConnectivity();
+    return this.textGenerationProvider.checkHealth();
   }
 }

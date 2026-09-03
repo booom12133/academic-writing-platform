@@ -16,7 +16,7 @@ interface PaperRevisionChunkOutput {
   unresolvedIssues: string[];
   authorInputNeeded: boolean;
   metadata: {
-    provider: 'deepseek';
+    provider: string;
     model: string;
     latencyMs: number;
   };
@@ -98,8 +98,10 @@ export class PaperRevisionResultAggregator {
       || !output.unresolvedIssues.every((item) => typeof item === 'string')
       || typeof output.authorInputNeeded !== 'boolean'
       || !output.metadata
-      || output.metadata.provider !== 'deepseek'
+      || typeof output.metadata.provider !== 'string'
+      || output.metadata.provider.trim().length === 0
       || typeof output.metadata.model !== 'string'
+      || output.metadata.model.trim().length === 0
       || typeof output.metadata.latencyMs !== 'number'
     ) {
       throw new Error(`Invalid Paper Revision chunk output for ${record.chunk.chunkId}`);

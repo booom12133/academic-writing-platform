@@ -22,8 +22,9 @@ Last Updated: 2026-09-03
 
 ## Current development
 
-- Current Development: No next implementation phase authorized.
-- Next architecture step: `NOT AUTHORIZED / pending ChatGPT direction.`
+- Current Development: Phase D4 — Text Generation Provider Abstraction.
+- Current D4 status: `REVIEW CANDIDATE / awaiting ChatGPT GitHub Review`; D4 is not accepted.
+- Next architecture step: No next implementation phase is authorized; Phase E is `NOT AUTHORIZED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
@@ -34,6 +35,24 @@ Last Updated: 2026-09-03
 - D3 ChatGPT Review Pass ID: `5097012233`
 - D3 Final Acceptance Review ID: `5097074648`
 - D3 Review: `PHASE_D3_REVIEW_PASS`; `PHASE_D3_IMPLEMENTATION_AUTHORIZED`
+- D4 Status: `REVIEW CANDIDATE / awaiting ChatGPT Final Acceptance Review`; implementation review `PHASE_D4_REVIEW_PASS`; D4 is not accepted
+- D4 Branch: `phase/d4-text-generation-provider-abstraction`
+- D4 Base SHA: `cae059e656d17981e5f4bd0116a6c37ab2d9d04e` (`phase-d3-accepted` peeled SHA)
+- D4 Candidate implementation HEAD before governance record: `910cefc`
+- D4 commits: docs-only baseline, token-backed generation boundary, provider identity propagation, provider-neutral chunk metadata, smoke/lint alignment
+- D4 focused tests: PASS — 20 suites / 89 tests
+- D4 full regression: PASS — 52 suites / 319 tests; inherited Jest open-handle warning only
+- D4 lint: PASS
+- D4 type-check: PASS — server and client
+- D4 smoke TypeScript check: PASS — `npx tsc --noEmit --project tsconfig.smoke.json`
+- D4 server build: PASS
+- D4 client build: PASS — existing module-type and chunk-size warnings only
+- D4 AppModule bootstrap: PASS — `AiToolsModule` execution foundation resolved
+- D4 DeepSeek / external AI calls during verification: 0; real DeepSeek smoke scripts were not run during ordinary regression
+- D4 frozen-path audit: PASS — PolishChunkExecutor, PaperRevisionChunkExecutor, D2/D3 modules, shared API, ROADMAP, and inherited platform-command spec unchanged
+- D4 inherited CI issue: `test/unit/platform-command.spec.ts` remains unchanged and out of scope
+- D4 Final Acceptance Preparation Report: [PHASE_D4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D4_FINAL_ACCEPTANCE_REPORT.md)
+- D4 Final Acceptance: `PENDING CHATGPT FINAL ACCEPTANCE REVIEW`
 - D3 base SHA: `31a7002babed73bc325841c5622a2f2e03f38bc4`
 - D3 scope: Paper Revision text and prepared-file migration onto the C1 → C2 → C3 → D1 preparation and execution pipeline, with server-owned chunking, fixed billing, asynchronous sequential execution, deterministic aggregation, and frontend structured file-reference submission.
 - D3 focused tests: PASS — 8 suites / 35 tests
