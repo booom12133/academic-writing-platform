@@ -12,9 +12,11 @@
 
 ## Global Constraints
 
-- Start from accepted D4 main 156eb45e00bb727c69bb891f056f384bb600d415 and accepted tag phase-d4-accepted; create the E1 implementation branch only after this plan is approved.
+- The current E1 Phase branch is `codex/phase-e1-task2-database-preflight`; it already descends from accepted D4 main `156eb45e00bb727c69bb891f056f384bb600d415` and `phase-d4-accepted`. Verify that ancestry after approval and never create a second E1 branch.
 - The one-time `SCHEMA OWNERSHIP TRANSITION` is explicit: current Miaoda schema → db-schema-sync → generated `server/database/schema.ts`; target application-owned canonical Drizzle schema → versioned Drizzle migrations → standard PostgreSQL. Preserve the `server/database/schema.ts` import path. After separately authorized transition work, it ceases to be a Miaoda-generated production artifact and becomes the app-owned canonical Drizzle schema definition. No transition or migration is created in this plan.
-- `pg` currently exists only in `devDependencies`; moving it to runtime dependencies is expected during separately authorized implementation. Do not change package.json now.
+- `pg` currently exists only in `devDependencies`; when the provider task is
+  separately authorized, it must become a runtime dependency. Do not change
+  package.json during this documentation repair.
 - E1 v1 creates only the seven new E1 tables listed in this plan; do not alter app_users, tasks, point_records, or recharge_orders.
 - Standard PostgreSQL schema changes are owned by versioned Drizzle migrations after the one-time transition. No migration files, migration runner, or database mutation are created by this plan.
 - The historical Miaoda preflight wrapper and db-schema-sync evidence may remain for audit history, but are not a prerequisite for standard PostgreSQL E1 implementation and do not authorize Task 7.
@@ -25,8 +27,9 @@
 - E1 never supplies taskType: polish or taskType: paper-revision for knowledge ingestion.
 - No second parser, context builder, chunker, embedding provider, vector database, retrieval runtime, Zotero connector, Academic Search connector, RAG flow, queue, Redis/BullMQ, billing redesign, or D4 TextGenerationProvider change is permitted.
 - chunkStructural() reuses the accepted deterministic, lossless, Unicode-code-point, zero-overlap chunking core; existing build() and chunk() behavior must remain unchanged.
-- Initial E1 rollback is only for a pre-traffic verification failure: disable E1, remove only the seven newly-created E1 tables in the reverse dependency order defined in Section 4, regenerate the mapping, and verify the four accepted tables are unchanged. Initial backfill is not applicable.
-- No implementation, branch creation, database mutation, destructive SQL, E2 work, commit, push, or PR is authorized by this document.
+- Initial E1 rollback is only for a pre-traffic verification failure: disable E1 and use the separately approved migration rollback or forward-fix policy. Verify the four accepted tables are unchanged. Initial backfill is not applicable.
+- No implementation, new branch creation, database mutation, destructive SQL,
+  E2 work, commit, push, or PR is authorized by this document.
 
 ## 1. File map and ownership
 
@@ -57,7 +60,7 @@
 - server/modules/document-input/document-input.service.ts — add an additive readVerified() C4 seam that reuses existing ownership, download, size, and SHA-256 verification.
 - server/modules/document-input/document-input.service.spec.ts — cover readVerified() and existing preparation regressions.
 - server/database/schema.ts — preserve the import path; after the separately authorized schema ownership transition it becomes the app-owned canonical Drizzle schema definition; no change in this planning repair.
-- server/database/local-development.database.ts — mirror the approved seven-table schema in LOCAL_SCHEMA_SQL after generated schema review; leave accepted table definitions unchanged.
+- server/database/local-development.database.ts — mirror the approved seven-table schema in LOCAL_SCHEMA_SQL after canonical schema/migration review; leave accepted table definitions unchanged.
 - server/database/local-development.database.spec.ts — verify E1 tables exist locally and accepted tables remain available.
 - server/app.module.ts — import KnowledgeModule after dependencies are wired; do not change existing module order semantics.
 
@@ -67,7 +70,11 @@
 - server/modules/ai-tools/**, server/modules/tasks/**, and shared/api.interface.ts — no tool/task/API migration.
 - server/database/schema.ts before the separately authorized app-owned schema
   transition is approved.
-- package.json, .spark_project, and CODEX_WORKFLOW.md — no invented migration script or platform workflow.
+- .spark_project and CODEX_WORKFLOW.md — no invented migration script or
+  platform workflow.
+- package.json and package-lock.json are permitted only for the narrowly scoped
+  runtime `pg` dependency transition in the separately authorized provider
+  task; they are not changed by this documentation repair.
 
 ### Binding execution order
 
@@ -75,31 +82,34 @@ The section order below groups related work for review, but the executor must
 run the tasks in this order. This is the approved database sequence and is
 binding:
 
-1. Task 1: branch isolation after plan approval.
+1. Task 1: verify and retain the current E1 phase branch after plan approval.
 2. Task 2: finalize the standard PostgreSQL provider/schema ownership
    transition contract and the exact four-table baseline contract; then STOP
    for the separately authorized database-infrastructure gate.
-3. Task 7: only after separate database implementation authorization, apply
-   conceptual `0001 baseline` for app_users, tasks, point_records, and
-   recharge_orders, then conceptual `0002 E1 knowledge provenance` for the
-   seven E1 tables; update the canonical Drizzle schema and pg-mem mirror only
-   under that authorization.
-4. Task 3: add the neutral C2 projection.
-5. Task 4: add the neutral C3 shared-core seam.
-6. Task 5: add the additive C4 verified-artifact seam.
-7. Task 6: add pure E1 contracts, hashes, and provenance mapping.
-8. Task 8: add user-scoped repository persistence.
-9. Task 9: add atomic import orchestration and content readiness.
-10. Task 10: add metadata resolution, immutable versioning, and tombstones.
-11. Task 11: wire the Nest module.
-12. Task 12: run frozen-path regressions, full verification, and scope audit.
+3. Task 7: after separate database-infrastructure authorization, create the
+   canonical schema and versioned `0001 baseline`/`0002 E1 knowledge provenance`
+   migrations for CI validation only.
+4. Task 2A: implement the app-owned StandardPostgresDatabaseModule.
+5. Task 2B: apply both migrations to disposable PostgreSQL in Linux CI and run
+   provider/constraint/transaction integration tests.
+6. Task 3: add the approved neutral C2 projection.
+7. Task 4: add the approved neutral C3 shared-core seam.
+8. Task 5: add the additive C4 verified-artifact seam.
+9. Task 6: add pure E1 contracts, hashes, and provenance mapping.
+10. Task 8: add user-scoped repository persistence.
+11. Task 9: add atomic import orchestration and content readiness.
+12. Task 10: add metadata resolution, immutable versioning, and tombstones.
+13. Task 11: wire the Nest module.
+14. Task 12: run frozen-path regressions, full verification, and scope audit.
 
-Task 2 ends after the provider, schema-authority, baseline-contract, and
-deployment-boundary decisions are recorded for ChatGPT review. The historical
-Miaoda preflight status `E1_DATABASE_PREFLIGHT_PASS` is not a prerequisite for
-the standard PostgreSQL path and never authorizes Task 7. No database
-mutation, migration creation, or E1 repository/domain/service implementation
-begins until the separate database-infrastructure authorization is explicit.
+Task 2 ends after the provider, schema-authority, exact migration-tooling,
+baseline-contract, and deployment-boundary decisions are recorded for ChatGPT
+review. The historical Miaoda preflight status
+`E1_DATABASE_PREFLIGHT_PASS` is not a prerequisite for the standard
+PostgreSQL path and never authorizes Task 7. No production database apply,
+database mutation, migration creation, or E1 repository/domain/service
+implementation begins until the separate database-infrastructure
+authorization is explicit.
 
 ## 2. Final E1 domain and physical model
 
@@ -359,7 +369,7 @@ E1 v1 text-only policy: retain the exact original text in knowledge_document_ver
 
 ## 3. TDD implementation tasks
 
-### Task 1: Create the isolated E1 implementation branch only after plan approval
+### Task 1: Verify and retain the existing E1 phase branch after plan approval
 
 **Files:**
 
@@ -368,7 +378,8 @@ E1 v1 text-only policy: retain the exact original text in knowledge_document_ver
 **Interfaces:**
 
 - Consumes: accepted D4 main at 156eb45e00bb727c69bb891f056f384bb600d415.
-- Produces: one E1 implementation branch based on that commit.
+- Produces: verification that the existing E1 phase branch remains the single
+  Phase E1 branch based on that commit.
 
 - [ ] Step 1: Verify the plan approval and accepted baseline.
 
@@ -378,11 +389,17 @@ Run:
     git rev-parse main
     git ls-remote --heads --tags origin
 
-Expected: no implementation branch exists yet; main resolves to the accepted commit and the remote contains phase-d4-accepted pointing to that commit.
+Expected: the current branch is
+`codex/phase-e1-task2-database-preflight`; `main` resolves to the accepted
+commit; the accepted D4 commit is an ancestor/merge-base of the current branch;
+and the remote contains `phase-d4-accepted` pointing to that commit.
 
-- [ ] Step 2: Create the E1 branch after approval.
+- [ ] Step 2: Retain the existing E1 branch after approval.
 
-Use the project’s one-Phase/one-branch convention and create exactly one E1 implementation branch from accepted main. Do not develop E1 on main.
+Do not create a second branch from bare accepted D4 main. Continue all E1
+implementation and review fixes on
+`codex/phase-e1-task2-database-preflight`, preserving the reviewed E1 design,
+plan, audit, and historical Task-2 evidence.
 
 - [ ] Step 3: Verify branch isolation.
 
@@ -391,7 +408,9 @@ Run:
     git status --short --branch
     git diff --name-only main...HEAD
 
-Expected: the new branch is checked out and has no implementation diff.
+Expected: the existing E1 branch is checked out, its merge-base/accepted
+ancestor is `156eb45e00bb727c69bb891f056f384bb600d415`, and no E1 work is
+committed on `main`.
 
 ### Task 2: Freeze the standard PostgreSQL infrastructure gate
 
@@ -454,6 +473,24 @@ The exact physical baseline contract must resolve `user_profile`,
 fields, defaults, nullability, timestamps, indexes, and constraints. The
 current pg-mem mirror is not proof of standard PostgreSQL parity.
 
+Before implementation begins, freeze the exact migration-tooling contract:
+
+- canonical Drizzle schema path: preserved `server/database/schema.ts`;
+- migration directory: exact repository path to be selected and recorded;
+- migration generation mechanism: exact approved command/package;
+- migration apply mechanism: exact approved command/package used by CI and the
+  later release gate;
+- migration journal/version table name and behavior;
+- exact pinned development/runtime dependencies required by generation and
+  apply;
+- package scripts used by Linux CI and the later release gate; and
+- advisory-lock/single-run behavior for production rollout.
+
+The repository currently does not prove these exact paths, commands, package
+versions, or journal behavior. They are required database-infrastructure
+decisions before implementation, not assumptions to be invented or installed
+in this planning repair.
+
 - [ ] Step 3: Freeze test and deployment boundaries.
 
 Use pg-mem for fast unit/service/local tests. Use disposable real PostgreSQL
@@ -486,6 +523,86 @@ Do not create migrations, modify `server/database/schema.ts`, create tables,
 modify pg-mem, run a Miaoda preflight, or enter Task 7 from this task. The
 historical Miaoda preflight tooling may remain in history, but its pass status
 does not authorize standard PostgreSQL Task 7.
+
+### Task 2A: Implement the app-owned standard PostgreSQL provider
+
+**Files:**
+
+- Create: `server/database/standard-postgres.module.ts`
+- Create: `server/database/standard-postgres.database.ts` (or an equivalently
+  minimal app-owned module/provider layout)
+- Tests: provider/module focused tests and filesystem-production AppModule
+  wiring/bootstrap tests
+- Modify when separately authorized: `package.json`, `package-lock.json`,
+  and `server/app.module.ts`
+
+**Interfaces:**
+
+- Consumes: approved `DATABASE_URL` plus approved non-secret pool/SSL
+  configuration.
+- Produces: the existing `DRIZZLE_DATABASE` injection token backed by a
+  standard PostgreSQL connection.
+
+- [ ] Step 1: Write failing provider and production-wiring tests.
+
+Cover direct `pg` Pool creation, `drizzle-orm/node-postgres` construction,
+export of the existing `DRIZZLE_DATABASE` injection token, graceful pool
+shutdown, and fail-closed behavior for missing or invalid production
+`DATABASE_URL`. For `DOCUMENT_STORAGE_DRIVER=filesystem` and
+`NODE_ENV=production`, assert that `AppModule` loads
+`StandardPostgresDatabaseModule` and no longer has a missing database
+provider. Preserve platform storage behavior separately; do not silently
+rewrite it.
+
+- [ ] Step 2: Add the runtime dependency transition only within this task.
+
+When separately authorized, move `pg` from devDependencies to runtime
+dependencies in `package.json` and update `package-lock.json` through the
+approved dependency workflow. Do not make that change during this planning
+repair.
+
+- [ ] Step 3: Implement the minimal provider.
+
+Read `DATABASE_URL` and approved non-secret pool/SSL settings, create a direct
+`pg` Pool, create the Drizzle `node-postgres` database, provide and export the
+existing `DRIZZLE_DATABASE` injection token, and close the pool during Nest
+shutdown. Do not use `DataPaasModule` or `@lark-apaas/nestjs-datapaas` as the
+production abstraction.
+
+- [ ] Step 4: Run focused provider and filesystem-production wiring tests.
+
+Expected: the provider is resolved only for the approved filesystem production
+topology, existing service injection remains compatible, and missing/invalid
+production connection configuration fails closed.
+
+### Task 2B: Validate schema and provider against disposable PostgreSQL in Linux CI
+
+**Files:**
+
+- Create/modify only the separately authorized Linux-CI database-test
+  configuration and test support files.
+
+**Interfaces:**
+
+- Consumes: canonical schema, versioned `0001` and `0002` migrations, and the
+  StandardPostgresDatabaseModule.
+- Produces: disposable real-PostgreSQL integration evidence before repository
+  and service persistence implementation.
+
+- [ ] Step 1: Apply `0001` and `0002` to a disposable PostgreSQL database in
+      Linux CI only.
+
+Do not use a production database, the ECS, Miaoda, or a local ad-hoc database
+for this verification.
+
+- [ ] Step 2: Verify tables, indexes, foreign keys, defaults, ownership
+      constraints, transactions, and provider behavior against real PostgreSQL.
+
+- [ ] Step 3: Run the real-PostgreSQL integration tests and record the result.
+
+Only after this CI evidence is green may Tasks 3–12 continue. Production
+PostgreSQL provisioning and production migration application remain a later
+rollout/deployment gate and are not part of E1 implementation verification.
 
 ### Task 3: Add the neutral C2 structural projection
 
@@ -761,7 +878,7 @@ Commit:
 
     feat(e1): add knowledge provenance contracts and mapping
 
-### Task 7: Apply the separately authorized standard PostgreSQL schema lifecycle
+### Task 7: Create the standard PostgreSQL schema and migrations for CI validation
 
 **Files:**
 
@@ -790,27 +907,27 @@ the accepted E1 design. Resolve `user_profile`, `file_attachment`,
 nullability, timestamps, and indexes for ordinary PostgreSQL. The current
 pg-mem mirror is not proof of parity.
 
-- [ ] Step 2: Verify the standard PostgreSQL environment.
+- [ ] Step 2: Prepare the disposable Linux-CI PostgreSQL validation target.
 
-Record the non-secret environment identity and authenticated deployment
-operator context. Do not use a local or unrelated database. Confirm the
-baseline migration target and the expected pre-migration table set before any
-apply operation.
+Use only a disposable PostgreSQL service/container in Linux CI for E1
+implementation verification. No production PostgreSQL instance or ECS host is
+required or permitted for this task.
 
-- [ ] Step 3: Apply conceptual `0001 baseline` and `0002 E1 knowledge provenance`.
+- [ ] Step 3: Create conceptual `0001 baseline` and `0002 E1 knowledge provenance`.
 
 Use the separately approved versioned Drizzle migration workflow. `0001`
 creates only `app_users`, `tasks`, `point_records`, and `recharge_orders`;
-`0002` creates only the seven E1 tables. Do not use a Miaoda management
-surface, db-schema-sync, or ad-hoc SQL as the standard PostgreSQL authority.
-Leave accepted table semantics unchanged.
+`0002` creates only the seven E1 tables. These migration artifacts are then
+applied only to the disposable CI database in Task 2B. Do not use a Miaoda
+management surface, db-schema-sync, or ad-hoc SQL as the standard PostgreSQL
+authority. Leave accepted table semantics unchanged.
 
-- [ ] Step 4: Verify the database change before application mapping.
+- [ ] Step 4: Review the canonical schema and migration diff.
 
-Use standard PostgreSQL metadata and controlled read-only queries to verify the
-four baseline tables and seven E1 tables, columns, nullability, foreign keys,
-unique constraints, and indexes. Record that no unrelated accepted behavior
-changed.
+Confirm that the canonical Drizzle schema and both migration files contain
+only the approved four-table baseline and seven E1 tables, with no unrelated
+accepted-table behavior changed. Real PostgreSQL metadata, constraints,
+defaults, and transaction behavior are verified in Task 2B.
 
 - [ ] Step 5: Update the canonical schema and local pg-mem after migration review.
 
@@ -819,28 +936,29 @@ add the seven E1 definitions to LOCAL_SCHEMA_SQL using the approved physical
 shape. Keep the four accepted definitions unchanged. Add only local test data
 needed for E1 tests; do not add production seed behavior.
 
-- [ ] Step 8: Write and run local parity tests.
+- [ ] Step 6: Write and run local parity tests.
 
-Test that local initialization exposes the seven generated E1 tables, accepted tables still support current services, composite ownership constraints reject cross-user parent references, nullable source_record_id works, the external identity unique constraint exists, and the idempotency unique constraint exists. Assert that knowledge_source_records has no external_provenance column and that repository hydration reads SourceRecord.externalProvenance[] only from knowledge_source_external_links.
+Test that local initialization exposes the seven E1 tables, accepted tables still support current services, composite ownership constraints reject cross-user parent references, nullable source_record_id works, the external identity unique constraint exists, and the idempotency unique constraint exists. Assert that knowledge_source_records has no external_provenance column and that repository hydration reads SourceRecord.externalProvenance[] only from knowledge_source_external_links.
 
 Run:
 
     npx jest server/database/local-development.database.spec.ts --runInBand
 
-Expected: PASS before proceeding to repository code.
+Expected: PASS before proceeding to repository code. This is disposable
+PostgreSQL CI evidence, not production database evidence.
 
-- [ ] Step 9: Record initial rollback readiness.
+- [ ] Step 7: Record initial rollback readiness.
 
 Before enabling any E1 traffic, record the exact migration version and the
 approved pre-traffic rollback procedure. This is a verification-failure
 rollback artifact, not a generalized destructive migration policy. Initial
 backfill is recorded as NOT APPLICABLE.
 
-- [ ] Step 10: Commit the canonical schema, migrations, and local parity.
+- [ ] Step 8: Commit the canonical schema, migrations, and local parity.
 
 Commit only the canonical schema, migration artifacts, and local mirror/tests:
 
-    feat(e1): add generated knowledge database mappings
+    feat(e1): add standard postgres schema and migrations
 
 ### Task 8: Implement source metadata and provenance persistence
 
@@ -1078,7 +1196,7 @@ Commit:
 
 **Interfaces:**
 
-- Consumes: DocumentParsingModule, ContextBuilderModule, ChunkingModule, DocumentInputModule, and the platform DRIZZLE_DATABASE token.
+- Consumes: DocumentParsingModule, ContextBuilderModule, ChunkingModule, DocumentInputModule, and the existing DRIZZLE_DATABASE injection token.
 - Produces: injectable KnowledgeService and KnowledgeRepository only; no controller and no shared API contract.
 
 - [ ] Step 1: Write the failing module test.
@@ -1176,22 +1294,33 @@ Otherwise keep earlier implementation commits intact and record the exact fixing
 The future executor must follow this exact order and record evidence in the PR:
 
     finalize exact four-table baseline physical contract
+    → freeze exact Drizzle schema/migration tooling contract
     → approve StandardPostgresDatabaseModule and DATABASE_URL boundary
     → approve the SCHEMA OWNERSHIP TRANSITION
-    → apply versioned 0001 baseline to standard PostgreSQL
-    → verify baseline metadata/constraints/transactions
-    → apply versioned 0002 E1 knowledge provenance
-    → verify seven E1 tables/constraints/indexes
-    → update canonical server/database/schema.ts and local pg-mem mirror
-    → run real-PostgreSQL CI parity tests
+    → create versioned 0001 baseline and 0002 E1 migrations
+    → apply 0001 and 0002 to disposable PostgreSQL in Linux CI
+    → verify tables/indexes/FKs/defaults/transactions
+    → run real-PostgreSQL CI integration tests
     → implement repository/domain/service code
     → run full verification
 
-The historical Miaoda preflight is not in this execution path. Initial
-rollback is allowed only before E1 traffic/data is enabled and only when
-verification fails. Use the approved migration rollback or forward-fix policy;
-do not invent destructive production SQL. Verify the four accepted tables are
-unchanged after any pre-traffic rollback. Initial backfill is NOT APPLICABLE.
+The historical Miaoda preflight is not in this execution path. E1
+implementation and CI verification must not require or mutate a production
+PostgreSQL database. Production rollout is a later deployment gate:
+
+    production PostgreSQL provision
+    → backup
+    → migration lock
+    → controlled migration apply
+    → post-migration verification
+    → artifact deployment
+    → traffic enablement
+
+Initial rollback is allowed only before E1 traffic/data is enabled and only
+when verification fails. Use the approved migration rollback or forward-fix
+policy; do not invent destructive production SQL. Verify the four accepted
+tables are unchanged after any pre-traffic rollback. Initial backfill is NOT
+APPLICABLE.
 
 No historical E1 data exists for this greenfield phase, so initial backfill is NOT APPLICABLE. Any future destructive ALTER, historical-data migration, or production backfill requires a separate approved database policy.
 
@@ -1199,19 +1328,26 @@ No historical E1 data exists for this greenfield phase, so initial backfill is N
 
 Planned commits, in order:
 
-1. docs(e1): align standard PostgreSQL infrastructure contract
-2. feat(e1): add canonical baseline and E1 Drizzle migrations
-3. feat(e1): add neutral structural context projection
-4. feat(e1): add neutral structural chunking seam
-5. feat(e1): expose verified document input boundary
-6. feat(e1): add knowledge provenance contracts and mapping
-7. feat(e1): add user-scoped knowledge repository
-8. feat(e1): persist atomic knowledge imports
-9. feat(e1): add immutable knowledge lifecycle and metadata resolution
-10. feat(e1): wire knowledge provenance module
-11. test(e1): cover provenance boundaries and frozen-path regressions
+1. feat(e1): add standard postgres schema and migrations
+2. feat(e1): add standard postgres provider
+3. test(e1): validate standard postgres migrations and provider in CI
+4. feat(e1): add neutral structural context projection
+5. feat(e1): add neutral structural chunking seam
+6. feat(e1): expose verified document input boundary
+7. feat(e1): add knowledge provenance contracts and mapping
+8. feat(e1): add user-scoped knowledge repository
+9. feat(e1): persist atomic knowledge imports
+10. feat(e1): add immutable knowledge lifecycle and metadata resolution
+11. feat(e1): wire knowledge provenance module
+12. test(e1): cover provenance boundaries and frozen-path regressions
 
-The PR must contain only the plan’s E1 changes and explicitly approved additive C2/C3/C4 seams. It must include targeted test results, database preflight evidence, platform-created table evidence, generated schema diff, local parity results, rollback record, full test/lint/type-check/build/bootstrap results, and a scope audit. The PR must state that E1 ends at content-ready-for-indexing and E2 owns indexed/stale/failed/retry state.
+The PR must contain only the plan’s E1 changes and explicitly approved additive
+C2/C3/C4 seams. It must include targeted test results, disposable PostgreSQL
+migration/integration evidence, canonical Drizzle schema and migration diff,
+local parity results, rollback record, full test/lint/type-check/build/bootstrap
+results, and a scope audit. Production provisioning/apply evidence belongs to
+the later deployment gate. The PR must state that E1 ends at
+content-ready-for-indexing and E2 owns indexed/stale/failed/retry state.
 
 ## 6. Explicit out-of-scope audit
 

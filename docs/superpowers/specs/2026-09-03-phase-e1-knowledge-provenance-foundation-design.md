@@ -69,7 +69,8 @@ The accepted C2/C3 public input boundary is not currently generic: C2
 `ContextTaskType` is exactly `'polish' | 'paper-revision'`, and C3 accepts a
 `TaskContext` containing that task. E1 must therefore not manufacture either
 tool task type for knowledge ingestion. A neutral structural ingestion seam is
-specified in Section 12 as a conditional, separately approved additive change.
+specified in Section 12 as an approved additive change, subject to normal
+implementation authorization and review.
 
 Current `DocumentInputRef.sha256` identifies the stored input artifact, but the
 hash is not part of the C1 `DocumentSource` or C2 source contract. E1 must carry
@@ -89,7 +90,7 @@ Conceptual fields:
 ```text
 SourceRecord
   id
-  tenantId
+  userId
   kind: user-declared | scholarly-work | reference-library-item
   canonicalMetadata
   metadataAssertions[]
@@ -119,7 +120,7 @@ Conceptual fields:
 ```text
 KnowledgeDocument
   id
-  tenantId
+  userId
   sourceRecordId?
   originKind: user-upload | generated-artifact | external-attachment
   displayName
@@ -308,8 +309,8 @@ identity substitutes.
 Opaque IDs provide stable references. Deterministic uniqueness is provided by
 scoped natural keys:
 
-1. External source identity is unique within a tenant and connector namespace
-   by `(tenantId, connectorKind, provider, externalRecordId)`.
+1. External source identity is unique within a user scope and connector
+   namespace by `(userId, connectorKind, provider, externalRecordId)`.
 2. A document artifact associated with an external source is matched by its
    source record plus an artifact fingerprint. Different attachments remain
    different documents even when they belong to the same work.
@@ -324,7 +325,7 @@ scoped natural keys:
 ### 4.3 Import idempotency
 
 An explicit import idempotency key is required for retry-safe import requests.
-For the same tenant and import namespace:
+For the same user scope and import namespace:
 
 - the same idempotency key and same content returns the existing import result;
 - the same key with different content fails with a conflict and makes no
@@ -399,7 +400,7 @@ failed operational states.
 Each chunk must preserve enough information to answer:
 
 ```text
-which tenant?
+which user scope?
 which source record, if one exists?
 which document?
 which immutable version?
@@ -597,13 +598,13 @@ chunking entrypoint backed by the existing deterministic chunking core. Until
 that seam is formally approved and regression-proven, durable E1 ingestion is
 not authorized. No E1-local parser or chunker may be introduced as a workaround.
 
-## 10. Tenant and Security Model
+## 10. User Scope and Security Model
 
-Every durable root entity is tenant-scoped. At minimum, queries and mutations
+Every durable root entity is user-scoped for E1 v1. At minimum, queries and mutations
 must enforce:
 
 ```text
-tenantId / user scope
+userId scope
 → source record
 → knowledge document
 → document version
@@ -614,11 +615,11 @@ Security rules:
 
 1. Durable IDs are opaque and non-guessable, but opacity is not authorization.
 2. Every read, update, delete, and import-idempotency lookup includes the
-   authenticated tenant/user scope.
+   authenticated userId scope.
 3. A client-supplied knowledge ID is untrusted input.
-4. Cross-tenant or cross-user references fail closed using the same ownership
+4. Cross-user references fail closed using the same ownership
    philosophy as C4.
-5. The system should avoid revealing whether another tenant's ID exists.
+5. The system should avoid revealing whether another user's ID exists.
 6. `DocumentInputRef.bucketId` and `filePath` remain C4 storage handles; they do
    not become E1 identity or authorization substitutes.
 7. External provider IDs are namespaced by connector/provider and are not
@@ -628,7 +629,7 @@ Security rules:
 
 ### 11.1 First import
 
-1. Validate tenant ownership and source input.
+1. Validate userId ownership and source input.
 2. Validate or obtain the source artifact through the existing C4 boundary.
 3. Run the existing C1 parser, then use the neutral structural C2/C3 seam
    specified in Section 12; never supply `taskType='polish'` or
@@ -655,7 +656,7 @@ for provenance and historical result interpretation.
 
 ### 11.4 Delete
 
-Deletion is a tenant-scoped logical tombstone at the knowledge-document level.
+Deletion is a user-scoped logical tombstone at the knowledge-document level.
 Tombstoned documents and versions are hidden from future consumers. Historical
 provenance remains readable only through authorized audit/history paths.
 
@@ -695,7 +696,7 @@ C4 artifact or text input
   → D1 tool execution
 ```
 
-E1 knowledge ingestion cannot use that tool-specific path. The exact proposed
+E1 knowledge ingestion cannot use that tool-specific path. The approved
 resolution is a neutral, additive structural seam:
 
 ```text
@@ -706,7 +707,7 @@ C4 artifact or text input
   → E1 persistent mapping adapter
 ```
 
-The proposed seam consists conceptually of:
+The approved seam consists conceptually of:
 
 ```text
 StructuralDocumentContext
@@ -737,9 +738,10 @@ This is the smallest safe solution because:
 5. one neutral additive entrypoint and one shared chunking core preserve the
    existing D2/D3 path while giving E1 a legitimate input boundary.
 
-This seam touches frozen C2/C3 module surfaces and therefore requires separate
-formal approval before implementation. It is a proven Blocking dependency for
-E1 implementation. E1 must not use `taskType='polish'`,
+This seam is already part of the approved E1 design. It requires normal
+implementation authorization, TDD, and regression review, but does not require
+another independent architecture/design approval before Task 3/4. It is a
+proven implementation dependency. E1 must not use `taskType='polish'`,
 `taskType='paper-revision'`, or a copied E1 parser/chunker as a workaround.
 
 The adapter maps:
@@ -758,8 +760,9 @@ The adapter maps:
 
 E1 does not introduce a second parser, context builder, chunker, or provenance
 system. It creates a persistent projection of the accepted contracts through
-the proposed neutral C2/C3 seam. Until that seam is separately approved, no
-durable E1 implementation may claim a valid C1→C2→C3 ingestion path.
+the approved neutral C2/C3 seam. Until normal implementation authorization
+and regression review are complete, no durable E1 implementation may claim a
+valid C1→C2→C3 ingestion path.
 
 The current `references` section is stored with provenance but remains subject
 to a later indexing policy. E1 does not decide whether references are embedded,
@@ -772,7 +775,7 @@ Paper Revision aggregators, `TasksService`, or D4 text-generation contracts.
 
 The future E1 implementation must fail closed:
 
-- invalid or missing tenant scope: reject before persistence;
+- invalid or missing authenticated userId scope: reject before persistence;
 - invalid source/document identity: reject before persistence;
 - artifact hash mismatch: reject and do not create a version;
 - invalid C1/C2/C3 provenance: reject the complete import;
@@ -782,7 +785,7 @@ The future E1 implementation must fail closed:
 - duplicate or stale version conflict: deterministic typed conflict;
 - partial chunk persistence: transaction rollback or equivalent all-or-none
   compensation;
-- cross-tenant ID access: behave as not found/unauthorized without leaking
+- cross-user ID access: behave as not found/unauthorized without leaking
   existence;
 - parser warnings: persist as warnings when the parser successfully returns a
   valid document; never reinterpret them as instructions.
@@ -806,7 +809,7 @@ The E1 implementation plan must include tests for:
 10. metadata-only source records without documents;
 11. one source record linked to multiple documents/artifacts;
 12. user-document imports without bibliographic identity;
-13. tenant isolation and tampered/foreign IDs;
+13. user isolation and tampered/foreign IDs;
 14. duplicate import, re-import, delete, and stale-version behavior;
 15. atomic failure on invalid provenance or hash mismatch;
 16. neutral C2/C3 structural ingestion never uses `polish` or
@@ -831,12 +834,12 @@ this design-only task.
 - persistent provenance mapping;
 - citation locator foundation only;
 - provenance trust versus prompt execution trust;
-- tenant and ownership rules;
+- user-scope and ownership rules;
 - deterministic import/delete/re-import lifecycle;
 - E2 readiness boundary;
 - additive mapping from C1/C2/C3/C4 outputs;
-- the neutral additive C2/C3 structural-ingestion seam, subject to separate
-  approval;
+- the approved neutral additive C2/C3 structural-ingestion seam, subject to
+  normal implementation authorization, TDD, and regression review;
 - the explicit standard PostgreSQL provider and schema-ownership transition
   contract, without implementing it.
 
@@ -898,21 +901,19 @@ migration generation.
    authentication boundary. A separate self-hosted auth architecture must be
    approved before production readiness can be declared; auth is not
    implemented by E1.
-2. The repository lacks a generic C2/C3 structural-ingestion boundary. May the
-   separately approved additive `StructuralDocumentContext` and
-   `chunkStructural()` seam described in Section 12 be introduced while
-   preserving the existing tool path at the observable contract level?
+2. The approved additive `StructuralDocumentContext` and `chunkStructural()`
+   seam requires normal implementation authorization, TDD, and regression
+   review while preserving the existing tool path at the observable contract
+   level; it does not require another architecture/design approval.
 
 ### Important
 
-1. What tenant identifier is authoritative for durable knowledge records: the
-   current application `userId`, a platform tenant ID, or both?
-2. What canonical profile should E1 use for text-only `originalContentHash` and
+1. What canonical profile should E1 use for text-only `originalContentHash` and
    `normalizedContentHash`?
-3. What explicit parser profile/version should represent the accepted C1 parser?
-4. Should user text without a file artifact be retained as a durable artifact,
+2. What explicit parser profile/version should represent the accepted C1 parser?
+3. Should user text without a file artifact be retained as a durable artifact,
    or only as a hashed parsed input?
-5. What retention/deletion policy applies to stored external document content?
+4. What retention/deletion policy applies to stored external document content?
 
 ### Deferred to later phases
 

@@ -388,7 +388,8 @@ startup side effect.
 The following must remain unchanged during this audit and the future provider
 transition unless a separate architecture review authorizes otherwise:
 
-- `server/database/schema.ts` import path and generated-artifact boundary;
+- `server/database/schema.ts` import path and the documented schema-ownership
+  transition;
 - `server/database/local-development.database.ts` as the pg-mem local-test
   boundary until a reviewed parity update is authorized;
 - `DRIZZLE_DATABASE` injection contract and the Users/Tasks/Points/Orders
