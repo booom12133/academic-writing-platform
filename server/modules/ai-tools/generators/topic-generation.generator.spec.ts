@@ -34,6 +34,7 @@ describe('TopicGenerationGenerator', () => {
   const createLlmService = () => ({
     generate: jest.fn().mockResolvedValue({
       content: validJson,
+      provider: 'fake-generation',
       model: 'deepseek-v4-flash',
       usage: { promptTokens: 100, completionTokens: 80, totalTokens: 180 },
     }),
@@ -52,10 +53,10 @@ describe('TopicGenerationGenerator', () => {
     expect(userPrompt).not.toContain('null');
     expect(userPrompt).not.toContain('[object Object]');
     expect(request.jsonMode).toBe(true);
-    expect(request.thinking).toBe(false);
+    expect(request).not.toHaveProperty('thinking');
     expect(result.resultData).toEqual(JSON.parse(validJson));
     expect(result.metadata).toEqual({
-      provider: 'deepseek',
+      provider: 'fake-generation',
       model: 'deepseek-v4-flash',
       usage: { promptTokens: 100, completionTokens: 80, totalTokens: 180 },
       generationTimeMs: expect.any(Number),
@@ -84,7 +85,7 @@ describe('TopicGenerationGenerator', () => {
 
     await expect(
       new TopicGenerationGenerator(llmService as unknown as LlmService).generate(input),
-    ).rejects.toThrow('DeepSeek returned invalid structured output');
+    ).rejects.toThrow('invalid structured output');
     expect(llmService.generate).toHaveBeenCalledTimes(2);
   });
 });

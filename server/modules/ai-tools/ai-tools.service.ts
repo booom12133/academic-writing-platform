@@ -153,7 +153,7 @@ export class AiToolsService {
               };
               const usage = generated.metadata.usage;
               this.logger.log(
-                `provider=deepseek model=${generated.metadata.model} taskType=${taskType} ` +
+                `provider=${generated.metadata.provider} model=${generated.metadata.model} taskType=${taskType} ` +
                 `generationTimeMs=${generated.metadata.generationTimeMs} ` +
                 `promptTokens=${usage?.promptTokens ?? 0} ` +
                 `completionTokens=${usage?.completionTokens ?? 0} ` +

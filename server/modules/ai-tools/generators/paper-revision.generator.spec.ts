@@ -21,6 +21,7 @@ describe('PaperRevisionGenerator', () => {
     const llmService = {
       generate: jest.fn().mockResolvedValue({
         content: JSON.stringify(output),
+        provider: 'fake-generation',
         model: 'deepseek-v4-flash',
         usage: { promptTokens: 30, completionTokens: 20, totalTokens: 50 },
       }),
@@ -66,8 +67,26 @@ describe('PaperRevisionGenerator', () => {
       originalContent: input.text,
       revisedContent: expect.any(String),
       authorInputNeeded: true,
-      metadata: { model: 'deepseek-v4-flash', usage: { totalTokens: 50 } },
+      metadata: { provider: 'fake-generation', model: 'deepseek-v4-flash', usage: { totalTokens: 50 } },
     });
+  });
+
+  it('reports malformed output without naming a concrete provider', async () => {
+    const context = createGenerator({
+      revisedContent: '',
+      changeSummary: [],
+      unresolvedIssues: [],
+      authorInputNeeded: false,
+      warnings: [],
+    });
+    context.llmService.generate.mockResolvedValueOnce({
+      content: 'not json',
+      provider: 'fake-generation',
+      model: 'fake-model',
+    });
+
+    await expect(context.generator.generate(input)).rejects.toThrow('invalid academic revision JSON');
+    await expect(context.generator.generate(input)).rejects.not.toThrow('DeepSeek');
   });
 
   it('never substitutes a default example when the submitted text is present', async () => {

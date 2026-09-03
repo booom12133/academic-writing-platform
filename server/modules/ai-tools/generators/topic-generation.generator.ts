@@ -23,7 +23,7 @@ export interface TopicGenerationOutput {
 }
 
 export interface TopicGenerationMetadata {
-  provider: 'deepseek';
+  provider: string;
   model: string;
   usage?: LlmGenerateResult['usage'];
   generationTimeMs: number;
@@ -107,7 +107,7 @@ export class TopicGenerationGenerator {
           return {
             resultData: validated.data as TopicGenerationOutput,
             metadata: {
-              provider: 'deepseek',
+              provider: response.provider,
               model: response.model,
               usage: response.usage,
               generationTimeMs: Date.now() - startedAt,
@@ -119,7 +119,7 @@ export class TopicGenerationGenerator {
       }
     }
 
-    throw new Error('DeepSeek returned invalid structured output');
+    throw new Error('Generator returned invalid structured output');
   }
 
   private buildUserPrompt(input: TopicGenerationInput): string {

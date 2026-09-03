@@ -24,7 +24,7 @@ export interface PolishOutput {
   warnings: string[];
   validation: InvariantValidationResult;
   metadata: {
-    provider: 'deepseek';
+    provider: string;
     model: string;
     usage?: LlmGenerateResult['usage'];
     latencyMs: number;
@@ -96,7 +96,7 @@ export class PolishGenerator {
       ],
       validation,
       metadata: {
-        provider: 'deepseek',
+        provider: response.provider,
         model: response.model,
         usage: response.usage,
         latencyMs: Date.now() - startedAt,
@@ -119,7 +119,7 @@ function parsePolishResponse(content: string): z.infer<typeof polishResponseSche
   try {
     parsed = JSON.parse(content);
   } catch {
-    throw new Error('JSON parse error: DeepSeek returned invalid academic polish JSON');
+    throw new Error('JSON parse error: generator returned invalid academic polish JSON');
   }
   const result = polishResponseSchema.safeParse(parsed);
   if (!result.success) throw new Error('Zod validation error: invalid academic polish output');
