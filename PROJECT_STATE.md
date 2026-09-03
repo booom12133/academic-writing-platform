@@ -16,7 +16,7 @@ Last Updated: 2026-09-03
 - Current Stable Phase: Phase D4 — Text Generation Provider Abstraction
 - Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D4_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: `924af966c1a2cbb1c6c63d6dc9072b8e6cb8ab03` (PR #7 merge commit)
+- Stable Main Commit: final post-merge D4 governance HEAD, anchored by annotated tag `phase-d4-accepted`
 - Latest Final Acceptance Report: [PHASE_D4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D4_FINAL_ACCEPTANCE_REPORT.md)
 - Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, and Phase D4 are completed/frozen by project records
 
