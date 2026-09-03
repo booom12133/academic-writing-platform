@@ -6,13 +6,20 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
-const DB_SCHEMA_SYNC_PACKAGE = '@lark-apaas/db-schema-sync@latest';
-const READ_ONLY_INVENTORY_QUERY = `
-  SELECT table_schema, table_name
-  FROM information_schema.tables
-  WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
-  ORDER BY table_schema, table_name
-`;
+const DB_SCHEMA_SYNC_VERSION = '0.1.18';
+const DB_SCHEMA_SYNC_PACKAGE = `@lark-apaas/db-schema-sync@${DB_SCHEMA_SYNC_VERSION}`;
+const GENERATOR_ENVIRONMENT_VARIABLES = Object.freeze([
+  'app_id',
+  'FORCE_DB_BRANCH',
+  'FORCE_AUTHN_INNERAPI_DOMAIN',
+  'FORCE_FRAMEWORK_CLI_CANARY_ENV',
+  'X_TT_ENV',
+  'X_LARKGW_SUDA_WEBUSER',
+  'FORCE_AUTHN_ACCESS_KEY',
+  'FORCE_AUTHN_ACCESS_SECRET',
+  'FORCE_AUTHN_TOKEN',
+  'MIAODA_AUTHN_CODE',
+]);
 
 function defaultRepoRoot() {
   return path.resolve(__dirname, '..');
@@ -53,6 +60,88 @@ function createTemporaryOutput(repoRoot = defaultRepoRoot(), options = {}) {
     outputPath,
     cleanup: () => fs.rmSync(tempDir, { recursive: true, force: true }),
   };
+}
+
+function stableNormalize(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stableNormalize(item))
+      .sort((left, right) => {
+        const leftJson = JSON.stringify(left);
+        const rightJson = JSON.stringify(right);
+        return leftJson < rightJson ? -1 : leftJson > rightJson ? 1 : 0;
+      });
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.keys(value)
+        .sort()
+        .map((key) => [key, stableNormalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function stableJson(value) {
+  return JSON.stringify(stableNormalize(value));
+}
+
+function targetFingerprint(target) {
+  const identity = {
+    appId: target.appId,
+    dbBranch: target.dbBranch,
+    apiDomain: target.apiDomain,
+    xTtEnv: target.xTtEnv,
+    environmentId: target.environmentId,
+    authContextId: target.authContextId,
+  };
+  return crypto.createHash('sha256').update(stableJson(identity)).digest('hex');
+}
+
+function createCanonicalTarget({ env = process.env } = {}) {
+  const appId = env.E1_PREFLIGHT_APP_ID;
+  const dbBranch = env.E1_PREFLIGHT_DB_BRANCH;
+  const apiDomain = env.E1_PREFLIGHT_API_DOMAIN;
+  const authContextId = env.E1_PREFLIGHT_AUTH_CONTEXT_ID;
+  if (!appId || !dbBranch || !apiDomain || !authContextId) {
+    throw new Error(
+      'E1_PREFLIGHT_APP_ID, E1_PREFLIGHT_DB_BRANCH, E1_PREFLIGHT_API_DOMAIN, and E1_PREFLIGHT_AUTH_CONTEXT_ID are required',
+    );
+  }
+
+  const target = {
+    appId,
+    dbBranch,
+    apiDomain,
+    xTtEnv: env.E1_PREFLIGHT_X_TT_ENV || undefined,
+    environmentId: env.E1_PREFLIGHT_ENVIRONMENT_ID || undefined,
+    authContextId,
+  };
+  return { ...target, targetFingerprint: targetFingerprint(target) };
+}
+
+function buildGeneratorEnvironment(target, inheritedEnv = process.env) {
+  const childEnv = { ...inheritedEnv };
+  childEnv.app_id = target.appId;
+  childEnv.FORCE_DB_BRANCH = target.dbBranch;
+  childEnv.FORCE_AUTHN_INNERAPI_DOMAIN = target.apiDomain;
+
+  delete childEnv.E1_PREFLIGHT_APP_ID;
+  delete childEnv.E1_PREFLIGHT_DB_BRANCH;
+  delete childEnv.E1_PREFLIGHT_API_DOMAIN;
+  delete childEnv.E1_PREFLIGHT_X_TT_ENV;
+  delete childEnv.E1_PREFLIGHT_ENVIRONMENT_ID;
+  delete childEnv.E1_PREFLIGHT_AUTH_CONTEXT_ID;
+
+  if (target.xTtEnv) {
+    childEnv.X_TT_ENV = target.xTtEnv;
+    delete childEnv.FORCE_FRAMEWORK_CLI_CANARY_ENV;
+  } else {
+    delete childEnv.X_TT_ENV;
+    delete childEnv.FORCE_FRAMEWORK_CLI_CANARY_ENV;
+  }
+
+  return childEnv;
 }
 
 function buildSchemaSyncInvocation({
@@ -105,103 +194,211 @@ function runSchemaSync({
   return result;
 }
 
-async function queryTableInventory(databaseUrl) {
-  if (!databaseUrl) {
+function authHeaders(env) {
+  const headers = {};
+  if (env.FORCE_AUTHN_TOKEN) {
+    headers.Authorization = `Bearer ${env.FORCE_AUTHN_TOKEN}`;
+    if (env.FORCE_AUTHN_ACCESS_KEY) {
+      headers['x-api-key'] = env.FORCE_AUTHN_ACCESS_KEY;
+    }
+  } else if (env.FORCE_AUTHN_ACCESS_KEY && env.FORCE_AUTHN_ACCESS_SECRET) {
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(
+      JSON.stringify({ alg: 'HS256', typ: 'JWT' }),
+    ).toString('base64url');
+    const payload = Buffer.from(
+      JSON.stringify({
+        access_key: env.FORCE_AUTHN_ACCESS_KEY,
+        iss: env.FORCE_AUTHN_ACCESS_KEY,
+        iat: nowSeconds,
+        nbf: nowSeconds,
+        exp: nowSeconds + 30 * 60,
+        jti: crypto.randomUUID(),
+      }),
+    ).toString('base64url');
+    const signature = crypto
+      .createHmac('sha256', env.FORCE_AUTHN_ACCESS_SECRET)
+      .update(`${header}.${payload}`)
+      .digest('base64url');
+    headers.Authorization = `Bearer ${header}.${payload}.${signature}`;
+    headers['x-api-key'] = env.FORCE_AUTHN_ACCESS_KEY;
+  } else {
     throw new Error(
-      'E1_PREFLIGHT_DATABASE_URL is required for the intended database inventory',
+      'A local Miaoda authentication context is required: FORCE_AUTHN_TOKEN or FORCE_AUTHN_ACCESS_KEY plus FORCE_AUTHN_ACCESS_SECRET',
     );
   }
+  return headers;
+}
 
-  const { Client } = require('pg');
-  const client = new Client({ connectionString: databaseUrl });
-  await client.connect();
-  try {
-    const result = await client.query(READ_ONLY_INVENTORY_QUERY);
-    return result.rows.map((row) => `${row.table_schema}.${row.table_name}`);
-  } finally {
-    await client.end();
+async function fetchSchemaMetadata(
+  target,
+  env = process.env,
+  fetchImpl = globalThis.fetch,
+) {
+  if (typeof fetchImpl !== 'function') {
+    throw new Error(
+      'The runtime must provide fetch for Miaoda schema metadata',
+    );
   }
-}
-
-function normalizeInventory(inventory) {
-  return [...inventory].map(String).sort();
-}
-
-function inventoryChanged(before, after) {
-  return (
-    JSON.stringify(normalizeInventory(before)) !==
-    JSON.stringify(normalizeInventory(after))
+  const url = new URL(
+    `/v1/app/${encodeURIComponent(target.appId)}/dataloom/schema?dbBranch=${encodeURIComponent(target.dbBranch)}`,
+    target.apiDomain,
   );
+  const headers = {
+    Accept: 'application/json',
+    'x-supaas-bizsource': 'miaoda',
+    ...authHeaders(env),
+  };
+  if (target.xTtEnv) headers['x-tt-env'] = target.xTtEnv;
+  if (env.X_LARKGW_SUDA_WEBUSER) {
+    headers['X-Larkgw-Suda-Webuser'] = env.X_LARKGW_SUDA_WEBUSER;
+  }
+
+  const response = await fetchImpl(url.toString(), {
+    method: 'GET',
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error(
+      `Miaoda schema metadata request failed with status ${response.status}`,
+    );
+  }
+  const json = await response.json();
+  return json?.data?.data ?? json?.data?.schema ?? json?.data ?? json;
+}
+
+function schemaObjectSummary(metadata) {
+  const categories = [
+    'tables',
+    'views',
+    'materializedViews',
+    'enums',
+    'sequences',
+  ];
+  return Object.fromEntries(
+    categories.map((category) => {
+      const values = Array.isArray(metadata?.[category])
+        ? metadata[category]
+        : [];
+      const names = values
+        .map(
+          (value) =>
+            value.tableName ||
+            value.viewName ||
+            value.enumName ||
+            value.sequenceName,
+        )
+        .filter(Boolean)
+        .sort();
+      return [category, { count: values.length, names }];
+    }),
+  );
+}
+
+function stableSchemaSnapshot(metadata, target) {
+  const normalized = stableNormalize(metadata);
+  return {
+    targetFingerprint: target.targetFingerprint,
+    normalizedSchemaSha256: crypto
+      .createHash('sha256')
+      .update(JSON.stringify(normalized))
+      .digest('hex'),
+    objectSummary: schemaObjectSummary(normalized),
+  };
 }
 
 function compareSchemaFiles(outputPath, currentSchemaPath) {
   const generated = fs.readFileSync(outputPath);
   const current = fs.readFileSync(currentSchemaPath);
-  const generatedHash = crypto
+  const generatedSha256 = crypto
     .createHash('sha256')
     .update(generated)
     .digest('hex');
-  const currentHash = crypto.createHash('sha256').update(current).digest('hex');
+  const currentSha256 = crypto
+    .createHash('sha256')
+    .update(current)
+    .digest('hex');
   return {
-    status: generatedHash === currentHash ? 'identical' : 'different',
-    generatedSha256: generatedHash,
-    currentSha256: currentHash,
+    status: generatedSha256 === currentSha256 ? 'identical' : 'different',
+    generatedSha256,
+    currentSha256,
     generatedBytes: generated.length,
     currentBytes: current.length,
   };
 }
 
+function formatPreflightReport(result) {
+  return JSON.stringify(
+    {
+      generatorVersion: DB_SCHEMA_SYNC_VERSION,
+      target: {
+        appId: result.target.appId,
+        dbBranch: result.target.dbBranch,
+        apiDomain: result.target.apiDomain,
+        xTtEnv: result.target.xTtEnv,
+        environmentId: result.target.environmentId,
+        authContextId: result.target.authContextId,
+        targetFingerprint: result.target.targetFingerprint,
+      },
+      before: result.before,
+      generator: result.generator,
+      after: result.after,
+    },
+    null,
+    2,
+  );
+}
+
 async function runReadOnlyPreflight({
   repoRoot = defaultRepoRoot(),
-  databaseUrl,
-  platform = process.platform,
   env = process.env,
-  getTableInventory = ({ databaseUrl: targetDatabaseUrl }) =>
-    queryTableInventory(targetDatabaseUrl),
+  target = createCanonicalTarget({ env }),
+  getSchemaMetadata = ({ target: canonicalTarget, env: targetEnv }) =>
+    fetchSchemaMetadata(canonicalTarget, targetEnv),
   runGenerator = ({
     repoRoot: targetRepoRoot,
     outputPath,
-    platform: targetPlatform,
-    env: targetEnv,
+    platform,
+    env: childEnv,
   }) =>
     runSchemaSync({
       repoRoot: targetRepoRoot,
       outputPath,
-      platform: targetPlatform,
-      env: targetEnv,
+      platform,
+      env: childEnv,
     }),
   compareSchema = (outputPath, currentSchemaPath) =>
     compareSchemaFiles(outputPath, currentSchemaPath),
   generatorReadOnlyConfirmed = false,
 }) {
-  if (!databaseUrl) {
-    throw new Error(
-      'E1_PREFLIGHT_DATABASE_URL is required; refusing to run against an unspecified environment',
-    );
-  }
   if (!generatorReadOnlyConfirmed) {
     throw new Error(
       'Generator read-only behavior is not proven; refusing to run the schema generator',
     );
   }
+  if (targetFingerprint(target) !== target.targetFingerprint) {
+    throw new Error('Canonical target fingerprint is invalid');
+  }
 
   const temporary = createTemporaryOutput(repoRoot);
+  const childEnv = buildGeneratorEnvironment(target, env);
   const currentSchemaPath = protectedSchemaPath(repoRoot);
-  let tableInventoryBefore;
-  let tableInventoryAfter;
+  let before;
+  let after;
   let generatorResult;
   let schemaComparison;
 
   try {
-    tableInventoryBefore = await getTableInventory({
-      databaseUrl,
-      query: READ_ONLY_INVENTORY_QUERY,
-    });
+    before = stableSchemaSnapshot(
+      await getSchemaMetadata({ target, env, stage: 'before' }),
+      target,
+    );
     generatorResult = await runGenerator({
       repoRoot,
       outputPath: temporary.outputPath,
-      platform,
-      env,
+      platform: process.platform,
+      env: childEnv,
+      target,
     });
     if (generatorResult && generatorResult.status !== 0) {
       throw new Error(
@@ -212,44 +409,64 @@ async function runReadOnlyPreflight({
       temporary.outputPath,
       currentSchemaPath,
     );
-    tableInventoryAfter = await getTableInventory({
-      databaseUrl,
-      query: READ_ONLY_INVENTORY_QUERY,
-    });
+    after = stableSchemaSnapshot(
+      await getSchemaMetadata({ target, env, stage: 'after' }),
+      target,
+    );
 
-    if (inventoryChanged(tableInventoryBefore, tableInventoryAfter)) {
+    const generatorTargetFingerprint =
+      generatorResult?.targetFingerprint ?? target.targetFingerprint;
+    const fingerprintsMatch =
+      before.targetFingerprint === target.targetFingerprint &&
+      generatorTargetFingerprint === target.targetFingerprint &&
+      target.targetFingerprint === after.targetFingerprint;
+    if (!fingerprintsMatch) {
       const error = new Error(
-        'Table inventory changed during read-only preflight',
+        'Canonical target fingerprint changed during preflight',
       );
-      error.details = { tableInventoryBefore, tableInventoryAfter };
+      error.details = { before, generator: generatorResult, after };
+      throw error;
+    }
+    if (before.normalizedSchemaSha256 !== after.normalizedSchemaSha256) {
+      const error = new Error(
+        'Normalized schema hash changed during preflight',
+      );
+      error.details = { before, generator: generatorResult, after };
       throw error;
     }
 
-    return {
-      temporaryOutputPath: temporary.outputPath,
-      schemaComparison,
-      tableInventoryBefore: normalizeInventory(tableInventoryBefore),
-      tableInventoryAfter: normalizeInventory(tableInventoryAfter),
-      generatorStatus:
-        generatorResult && generatorResult.status !== undefined
-          ? generatorResult.status
-          : 0,
+    const result = {
+      target,
+      before,
+      generator: {
+        version: DB_SCHEMA_SYNC_VERSION,
+        targetFingerprint: target.targetFingerprint,
+        temporaryOutputPath: temporary.outputPath,
+        temporaryOutputSha256:
+          schemaComparison.generatedSha256 ||
+          schemaComparison.temporaryOutputSha256,
+        exitCode:
+          generatorResult && generatorResult.status !== undefined
+            ? generatorResult.status
+            : 0,
+        schemaComparison,
+      },
+      after,
       databaseMutation: 'none-observed',
     };
+    return result;
   } finally {
     temporary.cleanup();
   }
 }
 
 async function main() {
-  const databaseUrl = process.env.E1_PREFLIGHT_DATABASE_URL;
-  const generatorReadOnlyConfirmed =
-    process.env.E1_PREFLIGHT_GENERATOR_READ_ONLY_CONFIRMED === 'true';
   const result = await runReadOnlyPreflight({
-    databaseUrl,
-    generatorReadOnlyConfirmed,
+    env: process.env,
+    generatorReadOnlyConfirmed:
+      process.env.E1_PREFLIGHT_GENERATOR_READ_ONLY_CONFIRMED === 'true',
   });
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+  process.stdout.write(`${formatPreflightReport(result)}\n`);
 }
 
 if (require.main === module) {
@@ -271,14 +488,20 @@ if (require.main === module) {
 }
 
 module.exports = {
-  READ_ONLY_INVENTORY_QUERY,
+  DB_SCHEMA_SYNC_PACKAGE,
+  DB_SCHEMA_SYNC_VERSION,
+  GENERATOR_ENVIRONMENT_VARIABLES,
   assertSafeOutputPath,
+  buildGeneratorEnvironment,
   buildSchemaSyncInvocation,
   compareSchemaFiles,
+  createCanonicalTarget,
   createTemporaryOutput,
-  inventoryChanged,
+  fetchSchemaMetadata,
+  formatPreflightReport,
   protectedSchemaPath,
-  queryTableInventory,
   runReadOnlyPreflight,
   runSchemaSync,
+  stableSchemaSnapshot,
+  targetFingerprint,
 };
