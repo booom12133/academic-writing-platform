@@ -8,5 +8,8 @@
   "include": [
     "scripts/test-deepseek*.ts",
     "server/modules/ai-tools/llm/**/*.ts"
+  ],
+  "exclude": [
+    "server/modules/ai-tools/llm/d4-provider-decoupling.integration.spec.ts"
   ]
 }

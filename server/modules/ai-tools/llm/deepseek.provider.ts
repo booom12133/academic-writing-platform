@@ -13,6 +13,7 @@ const DEFAULT_MODEL = 'deepseek-v4-flash';
 const REQUEST_TIMEOUT_MS = 90_000;
 
 @Injectable()
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through the TEXT_GENERATION_PROVIDER token.
 export class DeepSeekProvider implements TextGenerationProvider {
   private readonly logger = new Logger(DeepSeekProvider.name);
 
