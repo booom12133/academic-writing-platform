@@ -1,10 +1,11 @@
 # Phase D3 Final Acceptance Report
 
 Date: 2026-09-03
-Final Acceptance preparation status: `PHASE_D3_FINAL_ACCEPTANCE_READY`
+Final Acceptance status: `PHASE_D3_ACCEPTED_CLOSED`
 
 This report records the D3 Review-pass candidate and the evidence prepared for
-final acceptance. D3 has not been accepted, merged, or tagged.
+final acceptance. D3 was accepted by ChatGPT, PR #6 was merged, and the
+accepted tag was created during post-merge governance closeout.
 
 ## 1. Governance baseline
 
@@ -16,6 +17,11 @@ final acceptance. D3 has not been accepted, merged, or tagged.
 - Pull request: [#6 Phase D3: Paper Revision Migration](https://github.com/booom12133/academic-writing-platform/pull/6)
 - ChatGPT Review: `PHASE_D3_REVIEW_PASS`
 - GitHub Review ID: `5097012233`
+- ChatGPT Final Acceptance: `PHASE_D3_ACCEPTED`
+- Final Acceptance Review ID: `5097074648`
+- Final Acceptance HEAD: `8479fabaaf09ebf72bc428bbdc29f3b791a56989`
+- PR #6: `MERGED`
+- PR #6 merge commit: `4abae19bcd6b5fc5edbb37b544020464a6e0ac98`
 - Review-pass boundary: no production-code or test changes occurred after
   `2178c90e5f6721e2b9052863d950c90cbda03313`.
 
@@ -188,6 +194,8 @@ inherited failure:
   `test/unit/platform-command.spec.ts`.
 - [pull_request run 33658154147](https://github.com/booom12133/academic-writing-platform/actions/runs/33658154147): `Full tests` failed only at
   `test/unit/platform-command.spec.ts`.
+- [final report push run 33706655667](https://github.com/booom12133/academic-writing-platform/actions/runs/33706655667): same inherited failure only.
+- [final report pull-request run 33706661575](https://github.com/booom12133/academic-writing-platform/actions/runs/33706661575): same inherited failure only.
 
 Each GitHub run recorded:
 
@@ -216,7 +224,8 @@ The following were not modified:
 - database schema;
 - LlmService and DeepSeekProvider;
 - skills/runtime and other tools;
-- `ROADMAP.md`;
+- `ROADMAP.md` during D3 implementation and review; it was updated only in
+  the post-merge governance closeout;
 - historical acceptance reports before this D3 report;
 - `test/unit/platform-command.spec.ts`.
 
@@ -230,13 +239,15 @@ Known limitation:
 > does not guarantee whole-document global restructuring across chunk
 > boundaries.
 
-## 10. Final acceptance preparation boundary
+## 10. Final acceptance closeout
 
-This report is the only file added after Review Candidate HEAD. The report
-commit is docs-only and must be pushed to the existing D3 branch, after which
-PR #6 is ready for ChatGPT final acceptance review. No project state update,
-roadmap update, production change, merge, or accepted tag is included here.
+This report was prepared as a docs-only addition after Review Candidate HEAD
+and finalized during post-merge governance closeout. The closeout modified no
+production code or tests. No real DeepSeek smoke was required because it does
+not exercise the D3 Paper Revision pipeline; the inherited
+`test/unit/platform-command.spec.ts` fixture remains out of scope and is the
+known CI limitation recorded above.
 
-Final preparation status:
+Final status:
 
-`PHASE_D3_FINAL_ACCEPTANCE_READY`
+`PHASE_D3_ACCEPTED_CLOSED`

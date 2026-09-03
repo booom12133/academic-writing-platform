@@ -1,7 +1,8 @@
 # Project Roadmap
 
-Only the already established project phases are listed here. Phase D and later
-phases remain record-only and are not authorized by this C4 closeout.
+Only the already established project phases are listed here. Phase D1, D2, and
+D3 are accepted and closed; later phases remain record-only and are not
+authorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -12,9 +13,11 @@ phases remain record-only and are not authorized by this C4 closeout.
 | C2 | Context Builder | Context assembly for later document-aware tools; design approved and implemented | ACCEPTED | Yes |
 | C3 | Chunking | Deterministic, lossless, structure-aware context partitioning | ACCEPTED | Yes |
 | C4 | File Integration | Explicit multipart upload, durable storage, and C1 → C2 → C3 preparation | ACCEPTED | Yes |
-| D | Tool Migration | NOT AUTHORIZED; record only | PLANNED / NOT_STARTED / NOT_AUTHORIZED | No |
-| E | RAG / Zotero / Search | NOT YET AUTHORIZED; record only | PLANNED | No |
-| F | Queue / Redis / BullMQ | NOT YET AUTHORIZED; record only | PLANNED | No |
+| D1 | Tool Execution Foundation | Shared academic-tool execution foundation and runtime bindings | ACCEPTED | Yes |
+| D2 | Polish Migration | Migrate Polish text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
+| D3 | Paper Revision Migration | Migrate Paper Revision text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
+| E | RAG / Zotero / Search | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
+| F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
 
