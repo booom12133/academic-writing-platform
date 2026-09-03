@@ -90,9 +90,12 @@ Any mismatch fails closed and does not claim zero mutation.
 
 ### RED
 
-After replacing the old PostgreSQL-URL tests with the approved canonical-target
-tests, the suite failed because the correction exports and behavior did not
-exist yet: 7 tests failed and 2 prior tests passed.
+For this narrow correction, the two regression tests were added before the
+implementation changes. The focused suite then failed exactly on the two
+requested defects: order-sensitive schema arrays were being sorted, and a
+mocked generator authentication secret appeared in the thrown error.
+
+RED result: 11 tests total, 9 passed, 2 failed for those expected reasons.
 
 ### GREEN
 
@@ -102,12 +105,25 @@ Command:
 npx jest test/unit/e1-database-preflight.spec.ts --runInBand
 ```
 
-Result: 1 suite passed, 9 tests passed, 0 tests failed.
+Result: 1 suite passed, 11 tests passed, 0 tests failed.
 
-Covered behavior includes exact version pinning, canonical app/branch binding,
-conflicting inherited routing protection, target fingerprints, normalized
-schema hash invariance, GET-only metadata access, protected output refusal,
-non-zero generator failure, and secret redaction.
+The order regression confirms that `['user_id', 'document_id']` and
+`['document_id', 'user_id']` produce different normalized schema hashes. Object
+keys remain deterministically sorted, while arrays preserve source order.
+
+The error-path regression confirms that generator stderr containing the exact
+forwarded authentication values is redacted before it reaches the thrown
+error. The same centralized redaction is applied to generator stdout/stderr
+returns, mismatch details, CLI output, and formatted reports. Covered
+authentication values include `FORCE_AUTHN_TOKEN`,
+`FORCE_AUTHN_ACCESS_SECRET`, `FORCE_AUTHN_ACCESS_KEY`, `MIAODA_AUTHN_CODE`,
+`X_LARKGW_SUDA_WEBUSER`, and the package's forwarded `DOTENV_KEY`.
+
+All previously accepted behavior remains covered: exact version pinning,
+canonical app/branch binding, conflicting inherited routing protection, target
+fingerprints, before/after normalized schema hash fail-closed behavior,
+GET-only metadata access, protected output refusal, non-zero generator
+failure, and secret-free success reporting.
 
 ## Real target status
 
@@ -144,7 +160,8 @@ DDL, DML, table creation, or schema mutation occurred.
 - No Miaoda/database table was created or changed.
 - `server/database/schema.ts` and local pg-mem schema were not modified.
 - No C2/C3/C4/E1 production implementation was started.
-- The only Task-2 correction files are the wrapper, its test, this evidence
-  report, and the approved plan's Task-2 wording amendment.
+- The current narrow correction changes only the wrapper, its test, and this
+  evidence report. The approved plan's earlier Task-2 wording amendment is
+  unchanged.
 - The previously untracked E1 design and database-audit documents remain
   preserved and are excluded from this correction commit.

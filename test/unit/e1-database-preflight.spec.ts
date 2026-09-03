@@ -130,6 +130,22 @@ describe('E1 read-only database preflight wrapper', () => {
     ).rejects.toThrow(/normalized schema hash|schema metadata changed/i);
   });
 
+  it('preserves order-sensitive schema arrays in normalized hashes', () => {
+    const target = createTarget();
+    const first = stableSchemaSnapshot(
+      { indexes: [{ columns: ['user_id', 'document_id'] }] },
+      target,
+    );
+    const second = stableSchemaSnapshot(
+      { indexes: [{ columns: ['document_id', 'user_id'] }] },
+      target,
+    );
+
+    expect(first.normalizedSchemaSha256).not.toBe(
+      second.normalizedSchemaSha256,
+    );
+  });
+
   it('rejects an output path equal to the protected generated schema path', () => {
     expect(() =>
       createTemporaryOutput(repoRoot, {
@@ -174,6 +190,44 @@ describe('E1 read-only database preflight wrapper', () => {
         }),
       }),
     ).toThrow(/exited with status 17|generator failed/i);
+  });
+
+  it('redacts forwarded authentication secrets from generator errors', () => {
+    const secretsEnv = {
+      ...targetEnv,
+      FORCE_AUTHN_TOKEN: 'token-secret-value',
+      FORCE_AUTHN_ACCESS_SECRET: 'access-secret-value',
+      FORCE_AUTHN_ACCESS_KEY: 'access-key-value',
+      MIAODA_AUTHN_CODE: 'miaoda-code-value',
+      X_LARKGW_SUDA_WEBUSER: 'web-user-value',
+      DOTENV_KEY: 'dotenv-key-value',
+    };
+
+    let thrownError: Error | undefined;
+    try {
+      runSchemaSync({
+        repoRoot,
+        outputPath: 'C:\\Temp\\e1-db-preflight\\schema.ts',
+        platform: 'linux',
+        env: secretsEnv,
+        spawnSync: () => ({
+          status: 17,
+          stdout: 'stdout token-secret-value access-key-value',
+          stderr:
+            'stderr access-secret-value miaoda-code-value web-user-value dotenv-key-value',
+        }),
+      });
+    } catch (error) {
+      thrownError = error as Error;
+    }
+
+    expect(thrownError).toBeDefined();
+    expect(thrownError?.message).not.toContain('token-secret-value');
+    expect(thrownError?.message).not.toContain('access-secret-value');
+    expect(thrownError?.message).not.toContain('access-key-value');
+    expect(thrownError?.message).not.toContain('miaoda-code-value');
+    expect(thrownError?.message).not.toContain('web-user-value');
+    expect(thrownError?.message).not.toContain('dotenv-key-value');
   });
 
   it('never includes authentication secrets in target/report output', () => {

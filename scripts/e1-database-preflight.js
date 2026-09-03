@@ -20,6 +20,14 @@ const GENERATOR_ENVIRONMENT_VARIABLES = Object.freeze([
   'FORCE_AUTHN_TOKEN',
   'MIAODA_AUTHN_CODE',
 ]);
+const SENSITIVE_ENVIRONMENT_VARIABLES = Object.freeze([
+  'FORCE_AUTHN_TOKEN',
+  'FORCE_AUTHN_ACCESS_SECRET',
+  'FORCE_AUTHN_ACCESS_KEY',
+  'MIAODA_AUTHN_CODE',
+  'X_LARKGW_SUDA_WEBUSER',
+  'DOTENV_KEY',
+]);
 
 function defaultRepoRoot() {
   return path.resolve(__dirname, '..');
@@ -64,19 +72,41 @@ function createTemporaryOutput(repoRoot = defaultRepoRoot(), options = {}) {
 
 function stableNormalize(value) {
   if (Array.isArray(value)) {
-    return value
-      .map((item) => stableNormalize(item))
-      .sort((left, right) => {
-        const leftJson = JSON.stringify(left);
-        const rightJson = JSON.stringify(right);
-        return leftJson < rightJson ? -1 : leftJson > rightJson ? 1 : 0;
-      });
+    return value.map((item) => stableNormalize(item));
   }
   if (value && typeof value === 'object') {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
         .map((key) => [key, stableNormalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function sensitiveEnvironmentValues(env = process.env) {
+  const values = new Set();
+  for (const name of SENSITIVE_ENVIRONMENT_VARIABLES) {
+    const value = env[name];
+    if (typeof value === 'string' && value.length > 0) values.add(value);
+  }
+  return [...values].sort((left, right) => right.length - left.length);
+}
+
+function redactSecrets(value, env = process.env) {
+  let redacted = String(value ?? '');
+  for (const secret of sensitiveEnvironmentValues(env)) {
+    redacted = redacted.split(secret).join('[REDACTED]');
+  }
+  return redacted;
+}
+
+function redactValue(value, env = process.env) {
+  if (typeof value === 'string') return redactSecrets(value, env);
+  if (Array.isArray(value)) return value.map((item) => redactValue(item, env));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, redactValue(item, env)]),
     );
   }
   return value;
@@ -183,15 +213,24 @@ function runSchemaSync({
   });
 
   if (result.error) {
-    throw new Error(`db-schema-sync failed to start: ${result.error.message}`);
+    throw new Error(
+      `db-schema-sync failed to start: ${redactSecrets(result.error.message, env)}`,
+    );
   }
   if (result.status !== 0) {
-    const detail = String(result.stderr || result.stdout || '').trim();
+    const detail = redactSecrets(
+      String(result.stderr || result.stdout || '').trim(),
+      env,
+    );
     throw new Error(
       `db-schema-sync exited with status ${result.status}${detail ? `: ${detail}` : ''}`,
     );
   }
-  return result;
+  return {
+    ...result,
+    stdout: redactSecrets(result.stdout, env),
+    stderr: redactSecrets(result.stderr, env),
+  };
 }
 
 function authHeaders(env) {
@@ -327,25 +366,28 @@ function compareSchemaFiles(outputPath, currentSchemaPath) {
   };
 }
 
-function formatPreflightReport(result) {
-  return JSON.stringify(
-    {
-      generatorVersion: DB_SCHEMA_SYNC_VERSION,
-      target: {
-        appId: result.target.appId,
-        dbBranch: result.target.dbBranch,
-        apiDomain: result.target.apiDomain,
-        xTtEnv: result.target.xTtEnv,
-        environmentId: result.target.environmentId,
-        authContextId: result.target.authContextId,
-        targetFingerprint: result.target.targetFingerprint,
+function formatPreflightReport(result, env = process.env) {
+  return redactSecrets(
+    JSON.stringify(
+      {
+        generatorVersion: DB_SCHEMA_SYNC_VERSION,
+        target: {
+          appId: result.target.appId,
+          dbBranch: result.target.dbBranch,
+          apiDomain: result.target.apiDomain,
+          xTtEnv: result.target.xTtEnv,
+          environmentId: result.target.environmentId,
+          authContextId: result.target.authContextId,
+          targetFingerprint: result.target.targetFingerprint,
+        },
+        before: result.before,
+        generator: result.generator,
+        after: result.after,
       },
-      before: result.before,
-      generator: result.generator,
-      after: result.after,
-    },
-    null,
-    2,
+      null,
+      2,
+    ),
+    env,
   );
 }
 
@@ -393,13 +435,21 @@ async function runReadOnlyPreflight({
       await getSchemaMetadata({ target, env, stage: 'before' }),
       target,
     );
-    generatorResult = await runGenerator({
-      repoRoot,
-      outputPath: temporary.outputPath,
-      platform: process.platform,
-      env: childEnv,
-      target,
-    });
+    try {
+      generatorResult = await runGenerator({
+        repoRoot,
+        outputPath: temporary.outputPath,
+        platform: process.platform,
+        env: childEnv,
+        target,
+      });
+    } catch (error) {
+      const redactedError = new Error(
+        redactSecrets(error instanceof Error ? error.message : error, childEnv),
+      );
+      redactedError.details = redactValue(error?.details, childEnv);
+      throw redactedError;
+    }
     if (generatorResult && generatorResult.status !== 0) {
       throw new Error(
         `db-schema-sync exited with status ${generatorResult.status}`,
@@ -424,14 +474,20 @@ async function runReadOnlyPreflight({
       const error = new Error(
         'Canonical target fingerprint changed during preflight',
       );
-      error.details = { before, generator: generatorResult, after };
+      error.details = redactValue(
+        { before, generator: generatorResult, after },
+        childEnv,
+      );
       throw error;
     }
     if (before.normalizedSchemaSha256 !== after.normalizedSchemaSha256) {
       const error = new Error(
         'Normalized schema hash changed during preflight',
       );
-      error.details = { before, generator: generatorResult, after };
+      error.details = redactValue(
+        { before, generator: generatorResult, after },
+        childEnv,
+      );
       throw error;
     }
 
@@ -472,15 +528,18 @@ async function main() {
 if (require.main === module) {
   main().catch((error) => {
     process.stderr.write(
-      `${JSON.stringify(
-        {
-          status: 'BLOCKED',
-          reason: error.message,
-          details: error.details,
-          databaseMutation: 'not-established',
-        },
-        null,
-        2,
+      `${redactSecrets(
+        JSON.stringify(
+          {
+            status: 'BLOCKED',
+            reason: redactSecrets(error.message, process.env),
+            details: redactValue(error.details, process.env),
+            databaseMutation: 'not-established',
+          },
+          null,
+          2,
+        ),
+        process.env,
       )}\n`,
     );
     process.exitCode = 1;
@@ -491,6 +550,8 @@ module.exports = {
   DB_SCHEMA_SYNC_PACKAGE,
   DB_SCHEMA_SYNC_VERSION,
   GENERATOR_ENVIRONMENT_VARIABLES,
+  redactSecrets,
+  redactValue,
   assertSafeOutputPath,
   buildGeneratorEnvironment,
   buildSchemaSyncInvocation,
