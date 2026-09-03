@@ -22,8 +22,9 @@ Last Updated: 2026-09-03
 
 ## Current development
 
-- Current Development: No next implementation phase authorized.
-- Next architecture step: `NOT AUTHORIZED / pending ChatGPT direction.`
+- Current Development: Phase D4 — Text Generation Provider Abstraction.
+- Current D4 status: `REVIEW CANDIDATE / awaiting ChatGPT GitHub Review`; D4 is not accepted.
+- Next architecture step: No next implementation phase is authorized; Phase E is `NOT AUTHORIZED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
