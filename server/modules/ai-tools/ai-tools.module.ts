@@ -25,6 +25,9 @@ import { PolishBillingService } from './polish/polish-billing.service';
 import { PolishChunkExecutor } from './polish/polish-chunk.executor';
 import { PolishResultAggregator } from './polish/polish-result.aggregator';
 import { PolishSubmissionService } from './polish/polish-submission.service';
+import { PaperRevisionChunkExecutor } from './paper-revision/paper-revision-chunk.executor';
+import { PaperRevisionResultAggregator } from './paper-revision/paper-revision-result.aggregator';
+import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
 
 @Module({
   imports: [
@@ -68,6 +71,9 @@ import { PolishSubmissionService } from './polish/polish-submission.service';
     PolishChunkExecutor,
     PolishResultAggregator,
     PolishSubmissionService,
+    PaperRevisionChunkExecutor,
+    PaperRevisionResultAggregator,
+    PaperRevisionSubmissionService,
   ],
 })
 export class AiToolsModule {}

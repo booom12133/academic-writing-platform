@@ -1,13 +1,13 @@
 jest.mock('@shared/api.interface', () => ({
   TOOL_CONFIGS: [
     { type: 'polish', name: '语法润色', basePoints: 10 },
+    { type: 'paper-revision', name: 'AI论文修改', basePoints: 30 },
     { type: 'outline', name: '智能大纲', basePoints: 20 },
   ],
 }), { virtual: true });
 jest.mock('../tasks/tasks.service', () => ({ TasksService: class {} }));
 jest.mock('./generators/topic-generation.generator', () => ({ TopicGenerationGenerator: class {} }));
 jest.mock('./generators/polish.generator', () => ({ PolishGenerator: class {} }));
-jest.mock('./generators/paper-revision.generator', () => ({ PaperRevisionGenerator: class {} }));
 
 const generatorModuleNames = [
   'outline',
@@ -38,12 +38,13 @@ for (const moduleName of generatorModuleNames) {
 }
 
 jest.mock('./polish/polish-submission.service', () => ({ PolishSubmissionService: class {} }));
+jest.mock('./paper-revision/paper-revision-submission.service', () => ({ PaperRevisionSubmissionService: class {} }));
 
 import { AiToolsService } from './ai-tools.service';
 import type { PolishSubmissionService } from './polish/polish-submission.service';
 import type { TasksService } from '../tasks/tasks.service';
 import type { TopicGenerationGenerator } from './generators/topic-generation.generator';
-import type { PaperRevisionGenerator } from './generators/paper-revision.generator';
+import type { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
 
 describe('AiToolsService Polish cutover', () => {
   it('delegates Polish before generic Task creation and returns the delegated processing Task', async () => {
@@ -69,8 +70,8 @@ describe('AiToolsService Polish cutover', () => {
     const service = new AiToolsService(
       tasks as unknown as TasksService,
       {} as TopicGenerationGenerator,
-      {} as PaperRevisionGenerator,
       polishSubmission as unknown as PolishSubmissionService,
+      {} as PaperRevisionSubmissionService,
     );
     const inputData = {
       inputMode: 'file',
@@ -100,5 +101,76 @@ describe('AiToolsService Polish cutover', () => {
       inputData,
     });
     expect(tasks.createTask).not.toHaveBeenCalled();
+  });
+
+  it('delegates Paper Revision before generic Task creation', async () => {
+    const processingTask = {
+      id: 'revision-task-1',
+      userId: 'user-1',
+      taskType: 'paper-revision',
+      title: 'Revision',
+      status: 'processing',
+      progress: 10,
+      pointsCost: 30,
+      inputData: {},
+      createdAt: '2026-09-03T00:00:00.000Z',
+      updatedAt: '2026-09-03T00:00:00.000Z',
+    };
+    const tasks = { createTask: jest.fn(), updateTask: jest.fn() };
+    const paperRevisionSubmission = { submit: jest.fn().mockResolvedValue(processingTask) };
+    const inputData = { text: 'source', requirements: 'revise' };
+    const service = new AiToolsService(
+      tasks as unknown as TasksService,
+      {} as TopicGenerationGenerator,
+      {} as PolishSubmissionService,
+      paperRevisionSubmission as unknown as PaperRevisionSubmissionService,
+    );
+
+    const result = await service.submitTask({
+      userId: 'user-1',
+      taskType: 'paper-revision',
+      title: 'Revision',
+      inputData,
+    });
+
+    expect(result).toBe(processingTask);
+    expect(paperRevisionSubmission.submit).toHaveBeenCalledWith({
+      userId: 'user-1',
+      title: 'Revision',
+      inputData,
+    });
+    expect(tasks.createTask).not.toHaveBeenCalled();
+  });
+
+  it('keeps outline submissions on the generic path', async () => {
+    const created = { id: 'outline-task' };
+    const processing = { id: 'outline-task', status: 'processing' };
+    const tasks = {
+      createTask: jest.fn().mockResolvedValue(created),
+      updateTask: jest.fn().mockResolvedValue(processing),
+    };
+    const paperRevisionSubmission = { submit: jest.fn() };
+    const service = new AiToolsService(
+      tasks as unknown as TasksService,
+      {} as TopicGenerationGenerator,
+      {} as PolishSubmissionService,
+      paperRevisionSubmission as unknown as PaperRevisionSubmissionService,
+    );
+
+    const result = await service.submitTask({
+      userId: 'user-1',
+      taskType: 'outline',
+      title: 'Outline',
+      inputData: { topic: 'topic' },
+    });
+
+    expect(result).toBe(processing);
+    expect(tasks.createTask).toHaveBeenCalledWith({
+      userId: 'user-1',
+      taskType: 'outline',
+      title: 'Outline',
+      inputData: { topic: 'topic' },
+    });
+    expect(paperRevisionSubmission.submit).not.toHaveBeenCalled();
   });
 });

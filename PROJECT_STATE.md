@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-02
+Last Updated: 2026-09-03
 
 ## Project
 
@@ -13,18 +13,33 @@ Last Updated: 2026-09-02
 
 ## Stable state
 
-- Current Stable Phase: Phase D2 — Polish Migration
+- Current Stable Phase: Phase D2 — ACCEPTED / FROZEN / CLOSED
 - Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D2_ACCEPTED_CLOSED`)
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge D2 governance HEAD (this closeout commit)
+- Stable Main Commit: `31a7002babed73bc325841c5622a2f2e03f38bc4`
 - Latest Final Acceptance Report: [PHASE_D2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D2_FINAL_ACCEPTANCE_REPORT.md)
 - Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, and Phase D2 are completed/frozen by project records
 
 ## Current development
 
-- Current Development Phase: Phase D2 — Polish Migration (closed on `main`)
-- Current Development Branch: `main`
-- Current Phase Status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_D2_ACCEPTED_CLOSED`)
+- Current Development Phase: Phase D3 — Paper Revision Migration
+- Current Development Branch: `phase/d3-paper-revision-migration`
+- Current Phase Status: `REVIEW_CANDIDATE`
+- D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
+- D3 accepted: `NO`
+- D3 merged: `NO`
+- D3 Review: `PHASE_D3_PLAN_REVIEW_PASS`; `PHASE_D3_IMPLEMENTATION_AUTHORIZED`
+- D3 base SHA: `31a7002babed73bc325841c5622a2f2e03f38bc4`
+- D3 scope: Paper Revision text and prepared-file migration onto the C1 → C2 → C3 → D1 preparation and execution pipeline, with server-owned chunking, fixed billing, asynchronous sequential execution, deterministic aggregation, and frontend structured file-reference submission.
+- D3 focused tests: PASS — 8 suites / 35 tests
+- D3 full regression: PASS — 50 suites / 306 tests
+- D3 lint: PASS
+- D3 type-check: PASS — server and client
+- D3 server build: PASS
+- D3 client build: PASS — existing module-type and chunk-size warnings only
+- D3 AppModule bootstrap: PASS — AiToolsModule execution foundation resolved
+- D3 automated DeepSeek / external AI calls: 0
+- D3 inherited issue: `test/unit/platform-command.spec.ts` unchanged and out of scope
 - Phase D2 scope: Polish text/file migration onto the C1 → C2 → C3 → D1 preparation and execution pipeline, server-owned chunking and billing, asynchronous sequential execution, deterministic aggregation, and frontend structured file-reference submission.
 - Phase D2 accepted implementation/final-acceptance HEAD: `56dc2ff48fdf19f3f11ab1cc8270432fda917fd7`
 - Phase D2 Final Acceptance: `PHASE_D2_ACCEPTED` (ChatGPT Review ID `5091748366`)
