@@ -41,7 +41,7 @@ export interface PolishChunkOutput {
   revisedContent: string;
   changes: { original: string; revised: string; reason: string }[];
   metadata: {
-    provider: 'deepseek';
+    provider: string;
     model: string;
     latencyMs: number;
   };

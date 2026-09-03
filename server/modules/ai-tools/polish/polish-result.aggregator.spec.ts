@@ -89,6 +89,7 @@ function contentRecord(
   chunkValue: RenderedToolChunk,
   revisedContent: string,
   originalContent: string,
+  metadata: Partial<{ provider: string; model: string; latencyMs: number }> = {},
 ): ToolExecutionChunkRecord {
   return {
     chunk: chunkValue,
@@ -103,6 +104,7 @@ function contentRecord(
           provider: 'deepseek',
           model: 'deepseek-v4-flash',
           latencyMs: 5,
+          ...metadata,
         },
       },
       warnings: [`warning-${chunkValue.chunkId}`],
@@ -256,5 +258,39 @@ describe('PolishResultAggregator', () => {
       completionTokens: 60,
       totalTokens: 90,
     });
+  });
+
+  it('accepts structurally valid non-DeepSeek provider metadata', () => {
+    const record = contentRecord(
+      chunk('chunk-1', 'content', 'block-a', 'Source'),
+      'Revised',
+      'ignored',
+      { provider: 'fake-generation', model: 'fake-model' },
+    );
+
+    expect(new PolishResultAggregator().aggregate(execution([record])).metadata).toMatchObject({
+      provider: 'fake-generation',
+      model: 'fake-model',
+    });
+  });
+
+  it('rejects empty provider or model metadata structurally', () => {
+    const emptyProvider = contentRecord(
+      chunk('chunk-1', 'content', 'block-a', 'Source'),
+      'Revised',
+      'ignored',
+      { provider: '' },
+    );
+    expect(() => new PolishResultAggregator().aggregate(execution([emptyProvider])))
+      .toThrow('Invalid Polish chunk output');
+
+    const emptyModel = contentRecord(
+      chunk('chunk-1', 'content', 'block-a', 'Source'),
+      'Revised',
+      'ignored',
+      { model: '   ' },
+    );
+    expect(() => new PolishResultAggregator().aggregate(execution([emptyModel])))
+      .toThrow('Invalid Polish chunk output');
   });
 });
