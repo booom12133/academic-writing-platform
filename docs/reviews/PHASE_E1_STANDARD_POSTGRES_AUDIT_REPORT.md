@@ -25,11 +25,15 @@ schema, contact the ECS, or authorize E1 Task 7.
 ## 2. Executive conclusion
 
 The repository is not currently a standard PostgreSQL production runtime.
-Production database wiring is supplied indirectly by
-`@lark-apaas/fullstack-nestjs-core`'s `PlatformModule`, which imports
+There are two distinct database topologies that must not be conflated. The
+platform-storage path can load `PlatformModule`, which imports
 `@lark-apaas/nestjs-datapaas` and configures it from `SUDA_DATABASE_URL`.
-Local development instead supplies the same Nest token through a pg-mem
-adapter.
+However, the accepted D4 self-hosted filesystem production path
+(`DOCUMENT_STORAGE_DRIVER=filesystem` and not local development) executes
+`createPlatformModuleImports(filesystem)`, which returns `[]`. In that path
+`LocalDevelopmentDatabaseModule`, `PlatformModule`, and `DataPaasModule` are
+all absent, so no production `DRIZZLE_DATABASE` provider exists. Local
+development supplies the token separately through a pg-mem adapter.
 
 The minimum safe database seam is therefore an application-owned production
 database module that exports the existing `DRIZZLE_DATABASE` token and the
@@ -59,7 +63,7 @@ not belong on the ECS.
 
 ## 3. Dependency audit
 
-### 3.1 `PlatformModule`
+### 3.1 `PlatformModule` and the selected filesystem production topology
 
 The direct repository references are:
 
@@ -73,6 +77,18 @@ The direct repository references are:
 - Controllers use `NeedLogin` from the platform package.
 - The document storage platform adapter loads `FileService` from the same
   package.
+
+For the actual accepted self-hosted filesystem production path, the topology
+is explicitly:
+
+```text
+filesystem storage, non-local-development
+  → createPlatformModuleImports(filesystem) = []
+  → no LocalDevelopmentDatabaseModule
+  → no PlatformModule
+  → no DataPaasModule
+  → no production DRIZZLE_DATABASE provider
+```
 
 The installed core package is `@lark-apaas/fullstack-nestjs-core@1.1.60`.
 Its inspected implementation shows that `PlatformModule.forRoot()` imports
@@ -116,11 +132,9 @@ not a standard application-owned database lifecycle: the platform module uses
 integration.
 
 The repository lockfile resolves `@lark-apaas/nestjs-datapaas@1.0.21` as a
-transitive dependency. Its public module contract accepts a PostgreSQL
-connection string, schema, pool/time-out options, and exports
-`DRIZZLE_DATABASE`. This makes it the smallest existing provider candidate,
-subject to an implementation-phase verification that the selected options and
-request-context behavior are safe for ordinary PostgreSQL.
+transitive dependency. Its public module contract is not the target production
+abstraction for standard PostgreSQL. The target must not depend on
+`@lark-apaas/nestjs-datapaas` or `DataPaasModule` as its database boundary.
 
 ### 3.4 Generated `server/database/schema.ts`
 
@@ -144,27 +158,32 @@ matches every generated platform type.
 
 ## 4. Minimum standard PostgreSQL provider/module
 
-### Recommended seam
+### Frozen target seam
 
 Introduce, in a separately authorized implementation phase, an
 application-owned `StandardPostgresDatabaseModule` that:
 
 1. loads a secret `DATABASE_URL` and non-secret pool/SSL settings;
 2. configures the existing Drizzle schema mapping;
-3. uses the existing `@lark-apaas/nestjs-datapaas` `DataPaasModule` contract,
-   or a narrowly equivalent app-owned provider if its platform-specific
-   request proxy is not acceptable;
+3. uses `drizzle-orm/node-postgres` with a direct `pg` Pool;
 4. exports exactly `DRIZZLE_DATABASE` to existing business modules; and
 5. owns connection shutdown and health checks.
 
-The preferred first candidate is `DataPaasModule.forRootAsync` because the
-installed package already supports ordinary PostgreSQL connection strings and
-the exact `DRIZZLE_DATABASE` token. It should be configured from
-`DATABASE_URL`, not `SUDA_DATABASE_URL`, and must not depend on the Miaoda
-token file. If standard PostgreSQL does not provide the request-context
-semantics expected by the selected DataPaas settings, the fallback is a small
-Nest provider using the repository's pinned Drizzle version and the standard
-`postgres` or `pg` driver, still exporting the same token.
+The frozen target is:
+
+```text
+application-owned StandardPostgresDatabaseModule
+  → drizzle-orm/node-postgres
+  → direct pg Pool
+  → DATABASE_URL
+  → standard PostgreSQL
+```
+
+It exports the existing `DRIZZLE_DATABASE` Nest token and preserves the typed
+database contract consumed by the four services. `pg` currently exists only in
+`devDependencies`; moving it to runtime dependencies is expected during a
+separately authorized implementation, but package.json is not changed by this
+audit.
 
 This is a provider recommendation only. No module, dependency, or runtime
 configuration was changed by this audit.
@@ -176,8 +195,11 @@ Database replacement alone does not replace `NeedLogin` or populate
 either remain as an explicitly retained non-database dependency or be replaced
 by a separately approved standard self-hosted authentication boundary.
 That decision is required before claiming that production Users/Tasks/Points/
-Orders behavior is fully deployable. No new auth protocol or credential
-workflow is invented here.
+Orders behavior is fully deployable. Record this unresolved boundary exactly as
+`PRODUCTION_DEPLOYMENT_BLOCKER`. It does not block isolated database-provider,
+migration, E1 development, or CI integration work, but production readiness
+cannot be declared until a separate authentication architecture is approved.
+No new auth protocol or credential workflow is invented here.
 
 ## 5. Behavioral compatibility assessment
 
@@ -219,8 +241,8 @@ workflow is invented here.
 
 Because the project has never used a Miaoda production application/database,
 there is no accepted production data migration to perform. The first standard
-PostgreSQL bootstrap should create an empty database and apply a versioned
-baseline migration for exactly:
+PostgreSQL bootstrap should create an empty database and apply a conceptual
+versioned `0001 baseline` migration for exactly:
 
 ```text
 app_users
@@ -235,21 +257,44 @@ defaults, indexes, and any required compatibility types resolved explicitly.
 It must not silently add new business constraints or alter accepted table
 semantics.
 
+Before that migration is implemented, the exact physical baseline contract
+must resolve, rather than assume away, the current `user_profile` and
+`file_attachment` custom types, the `current_setting('app.user_id', true)`
+defaults/expressions, platform/system fields, nullability, timestamps,
+indexes, and default behavior. The current pg-mem mirror is not proof of
+standard PostgreSQL parity.
+
 ### 6.2 Seven E1 tables
 
 The approved seven E1 tables should enter the same migration history only
-after the E1 database architecture is re-approved and Task 7 is separately
-authorized. Their migration must follow the accepted dependency order and
-physical contract, including nullable `source_record_id`, user ownership,
+through a conceptual `0002 E1 knowledge provenance` migration, after the E1
+database architecture is re-approved and the database implementation is
+separately authorized. Its migration must follow the accepted dependency order
+and physical contract, including nullable `source_record_id`, user ownership,
 field-level assertions, external-link identity uniqueness, immutable version/
 chunk keys, and the per-user import idempotency key.
 
 No E1 table is created or staged by this report.
 
-### 6.3 Recommended authority
+### 6.3 One-time `SCHEMA OWNERSHIP TRANSITION`
 
-Drizzle migrations should become the authoritative durable schema lifecycle for
-the standard PostgreSQL runtime. The recommended future arrangement is:
+The one-time schema ownership transition is:
+
+```text
+CURRENT: Miaoda schema → db-schema-sync → generated server/database/schema.ts
+TARGET:  application-owned canonical Drizzle schema
+         → versioned Drizzle migrations
+         → standard PostgreSQL
+```
+
+The existing import path `server/database/schema.ts` must be preserved. After
+the separately authorized transition, that path ceases to be a Miaoda-generated
+production artifact and becomes the application-owned canonical Drizzle schema
+definition. `npm run gen:db-schema` and the Miaoda workflow cease to be
+authoritative for standard PostgreSQL. No transition, migration files, or
+schema mutation was performed here.
+
+The target future arrangement is:
 
 - a versioned, reviewable Drizzle schema definition;
 - committed migration files and a migration journal/table;
@@ -260,10 +305,9 @@ the standard PostgreSQL runtime. The recommended future arrangement is:
 - application startup that validates compatibility but does not silently create
   or mutate production tables.
 
-The current `gen:db-schema` script, which invokes
-`@lark-apaas/db-schema-sync@latest` and writes the platform-generated mapping,
-must not remain the authoritative production schema workflow after this
-transition. No Drizzle migration system was invented or implemented here.
+The current `gen:db-schema` script remains historical until that transition is
+separately authorized. No Drizzle migration system was invented or implemented
+here.
 
 ## 7. Local pg-mem versus real PostgreSQL testing
 
@@ -437,14 +481,14 @@ ECS-side rebuild is not sufficient cryptographic provenance.
 
 The following are architecture gates, not work performed by this audit:
 
-1. approve the standard PostgreSQL provider boundary and its auth/user-context
-   interaction;
+1. approve the frozen standard PostgreSQL provider boundary and its
+   auth/user-context interaction;
 2. define the exact baseline PostgreSQL physical schema for the four accepted
    tables, including treatment of platform custom system types;
-3. approve Drizzle migration ownership and the separate CI/release migration
-   job;
+3. authorize the one-time schema ownership transition and the separate
+   versioned migration/release job;
 4. define the CI artifact, signing, verification, and release directory
-   contract; and
+   contract through the separate deployment-infrastructure gate; and
 5. only after those decisions, authorize narrowly scoped implementation work.
 
 ## 13. Explicit non-actions
