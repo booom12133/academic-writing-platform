@@ -13,17 +13,17 @@ Last Updated: 2026-09-03
 
 ## Stable state
 
-- Current Stable Phase: Phase D3 — Paper Revision Migration
-- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D3_ACCEPTED_CLOSED`)
+- Current Stable Phase: Phase D4 — Text Generation Provider Abstraction
+- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D4_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge D3 governance HEAD
-- Latest Final Acceptance Report: [PHASE_D3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D3_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, and Phase D3 are completed/frozen by project records
+- Stable Main Commit: `924af966c1a2cbb1c6c63d6dc9072b8e6cb8ab03` (PR #7 merge commit)
+- Latest Final Acceptance Report: [PHASE_D4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D4_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, and Phase D4 are completed/frozen by project records
 
 ## Current development
 
-- Current Development: Phase D4 — Text Generation Provider Abstraction.
-- Current D4 status: `REVIEW CANDIDATE / awaiting ChatGPT GitHub Review`; D4 is not accepted.
+- Current Development: Phase D4 — Text Generation Provider Abstraction (accepted / frozen / closed).
+- Current D4 status: `PHASE_D4_ACCEPTED`; PR #7 merged; post-merge governance closeout complete.
 - Next architecture step: No next implementation phase is authorized; Phase E is `NOT AUTHORIZED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
@@ -35,10 +35,13 @@ Last Updated: 2026-09-03
 - D3 ChatGPT Review Pass ID: `5097012233`
 - D3 Final Acceptance Review ID: `5097074648`
 - D3 Review: `PHASE_D3_REVIEW_PASS`; `PHASE_D3_IMPLEMENTATION_AUTHORIZED`
-- D4 Status: `REVIEW CANDIDATE / awaiting ChatGPT Final Acceptance Review`; implementation review `PHASE_D4_REVIEW_PASS`; D4 is not accepted
+- D4 Status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_D4_ACCEPTED`); implementation review `PHASE_D4_REVIEW_PASS`
 - D4 Branch: `phase/d4-text-generation-provider-abstraction`
 - D4 Base SHA: `cae059e656d17981e5f4bd0116a6c37ab2d9d04e` (`phase-d3-accepted` peeled SHA)
-- D4 Candidate implementation HEAD before governance record: `910cefc`
+- D4 Reviewed implementation HEAD: `7c4504fc62f3db58459d59d65c0ce0640af91829`
+- D4 Final Acceptance Preparation HEAD: `38d4531be24095e258378252cae296458bbae135`
+- D4 PR: `#7` merged — merge commit `924af966c1a2cbb1c6c63d6dc9072b8e6cb8ab03`
+- D4 architecture: Generator → LlmService → TEXT_GENERATION_PROVIDER → TextGenerationProvider → DeepSeekProvider; DeepSeek remains the sole production provider
 - D4 commits: docs-only baseline, token-backed generation boundary, provider identity propagation, provider-neutral chunk metadata, smoke/lint alignment
 - D4 focused tests: PASS — 20 suites / 89 tests
 - D4 full regression: PASS — 52 suites / 319 tests; inherited Jest open-handle warning only
@@ -50,9 +53,9 @@ Last Updated: 2026-09-03
 - D4 AppModule bootstrap: PASS — `AiToolsModule` execution foundation resolved
 - D4 DeepSeek / external AI calls during verification: 0; real DeepSeek smoke scripts were not run during ordinary regression
 - D4 frozen-path audit: PASS — PolishChunkExecutor, PaperRevisionChunkExecutor, D2/D3 modules, shared API, ROADMAP, and inherited platform-command spec unchanged
-- D4 inherited CI issue: `test/unit/platform-command.spec.ts` remains unchanged and out of scope
+- D4 inherited CI issue: `test/unit/platform-command.spec.ts` remains unchanged and is `INHERITED / KNOWN / ACCEPTED / OUT_OF_SCOPE / NON-BLOCKING FOR D4`
 - D4 Final Acceptance Preparation Report: [PHASE_D4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D4_FINAL_ACCEPTANCE_REPORT.md)
-- D4 Final Acceptance: `PENDING CHATGPT FINAL ACCEPTANCE REVIEW`
+- D4 Final Acceptance: `PHASE_D4_ACCEPTED`; post-merge governance closeout is recorded on `main`
 - D3 base SHA: `31a7002babed73bc325841c5622a2f2e03f38bc4`
 - D3 scope: Paper Revision text and prepared-file migration onto the C1 → C2 → C3 → D1 preparation and execution pipeline, with server-owned chunking, fixed billing, asynchronous sequential execution, deterministic aggregation, and frontend structured file-reference submission.
 - D3 focused tests: PASS — 8 suites / 35 tests
