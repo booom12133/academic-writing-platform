@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { join } from 'node:path';
 import { LocalDevelopmentDatabaseModule } from '../../database/local-development.module';
 
 jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({
@@ -10,7 +11,7 @@ jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({
 describe('KnowledgeModule', () => {
   it('resolves E1 services and neutral ingestion dependencies without a controller', async () => {
     process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
-    process.env.DOCUMENT_STORAGE_ROOT = 'D:\\academic-writing-platform-test-documents';
+    process.env.DOCUMENT_STORAGE_ROOT = join(process.cwd(), 'test-documents');
     // Require after the storage mode is selected because the storage provider is created at module definition time.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { KnowledgeModule } = require('./knowledge.module') as typeof import('./knowledge.module');

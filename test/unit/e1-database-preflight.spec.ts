@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import {
   buildGeneratorEnvironment,
   buildSchemaSyncInvocation,
@@ -12,8 +14,9 @@ import {
 } from '../../scripts/e1-database-preflight';
 
 describe('E1 read-only database preflight wrapper', () => {
-  const repoRoot = 'D:\\academic-writing-platform';
-  const protectedSchemaPath = `${repoRoot}\\server\\database\\schema.ts`;
+  const repoRoot = process.cwd();
+  const protectedSchemaPath = join(repoRoot, 'server', 'database', 'schema.ts');
+  const temporaryOutputPath = join(repoRoot, 'e1-db-preflight-test-output', 'schema.ts');
   const targetEnv = {
     E1_PREFLIGHT_APP_ID: 'app-canonical',
     E1_PREFLIGHT_DB_BRANCH: 'main',
@@ -29,7 +32,7 @@ describe('E1 read-only database preflight wrapper', () => {
 
   it('pins the exact inspected db-schema-sync package version', () => {
     const invocation = buildSchemaSyncInvocation({
-      outputPath: 'C:\\Temp\\e1-db-preflight\\schema.ts',
+      outputPath: temporaryOutputPath,
       platform: 'linux',
     });
 
@@ -39,7 +42,7 @@ describe('E1 read-only database preflight wrapper', () => {
       '-y',
       '@lark-apaas/db-schema-sync@0.1.18',
       '--output',
-      'C:\\Temp\\e1-db-preflight\\schema.ts',
+      temporaryOutputPath,
       '--export-custom-types',
     ]);
   });
@@ -180,7 +183,7 @@ describe('E1 read-only database preflight wrapper', () => {
     expect(() =>
       runSchemaSync({
         repoRoot,
-        outputPath: 'C:\\Temp\\e1-db-preflight\\schema.ts',
+        outputPath: temporaryOutputPath,
         platform: 'linux',
         env: targetEnv,
         spawnSync: () => ({
@@ -207,7 +210,7 @@ describe('E1 read-only database preflight wrapper', () => {
     try {
       runSchemaSync({
         repoRoot,
-        outputPath: 'C:\\Temp\\e1-db-preflight\\schema.ts',
+        outputPath: temporaryOutputPath,
         platform: 'linux',
         env: secretsEnv,
         spawnSync: () => ({
