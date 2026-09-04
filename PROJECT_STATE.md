@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-04
 
 ## Project
 
@@ -22,9 +22,16 @@ Last Updated: 2026-09-03
 
 ## Current development
 
-- Current Development: Phase D4 — Text Generation Provider Abstraction (accepted / frozen / closed).
-- Current D4 status: `PHASE_D4_ACCEPTED`; PR #7 merged; post-merge governance closeout complete.
-- Next architecture step: No next implementation phase is authorized; Phase E is `NOT AUTHORIZED`.
+- Current Development: Phase E1 — Knowledge Provenance Foundation (Review Candidate).
+- Current E1 status: `REVIEW_CANDIDATE`; implementation is complete on the authorized existing branch and awaits ChatGPT review.
+- E1 branch: `codex/phase-e1-task2-database-preflight`
+- E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
+- E1 implementation HEAD: `90ed578` (`feat(e1): implement standard postgres knowledge foundation`)
+- E1 scope: standard PostgreSQL provider and versioned Drizzle schema/migrations, C2/C3/C4 neutral seams, pure provenance contracts, user-scoped repository, atomic import/readiness lifecycle, and no E2/indexing behavior.
+- E1 verification: full regression PASS — 60 suites / 364 passed / 3 skipped; focused C1-C4/E1 PASS — 24 suites / 191 tests; task/AI regression PASS — 30 suites / 153 tests; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS; Drizzle migration check PASS.
+- E1 PostgreSQL evidence: disposable PostgreSQL 16 integration job added to Linux CI; local run skips only because no local `DATABASE_URL` is configured. No ECS, Miaoda, production PostgreSQL, or external AI calls were used.
+- E1 production database rollout: not performed; migration apply remains an explicit deployment-gate operation.
+- Next architecture step: Await ChatGPT Phase E1 review; do not merge `main` or create an accepted tag before `PHASE_E1_ACCEPTED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
