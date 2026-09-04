@@ -23,13 +23,13 @@ Last Updated: 2026-09-04
 ## Current development
 
 - Current Development: Phase E1 — Knowledge Provenance Foundation (Review Candidate).
-- Current E1 status: `REVIEW_CANDIDATE`; implementation is complete on the authorized existing branch and awaits ChatGPT review.
+- Current E1 status: `REVIEW_CANDIDATE / POST-FIX RE-REVIEW CANDIDATE`; the `PHASE_E1_FIX_REQUIRED` findings are implemented on the authorized existing branch and await ChatGPT re-review.
 - E1 branch: `codex/phase-e1-task2-database-preflight`
 - E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
-- E1 implementation HEAD: `90ed578` (`feat(e1): implement standard postgres knowledge foundation`)
+- E1 implementation HEAD: `b6d82f684017cf39d8ef54b883905953dc4d7fe2` (`fix(e1): narrow drizzle version return type`), the current branch HEAD after the `PHASE_E1_FIX_REQUIRED` correction round.
 - E1 scope: standard PostgreSQL provider and versioned Drizzle schema/migrations, C2/C3/C4 neutral seams, pure provenance contracts, user-scoped repository, atomic import/readiness lifecycle, and no E2/indexing behavior.
-- E1 verification: full regression PASS — 60 suites / 364 passed / 3 skipped; focused C1-C4/E1 PASS — 24 suites / 191 tests; task/AI regression PASS — 30 suites / 153 tests; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS; Drizzle migration check PASS.
-- E1 PostgreSQL evidence: disposable PostgreSQL 16 integration job added to Linux CI; local run skips only because no local `DATABASE_URL` is configured. No ECS, Miaoda, production PostgreSQL, or external AI calls were used.
+- E1 verification: full regression PASS — 61 suites / 371 passed / 7 skipped; focused C1-C4/E1 PASS — 24 suites / 197 tests; task/AI regression PASS — 35 suites / 172 tests; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS; Drizzle migration check PASS; clean `npm ci` PASS with npm 10.9.2 locally.
+- E1 PostgreSQL evidence: GitHub Actions run [33848794268](https://github.com/booom12133/academic-writing-platform/actions/runs/33848794268) passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/33848794268/job/100946631432) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/33848794268/job/100946631771) on Node 22.23.2/npm 10.9.8. The PostgreSQL 16 job used a fresh disposable database and passed the full 0001 → 0002 migration, second-migrate idempotency, schema/constraint checks, and real transaction rollback/version lifecycle regressions. Local PostgreSQL integration skips only because no local `DATABASE_URL` is configured. No ECS, Miaoda, production PostgreSQL, or external AI calls were used.
 - E1 production database rollout: not performed; migration apply remains an explicit deployment-gate operation.
 - Next architecture step: Await ChatGPT Phase E1 review; do not merge `main` or create an accepted tag before `PHASE_E1_ACCEPTED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
