@@ -349,7 +349,7 @@ export class KnowledgeRepository {
     const [document] = await this.db.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments).where(and(eq(knowledgeDocuments.id, input.documentId), eq(knowledgeDocuments.userId, input.userId), eq(knowledgeDocuments.lifecycleStatus, 'active'))).limit(1);
     if (!document) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
     try {
-      const [row] = await this.db.insert(knowledgeDocumentVersions).values({
+      const returned = await this.db.insert(knowledgeDocumentVersions).values({
         userId: input.userId,
         documentId: input.documentId,
         versionNumber: input.versionNumber,
@@ -365,6 +365,8 @@ export class KnowledgeRepository {
         readinessStatus: input.readinessStatus,
         indexInputFingerprint: input.indexInputFingerprint,
       }).returning();
+      const row = Array.isArray(returned) ? returned[0] : undefined;
+      if (!row) throw new KnowledgeError('KNOWLEDGE_IMMUTABLE_VERSION', 'The new version was not returned.');
       return toVersion(row);
     } catch (error) {
       if (isUniqueViolation(error)) throw new KnowledgeError('KNOWLEDGE_IMMUTABLE_VERSION', 'An immutable version with this identity already exists.');
