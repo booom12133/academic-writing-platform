@@ -6,6 +6,8 @@ import type { ParsedDocument } from '../document-parsing/document-parser.types';
 import type { StructuralDocumentContext } from '../context-builder/context-builder.types';
 import type { StructuralChunkedDocument } from '../chunking/chunking.types';
 import type { KnowledgeChunk, KnowledgeDocument, KnowledgeDocumentVersion } from './knowledge.types';
+import type { KnowledgeRepositoryPort } from './knowledge.repository';
+import { computeDerivationFingerprint, hashTextInputExact } from './knowledge.hash';
 
 const parsed: ParsedDocument = {
   source: { type: 'txt', fileName: 'input.txt', extension: '.txt', sizeBytes: 8 },
@@ -80,6 +82,15 @@ describe('KnowledgeService', () => {
     expect(chunker.chunkStructural).toHaveBeenCalledWith({ context: structural, policy: { maxSize: 100 } });
     expect(chunker.chunk).not.toHaveBeenCalled();
     expect(repository.createVersion).toHaveBeenCalledWith(expect.objectContaining({ sourceText: '😀 text', readinessStatus: 'content-ready-for-indexing' }));
+    expect(repository.createVersion).toHaveBeenCalledWith(expect.objectContaining({
+      indexInputFingerprint: computeDerivationFingerprint({
+        originalContentHash: hashTextInputExact('😀 text'),
+        parserProfile: { name: 'c1-document-parser-v1', version: '1' },
+        chunkingProfile: { name: 'c3-deterministic-v1', version: '1', parameters: { maxSize: 100 } },
+      }),
+    }));
+    expect(repository.createVersion.mock.calls[0][0].indexInputFingerprint)
+      .not.toBe(repository.createImportMarker.mock.calls[0][0].requestFingerprint);
     expect(repository.completeImport).toHaveBeenCalledWith('user-1', 'import-1', 'doc-1', 'version-1');
     expect(result.readiness).toBe('content-ready-for-indexing');
   });
@@ -98,8 +109,12 @@ describe('KnowledgeService', () => {
     expect(repository.createVersion).toHaveBeenCalledWith(expect.objectContaining({ sourceArtifactRef: ref }));
   });
 
-  it('creates an immutable next version and preserves the supersedes link', async () => {
+  it('creates an immutable next version with the actual new version ID', async () => {
     const repository = repositoryMock();
+    const nextVersion: KnowledgeDocumentVersion = { ...repository.version, id: 'version-2', versionNumber: 2, supersedesVersionId: 'version-1' };
+    const nextChunk: KnowledgeChunk = { ...repository.chunk, id: 'chunk-2', documentVersionId: 'version-2', citationLocator: { ...repository.chunk.citationLocator, documentVersionId: 'version-2', chunkId: 'chunk-2' }, provenance: { ...repository.chunk.provenance, documentVersionId: 'version-2' } };
+    repository.createVersion.mockResolvedValue(nextVersion);
+    repository.createChunks.mockResolvedValue([nextChunk]);
     const parser = { parse: jest.fn().mockResolvedValue(parsed) };
     const contextBuilder = { buildStructural: jest.fn().mockReturnValue(structural) };
     const chunker = { chunkStructural: jest.fn().mockReturnValue(chunked) };
@@ -111,7 +126,43 @@ describe('KnowledgeService', () => {
     });
 
     expect(repository.createVersion).toHaveBeenCalledWith(expect.objectContaining({ versionNumber: 2, supersedesVersionId: 'version-1', lifecycleStatus: 'active' }));
-    expect(repository.activateVersion).toHaveBeenCalledWith('user-1', 'doc-1', 'version-1');
+    expect(repository.createChunks).toHaveBeenCalledWith([expect.objectContaining({ documentVersionId: 'version-2' })]);
+    expect(repository.activateVersion).toHaveBeenCalledWith('user-1', 'doc-1', 'version-2');
+  });
+
+  it('runs next-version persistence inside the repository transaction boundary', async () => {
+    const repository = repositoryMock();
+    const transactionRepository = { ...repository, withTransaction: jest.fn(async (work: (repo: typeof repository) => Promise<unknown>) => work(repository)) } as unknown as KnowledgeRepositoryPort & { withTransaction: jest.Mock };
+    const parser = { parse: jest.fn().mockResolvedValue(parsed) };
+    const contextBuilder = { buildStructural: jest.fn().mockReturnValue(structural) };
+    const chunker = { chunkStructural: jest.fn().mockReturnValue(chunked) };
+    const service = new KnowledgeService(transactionRepository, parser, contextBuilder, chunker, { readVerified: jest.fn() });
+
+    await service.createNextVersion({
+      userId: 'user-1', documentId: 'doc-1', idempotencyKey: 'v2', displayName: 'Input', originKind: 'user-upload',
+      input: { kind: 'text', text: 'changed text', fileName: 'input.txt' }, chunkingPolicy: { maxSize: 100 },
+    });
+
+    expect(transactionRepository.withTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not leave a new version when chunk persistence fails inside the transaction', async () => {
+    const repository = repositoryMock();
+    const transactionRepository = { ...repository, withTransaction: jest.fn(async (work: (repo: typeof repository) => Promise<unknown>) => {
+      const state = { created: false };
+      const transactional = { ...repository, createVersion: jest.fn(async (...args: Parameters<typeof repository.createVersion>) => { state.created = true; return repository.createVersion(...args); }), createChunks: jest.fn().mockRejectedValue(new Error('chunk failure')) };
+      try { return await work(transactional); } catch (error) { state.created = false; throw error; }
+    }) } as unknown as KnowledgeRepositoryPort & { withTransaction: jest.Mock };
+    const parser = { parse: jest.fn().mockResolvedValue(parsed) };
+    const contextBuilder = { buildStructural: jest.fn().mockReturnValue(structural) };
+    const chunker = { chunkStructural: jest.fn().mockReturnValue(chunked) };
+    const service = new KnowledgeService(transactionRepository, parser, contextBuilder, chunker, { readVerified: jest.fn() });
+
+    await expect(service.createNextVersion({
+      userId: 'user-1', documentId: 'doc-1', idempotencyKey: 'v2', displayName: 'Input', originKind: 'user-upload',
+      input: { kind: 'text', text: 'changed text', fileName: 'input.txt' }, chunkingPolicy: { maxSize: 100 },
+    })).rejects.toThrow('chunk failure');
+    expect(repository.activateVersion).not.toHaveBeenCalled();
   });
 
   it('uses the real repository transaction for an all-or-nothing text import', async () => {

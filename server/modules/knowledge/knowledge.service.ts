@@ -1,10 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { ContextBuilderService } from '../context-builder/context-builder.service';
 import { ChunkingService } from '../chunking/chunking.service';
 import { DocumentParserService } from '../document-parsing/document-parser.service';
 import { DocumentInputService } from '../document-input/document-input.service';
-import { hashTextInputExact } from './knowledge.hash';
+import { computeDerivationFingerprint, hashTextInputExact } from './knowledge.hash';
 import { finalizeKnowledgeChunkDraft, mapStructuralChunksToKnowledgeChunkDrafts } from './knowledge.provenance';
 import { KnowledgeError } from './knowledge.errors';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from './knowledge.repository';
@@ -51,6 +51,11 @@ export class KnowledgeService {
       parserProfile,
       chunkingProfile,
     }));
+    const derivationFingerprint = computeDerivationFingerprint({
+      originalContentHash: prepared.originalContentHash,
+      parserProfile,
+      chunkingProfile,
+    });
 
     const previous = await this.repository.findImport(input.userId, input.idempotencyKey);
     if (previous) {
@@ -96,7 +101,7 @@ export class KnowledgeService {
         ...(input.input.kind === 'text' ? { sourceText: input.input.text } : { sourceArtifactRef: prepared.verifiedArtifact?.document }),
         lifecycleStatus: 'active',
         readinessStatus: 'content-ready-for-indexing',
-        indexInputFingerprint: requestFingerprint,
+        indexInputFingerprint: derivationFingerprint,
       });
       const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
         userId: input.userId,
@@ -121,39 +126,41 @@ export class KnowledgeService {
     if (!this.repository.getDocument || !this.repository.getLatestVersion) {
       throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Versioning support is unavailable.');
     }
-    const document = await this.repository.getDocument(input.userId, input.documentId);
-    const previous = await this.repository.getLatestVersion(input.userId, input.documentId);
-    if (!document || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
     const prepared = await this.prepareInput(input);
     const parserProfile = { name: 'c1-document-parser-v1' as const, version: '1' as const };
     const chunkingProfile = { name: 'c3-deterministic-v1', version: '1', parameters: { maxSize: prepared.chunked.policy.maxSize } };
-    const fingerprint = hashTextInputExact(stableSerialize({
-      userId: input.userId,
-      sourceRecordId: document.sourceRecordId,
-      displayName: document.displayName,
-      originKind: document.originKind,
-      inputIdentity: input.input.kind === 'text' ? { kind: 'text', fileName: input.input.fileName } : { kind: 'stored-file', document: input.input.documentRef },
+    const derivationFingerprint = computeDerivationFingerprint({
       originalContentHash: prepared.originalContentHash,
       parserProfile,
       chunkingProfile,
-    }));
-    if (previous.indexInputFingerprint === fingerprint) {
-      const chunks = this.repository.getChunks ? await this.repository.getChunks(input.userId, previous.id) : [];
-      return { document, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
-    }
-    const version = await this.repository.createVersion({
-      userId: input.userId, documentId: input.documentId, versionNumber: previous.versionNumber + 1,
-      originalContentHash: prepared.originalContentHash, parserProfile, chunkingProfile,
-      ...(input.input.kind === 'text' ? { sourceText: input.input.text } : { sourceArtifactRef: prepared.verifiedArtifact?.document }),
-      supersedesVersionId: previous.id, lifecycleStatus: 'active', readinessStatus: 'content-ready-for-indexing', indexInputFingerprint: fingerprint,
     });
-    const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
-      userId: input.userId, ...(document.sourceRecordId === undefined ? {} : { sourceRecordId: document.sourceRecordId }),
-      documentId: document.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
-    });
-    const chunks = await this.repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
-    await this.repository.activateVersion(input.userId, document.id, version.id);
-    return { document: { ...document, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
+
+    const persist = async (repository: KnowledgeRepositoryPort): Promise<KnowledgeImportResult> => {
+      if (!repository.getDocument || !repository.getLatestVersion) {
+        throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Versioning support is unavailable.');
+      }
+      const document = await repository.getDocument(input.userId, input.documentId);
+      const previous = await repository.getLatestVersion(input.userId, input.documentId);
+      if (!document || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+      if (previous.indexInputFingerprint === derivationFingerprint) {
+        const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
+        return { document, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
+      }
+      const version = await repository.createVersion({
+        userId: input.userId, documentId: input.documentId, versionNumber: previous.versionNumber + 1,
+        originalContentHash: prepared.originalContentHash, parserProfile, chunkingProfile,
+        ...(input.input.kind === 'text' ? { sourceText: input.input.text } : { sourceArtifactRef: prepared.verifiedArtifact?.document }),
+        supersedesVersionId: previous.id, lifecycleStatus: 'active', readinessStatus: 'content-ready-for-indexing', indexInputFingerprint: derivationFingerprint,
+      });
+      const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
+        userId: input.userId, ...(document.sourceRecordId === undefined ? {} : { sourceRecordId: document.sourceRecordId }),
+        documentId: document.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
+      });
+      const chunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
+      await repository.activateVersion(input.userId, document.id, version.id);
+      return { document: { ...document, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
+    };
+    return this.repository.withTransaction ? this.repository.withTransaction(persist) : persist(this.repository);
   }
 
   private async rehydrateImport(repository: KnowledgeRepositoryPort, importRecord: { documentId?: string; documentVersionId?: string }, userId: string): Promise<KnowledgeImportResult> {

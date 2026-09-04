@@ -94,6 +94,13 @@ CREATE TABLE "knowledge_imports" (
 	"_updated_at" timestamp (3) with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 --> statement-breakpoint
+-- Composite ownership foreign keys require these referenced unique keys first.
+CREATE UNIQUE INDEX "knowledge_document_versions_id_user_id_key" ON "knowledge_document_versions" USING btree ("id","user_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "knowledge_documents_id_user_id_key" ON "knowledge_documents" USING btree ("id","user_id");
+--> statement-breakpoint
+CREATE UNIQUE INDEX "knowledge_source_records_id_user_id_key" ON "knowledge_source_records" USING btree ("id","user_id");
+--> statement-breakpoint
 ALTER TABLE "knowledge_chunks" ADD CONSTRAINT "knowledge_chunks_version_owner_fk" FOREIGN KEY ("document_version_id","user_id") REFERENCES "public"."knowledge_document_versions"("id","user_id") ON DELETE no action ON UPDATE no action;
 --> statement-breakpoint
 ALTER TABLE "knowledge_document_versions" ADD CONSTRAINT "knowledge_document_versions_document_owner_fk" FOREIGN KEY ("document_id","user_id") REFERENCES "public"."knowledge_documents"("id","user_id") ON DELETE no action ON UPDATE no action;
@@ -116,15 +123,11 @@ CREATE UNIQUE INDEX "knowledge_chunks_version_ordinal_key" ON "knowledge_chunks"
 --> statement-breakpoint
 CREATE INDEX "knowledge_chunks_user_version_ordinal_idx" ON "knowledge_chunks" USING btree ("user_id","document_version_id","ordinal");
 --> statement-breakpoint
-CREATE UNIQUE INDEX "knowledge_document_versions_id_user_id_key" ON "knowledge_document_versions" USING btree ("id","user_id");
---> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_document_versions_number_key" ON "knowledge_document_versions" USING btree ("document_id","user_id","version_number");
 --> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_document_versions_fingerprint_key" ON "knowledge_document_versions" USING btree ("document_id","user_id","index_input_fingerprint");
 --> statement-breakpoint
 CREATE INDEX "knowledge_document_versions_user_document_state_idx" ON "knowledge_document_versions" USING btree ("user_id","document_id","lifecycle_status","readiness_status");
---> statement-breakpoint
-CREATE UNIQUE INDEX "knowledge_documents_id_user_id_key" ON "knowledge_documents" USING btree ("id","user_id");
 --> statement-breakpoint
 CREATE INDEX "knowledge_documents_user_lifecycle_idx" ON "knowledge_documents" USING btree ("user_id","lifecycle_status");
 --> statement-breakpoint
@@ -147,7 +150,5 @@ CREATE UNIQUE INDEX "knowledge_source_external_links_id_user_id_key" ON "knowled
 CREATE UNIQUE INDEX "knowledge_source_external_links_identity_key" ON "knowledge_source_external_links" USING btree ("user_id","connector_kind","provider","external_record_id");
 --> statement-breakpoint
 CREATE INDEX "knowledge_source_external_links_user_source_idx" ON "knowledge_source_external_links" USING btree ("user_id","source_record_id");
---> statement-breakpoint
-CREATE UNIQUE INDEX "knowledge_source_records_id_user_id_key" ON "knowledge_source_records" USING btree ("id","user_id");
 --> statement-breakpoint
 CREATE INDEX "knowledge_source_records_user_status_idx" ON "knowledge_source_records" USING btree ("user_id","status");
