@@ -4,6 +4,7 @@ import type {
   ContextDocumentSource,
   ContextHeadingRef,
   ContextUnit,
+  StructuralDocumentContext,
   TaskContext,
 } from '../context-builder/context-builder.types';
 import type {
@@ -15,12 +16,14 @@ import type {
   AppliedChunkingPolicy,
   Chunk,
   ChunkItem,
+  ChunkStructuralDocumentInput,
   ChunkTaskContextInput,
   ChunkingPolicy,
   ChunkingWarning,
   TextFragmentChunkItem,
   WholeUnitChunkItem,
   ChunkedTaskContext,
+  StructuralChunkedDocument,
 } from './chunking.types';
 
 const VALID_TASK_TYPES = new Set(['polish', 'paper-revision']);
@@ -66,7 +69,40 @@ export class ChunkingService {
   chunk(input: ChunkTaskContextInput): ChunkedTaskContext {
     this.validateInput(input);
 
-    const { context, policy } = input;
+    const structural = this.chunkStructural({
+      context: {
+        version: 1,
+        source: input.context.source,
+        units: input.context.units,
+      },
+      policy: input.policy,
+    });
+
+    return {
+      version: 1,
+      task: {
+        type: input.context.task.type,
+        ...(input.context.task.userInstructions === undefined
+          ? {}
+          : { userInstructions: input.context.task.userInstructions }),
+      },
+      source: structural.source,
+      policy: structural.policy,
+      chunks: structural.chunks,
+      warnings: structural.warnings,
+    };
+  }
+
+  chunkStructural(input: ChunkStructuralDocumentInput): StructuralChunkedDocument {
+    this.validateStructuralInput(input);
+    return this.chunkCore(input.context, input.policy);
+  }
+
+  private chunkCore(
+    context: StructuralDocumentContext,
+    policy: ChunkingPolicy,
+  ): StructuralChunkedDocument {
+
     const chunks: Chunk[] = [];
     const warnings: ChunkingWarning[] = [];
     let current: MutableChunk | undefined;
@@ -159,12 +195,6 @@ export class ChunkingService {
 
     return {
       version: 1,
-      task: {
-        type: context.task.type,
-        ...(context.task.userInstructions === undefined
-          ? {}
-          : { userInstructions: context.task.userInstructions }),
-      },
       source: {
         ...context.source,
         metadata: { ...context.source.metadata },
@@ -342,6 +372,35 @@ export class ChunkingService {
     this.validateTaskContext(input.context);
   }
 
+  private validateStructuralInput(
+    input: unknown,
+  ): asserts input is ChunkStructuralDocumentInput {
+    if (
+      !this.isRecord(input) ||
+      !this.isRecord(input.context) ||
+      !this.isRecord(input.policy)
+    ) {
+      throw new ChunkingError(
+        'INVALID_CHUNKING_INPUT',
+        'Chunking input is invalid.',
+      );
+    }
+    this.validatePolicy(input.policy);
+    const context = input.context;
+    if (
+      context.version !== 1 ||
+      !this.isValidSource(context.source) ||
+      !Array.isArray(context.units) ||
+      context.units.length === 0
+    ) {
+      throw new ChunkingError(
+        'INVALID_STRUCTURAL_CONTEXT',
+        'Structural document context is invalid.',
+      );
+    }
+    this.validateStructuralParts(context.source, context.units, 'INVALID_STRUCTURAL_CONTEXT');
+  }
+
   private validatePolicy(policy: unknown): asserts policy is ChunkingPolicy {
     if (!this.isRecord(policy) || !this.isPositiveSafeInteger(policy.maxSize)) {
       throw new ChunkingError(
@@ -356,17 +415,15 @@ export class ChunkingService {
   ): asserts context is TaskContext {
     if (!this.isRecord(context)) this.invalidTaskContext();
     const task = context.task;
-    const source = context.source;
-    const units = context.units;
     if (
       context.version !== 1 ||
       !this.isRecord(task) ||
       !VALID_TASK_TYPES.has(task.type as string) ||
       (task.userInstructions !== undefined &&
         typeof task.userInstructions !== 'string') ||
-      !this.isValidSource(source) ||
-      !Array.isArray(units) ||
-      units.length === 0
+      !this.isValidSource(context.source) ||
+      !Array.isArray(context.units) ||
+      context.units.length === 0
     ) {
       throw new ChunkingError(
         'INVALID_TASK_CONTEXT',
@@ -374,10 +431,18 @@ export class ChunkingService {
       );
     }
 
+    this.validateStructuralParts(context.source, context.units, 'INVALID_TASK_CONTEXT');
+  }
+
+  private validateStructuralParts(
+    source: ContextDocumentSource,
+    units: unknown[],
+    errorCode: 'INVALID_TASK_CONTEXT' | 'INVALID_STRUCTURAL_CONTEXT',
+  ): void {
     const seenUnitIds = new Set<string>();
     const seenBlockIds = new Set<string>();
     units.forEach((unit, index) => {
-      if (!this.isRecord(unit)) this.invalidTaskContext();
+      if (!this.isRecord(unit)) this.invalidStructuralContext(errorCode);
       const headingPath = unit.headingPath;
       if (
         typeof unit.id !== 'string' ||
@@ -392,10 +457,10 @@ export class ChunkingService {
         !Array.isArray(headingPath) ||
         !this.isValidBlock(unit.block, unit.sourceBlockId)
       ) {
-        this.invalidTaskContext();
+        this.invalidStructuralContext(errorCode);
       }
       headingPath.forEach((heading) => {
-        if (!this.isValidHeadingRef(heading)) this.invalidTaskContext();
+        if (!this.isValidHeadingRef(heading)) this.invalidStructuralContext(errorCode);
       });
       seenUnitIds.add(unit.id);
       seenBlockIds.add(unit.sourceBlockId);
@@ -403,8 +468,19 @@ export class ChunkingService {
 
     source.warnings.forEach((warning) => {
       if (!this.isValidWarning(warning, seenBlockIds))
-        this.invalidTaskContext();
+        this.invalidStructuralContext(errorCode);
     });
+  }
+
+  private invalidStructuralContext(
+    errorCode: 'INVALID_TASK_CONTEXT' | 'INVALID_STRUCTURAL_CONTEXT',
+  ): never {
+    throw new ChunkingError(
+      errorCode,
+      errorCode === 'INVALID_TASK_CONTEXT'
+        ? 'Task context is invalid.'
+        : 'Structural document context is invalid.',
+    );
   }
 
   private invalidTaskContext(): never {

@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger, ConflictException } from '@nestjs/common';
-import { DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
+import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { eq, and, desc, count } from 'drizzle-orm';
 import { pointRecords, appUsers } from '@server/database/schema';
 import type { PointRecord, PointRecordListResponse, PointRecordType, MemberLevel } from '@shared/api.interface';
@@ -23,7 +23,7 @@ interface ConsumeOptions {
 export class PointsService {
   private readonly logger = new Logger(PointsService.name);
 
-  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: PostgresJsDatabase) {}
+  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: AppDatabase) {}
 
   /**
    * 计算会员折扣后的实际消耗积分

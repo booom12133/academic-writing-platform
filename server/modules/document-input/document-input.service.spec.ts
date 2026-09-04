@@ -144,6 +144,21 @@ describe('DocumentInputService', () => {
     }
   });
 
+  it('reads and verifies a stored artifact without entering a tool pipeline', async () => {
+    const trustedRef = ref({
+      filePath: 'academic-writing/users/' + sha256(Buffer.from('user-1')) + '/550e8400-e29b-41d4-a716-446655440000/paper.md',
+    });
+    const { service, parser, storage } = makeService();
+
+    await expect(service.readVerified('user-1', trustedRef)).resolves.toEqual({
+      version: 1,
+      document: trustedRef,
+      buffer: bytes,
+    });
+    expect(parser.parse).not.toHaveBeenCalled();
+    expect(storage.download).toHaveBeenCalledTimes(1);
+  });
+
   it('persists only after parsing and returns a descriptor without document content', async () => {
     const { service, storage, parser } = makeService();
     const result = await service.upload('user-1', {

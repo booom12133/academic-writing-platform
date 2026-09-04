@@ -70,6 +70,19 @@ describe('ContextBuilderService', () => {
     expect(context.units).toHaveLength(6);
   });
 
+  it('builds a neutral structural context without a tool task type', () => {
+    const context = new ContextBuilderService().buildStructural(document);
+
+    expect(context).toEqual({
+      version: 1,
+      source: expect.objectContaining({ id: 'document-1', title: 'Paper' }),
+      units: expect.arrayContaining([
+        expect.objectContaining({ sourceBlockId: 'b000001', section: 'content' }),
+      ]),
+    });
+    expect(context).not.toHaveProperty('task');
+  });
+
   it.each([
     [undefined, 'INVALID_CONTEXT_INPUT'],
     [{ taskType: 'outline', document }, 'INVALID_CONTEXT_INPUT'],

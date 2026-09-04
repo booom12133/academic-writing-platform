@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
+import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { eq } from 'drizzle-orm';
 import { appUsers } from '@server/database/schema';
 import type { UserProfile, MemberLevel } from '@shared/api.interface';
@@ -11,7 +11,7 @@ type AppUserRow = typeof appUsers.$inferSelect;
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: PostgresJsDatabase) {}
+  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: AppDatabase) {}
 
   /**
    * 根据累计充值金额计算会员等级

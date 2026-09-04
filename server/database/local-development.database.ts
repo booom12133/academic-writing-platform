@@ -14,7 +14,7 @@ export interface LocalDevelopmentDatabase {
 const LOCAL_SCHEMA_SQL = `
 CREATE TABLE app_users (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id varchar(64) NOT NULL UNIQUE,
+  user_id varchar(64) NOT NULL,
   phone varchar(20),
   username varchar(50),
   password_hash varchar(255),
@@ -25,8 +25,11 @@ CREATE TABLE app_users (
   _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   _created_by text,
   _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  _updated_by text
+  _updated_by text,
+  CONSTRAINT app_users_user_id_key UNIQUE (user_id)
 );
+
+CREATE INDEX idx_app_users_user_id ON app_users (user_id);
 
 CREATE TABLE tasks (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -73,6 +76,168 @@ CREATE TABLE recharge_orders (
   _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   _updated_by text
 );
+
+CREATE TABLE knowledge_source_records (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  kind varchar(32) NOT NULL,
+  canonical_metadata jsonb NOT NULL DEFAULT '{}',
+  status varchar(24) NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_source_records_id_user_id_key UNIQUE (id, user_id)
+);
+
+CREATE INDEX knowledge_source_records_user_status_idx
+  ON knowledge_source_records (user_id, status);
+
+CREATE TABLE knowledge_metadata_assertions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  source_record_id uuid NOT NULL,
+  field varchar(32) NOT NULL,
+  value jsonb NOT NULL,
+  provider_kind varchar(64) NOT NULL,
+  provider varchar(128) NOT NULL,
+  external_record_id varchar(255) NOT NULL,
+  observed_at timestamptz,
+  verification_status varchar(24) NOT NULL,
+  assertion_hash varchar(64) NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_metadata_assertions_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_metadata_assertions_identity_key
+    UNIQUE (source_record_id, user_id, assertion_hash),
+  CONSTRAINT knowledge_metadata_assertions_source_owner_fk
+    FOREIGN KEY (source_record_id, user_id)
+    REFERENCES knowledge_source_records (id, user_id)
+);
+
+CREATE INDEX knowledge_metadata_assertions_user_source_field_idx
+  ON knowledge_metadata_assertions (user_id, source_record_id, field);
+
+CREATE TABLE knowledge_source_external_links (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  source_record_id uuid NOT NULL,
+  connector_kind varchar(64) NOT NULL,
+  provider varchar(128) NOT NULL,
+  external_record_id varchar(255) NOT NULL,
+  external_version varchar(255),
+  canonical_url text,
+  retrieved_at timestamptz,
+  license_or_access_note text,
+  verification_status varchar(24) NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_source_external_links_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_source_external_links_identity_key
+    UNIQUE (user_id, connector_kind, provider, external_record_id),
+  CONSTRAINT knowledge_source_external_links_source_owner_fk
+    FOREIGN KEY (source_record_id, user_id)
+    REFERENCES knowledge_source_records (id, user_id)
+);
+
+CREATE INDEX knowledge_source_external_links_user_source_idx
+  ON knowledge_source_external_links (user_id, source_record_id);
+
+CREATE TABLE knowledge_documents (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  source_record_id uuid,
+  origin_kind varchar(32) NOT NULL,
+  display_name varchar(255) NOT NULL,
+  source_type varchar(16) NOT NULL,
+  active_version_id uuid,
+  lifecycle_status varchar(24) NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_documents_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_documents_source_owner_fk
+    FOREIGN KEY (source_record_id, user_id)
+    REFERENCES knowledge_source_records (id, user_id)
+);
+
+CREATE INDEX knowledge_documents_user_lifecycle_idx
+  ON knowledge_documents (user_id, lifecycle_status);
+CREATE INDEX knowledge_documents_user_source_idx
+  ON knowledge_documents (user_id, source_record_id);
+
+CREATE TABLE knowledge_document_versions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  document_id uuid NOT NULL,
+  version_number integer NOT NULL,
+  original_content_hash varchar(64) NOT NULL,
+  normalized_content_hash varchar(64),
+  normalization_profile jsonb,
+  parser_profile jsonb NOT NULL,
+  chunking_profile jsonb NOT NULL,
+  source_text text,
+  source_artifact_ref jsonb,
+  supersedes_version_id uuid,
+  lifecycle_status varchar(24) NOT NULL,
+  readiness_status varchar(32) NOT NULL,
+  index_input_fingerprint varchar(64) NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_document_versions_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_document_versions_number_key
+    UNIQUE (document_id, user_id, version_number),
+  CONSTRAINT knowledge_document_versions_fingerprint_key
+    UNIQUE (document_id, user_id, index_input_fingerprint),
+  CONSTRAINT knowledge_document_versions_document_owner_fk
+    FOREIGN KEY (document_id, user_id)
+    REFERENCES knowledge_documents (id, user_id),
+  CONSTRAINT knowledge_document_versions_supersedes_owner_fk
+    FOREIGN KEY (supersedes_version_id, user_id)
+    REFERENCES knowledge_document_versions (id, user_id)
+);
+
+CREATE INDEX knowledge_document_versions_user_document_state_idx
+  ON knowledge_document_versions
+  (user_id, document_id, lifecycle_status, readiness_status);
+
+CREATE TABLE knowledge_chunks (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  document_version_id uuid NOT NULL,
+  ordinal integer NOT NULL,
+  text text NOT NULL,
+  text_hash varchar(64) NOT NULL,
+  provenance jsonb NOT NULL,
+  citation_locator jsonb NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_chunks_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_chunks_version_ordinal_key
+    UNIQUE (document_version_id, user_id, ordinal),
+  CONSTRAINT knowledge_chunks_version_owner_fk
+    FOREIGN KEY (document_version_id, user_id)
+    REFERENCES knowledge_document_versions (id, user_id)
+);
+
+CREATE INDEX knowledge_chunks_user_version_ordinal_idx
+  ON knowledge_chunks (user_id, document_version_id, ordinal);
+
+CREATE TABLE knowledge_imports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  idempotency_key varchar(255) NOT NULL,
+  request_fingerprint varchar(64) NOT NULL,
+  document_id uuid,
+  document_version_id uuid,
+  status varchar(24) NOT NULL,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT knowledge_imports_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT knowledge_imports_user_idempotency_key UNIQUE (user_id, idempotency_key),
+  CONSTRAINT knowledge_imports_document_owner_fk
+    FOREIGN KEY (document_id, user_id)
+    REFERENCES knowledge_documents (id, user_id),
+  CONSTRAINT knowledge_imports_version_owner_fk
+    FOREIGN KEY (document_version_id, user_id)
+    REFERENCES knowledge_document_versions (id, user_id)
+);
+
+CREATE INDEX knowledge_imports_user_status_idx
+  ON knowledge_imports (user_id, status);
 `;
 
 export async function createLocalDevelopmentDatabase(): Promise<LocalDevelopmentDatabase> {

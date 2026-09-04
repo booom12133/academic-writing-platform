@@ -1,5 +1,5 @@
 import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
-import { DRIZZLE_DATABASE, type PostgresJsDatabase } from '@lark-apaas/fullstack-nestjs-core';
+import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { tasks, pointRecords, appUsers } from '@server/database/schema';
 import { eq, and, desc, count } from 'drizzle-orm';
 import type { Task, TaskType, TaskStatus } from '@shared/api.interface';
@@ -9,7 +9,7 @@ import { TOOL_CONFIGS } from '@shared/api.interface';
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
 
-  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: PostgresJsDatabase) {}
+  constructor(@Inject(DRIZZLE_DATABASE) private readonly db: AppDatabase) {}
 
   /**
    * 创建任务并扣除积分。

@@ -4,6 +4,7 @@ import { ContextBuilderError } from './context-builder.errors';
 import {
   BuildTaskContextInput,
   ContextHeadingRef,
+  StructuralDocumentContext,
   TaskContext,
 } from './context-builder.types';
 import {
@@ -58,15 +59,27 @@ export class ContextBuilderService {
   build(input: BuildTaskContextInput): TaskContext {
     this.validateInput(input);
 
-    const { document } = input;
-    const headingStack: ContextHeadingRef[] = [];
+    const structural = this.buildStructuralContext(input.document);
 
     return {
-      version: 1,
+      ...structural,
       task: {
         type: input.taskType,
         userInstructions: input.userInstructions,
       },
+    };
+  }
+
+  buildStructural(document: ParsedDocument): StructuralDocumentContext {
+    this.validateParsedDocument(document);
+    return this.buildStructuralContext(document);
+  }
+
+  private buildStructuralContext(document: ParsedDocument): StructuralDocumentContext {
+    const headingStack: ContextHeadingRef[] = [];
+
+    return {
+      version: 1,
       source: {
         id: 'document-1',
         kind: 'parsed-document',
