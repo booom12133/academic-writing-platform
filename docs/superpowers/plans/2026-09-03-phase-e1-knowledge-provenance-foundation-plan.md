@@ -936,13 +936,16 @@ add the seven E1 definitions to LOCAL_SCHEMA_SQL using the approved physical
 shape. Keep the four accepted definitions unchanged. Add only local test data
 needed for E1 tests; do not add production seed behavior.
 
-- [ ] Step 6: Write and run local parity tests.
+- [ ] Step 6: Write and run local/unit parity tests.
 
 Test that local initialization exposes the seven E1 tables, accepted tables still support current services, composite ownership constraints reject cross-user parent references, nullable source_record_id works, the external identity unique constraint exists, and the idempotency unique constraint exists. Assert that knowledge_source_records has no external_provenance column and that repository hydration reads SourceRecord.externalProvenance[] only from knowledge_source_external_links.
 
 Run:
 
     npx jest server/database/local-development.database.spec.ts --runInBand
+
+These pg-mem parity tests are local/unit evidence only. They do not replace
+the disposable real-PostgreSQL Linux-CI evidence owned by Task 2B.
 
 Expected: PASS before proceeding to repository code. This is disposable
 PostgreSQL CI evidence, not production database evidence.

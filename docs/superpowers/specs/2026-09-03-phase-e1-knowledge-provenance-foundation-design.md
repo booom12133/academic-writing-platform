@@ -592,11 +592,11 @@ entrypoint. `ContextTaskType` is limited to `'polish' | 'paper-revision'`, and
 C3 requires a `TaskContext` containing that task. E1 cannot legitimately use
 either tool task type as a knowledge-ingestion sentinel.
 
-The only approved direction is the smallest separately authorized additive seam
-described in Section 12: a neutral structural C2 context plus a neutral C3
-chunking entrypoint backed by the existing deterministic chunking core. Until
-that seam is formally approved and regression-proven, durable E1 ingestion is
-not authorized. No E1-local parser or chunker may be introduced as a workaround.
+The approved direction is the smallest additive seam described in Section 12:
+a neutral structural C2 context plus a neutral C3 chunking entrypoint backed by
+the existing deterministic chunking core. Durable E1 ingestion remains gated by
+normal implementation authorization, TDD, and regression review. No E1-local
+parser or chunker may be introduced as a workaround.
 
 ## 10. User Scope and Security Model
 
@@ -738,10 +738,9 @@ This is the smallest safe solution because:
 5. one neutral additive entrypoint and one shared chunking core preserve the
    existing D2/D3 path while giving E1 a legitimate input boundary.
 
-This seam is already part of the approved E1 design. It requires normal
-implementation authorization, TDD, and regression review, but does not require
-another independent architecture/design approval before Task 3/4. It is a
-proven implementation dependency. E1 must not use `taskType='polish'`,
+This seam is already part of the approved E1 design and is a proven
+implementation dependency. It requires normal implementation authorization,
+TDD, and regression review. E1 must not use `taskType='polish'`,
 `taskType='paper-revision'`, or a copied E1 parser/chunker as a workaround.
 
 The adapter maps:
