@@ -13,21 +13,22 @@ Last Updated: 2026-09-05
 
 ## Stable state
 
-- Current Stable Phase: Phase D4 — Text Generation Provider Abstraction
-- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_D4_ACCEPTED`)
+- Current Stable Phase: Phase E1 — Knowledge Provenance Foundation
+- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_E1_ACCEPTED`)
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge D4 governance HEAD, anchored by annotated tag `phase-d4-accepted`
-- Latest Final Acceptance Report: [PHASE_D4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_D4_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, and Phase D4 are completed/frozen by project records
+- Stable Main Commit: final post-merge E1 governance closeout commit, anchored by annotated tag `phase-e1-accepted`
+- Latest Final Acceptance Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, and Phase E1 are completed/frozen by project records
 
 ## Current development
 
-- Current Development: Phase E1 — Knowledge Provenance Foundation (Final Acceptance Preparation).
-- Current E1 status: `REVIEW_CANDIDATE / FINAL ACCEPTANCE PREPARATION`; ChatGPT returned `PHASE_E1_REVIEW_PASS`, and final acceptance evidence is prepared for ChatGPT review. This state does not declare `PHASE_E1_ACCEPTED`.
+- Current Development: No active implementation phase; Phase E1 closeout complete.
+- Current E1 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E1_ACCEPTED`), with PR #8 merged into `main`.
 - E1 branch: `codex/phase-e1-task2-database-preflight`
 - E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
 - E1 implementation HEAD: `b6d82f684017cf39d8ef54b883905953dc4d7fe2` (`fix(e1): narrow drizzle version return type`).
 - E1 review-candidate HEAD: `ebe9c1826d4a69b3cf8f63f38507fa0919cd293f`.
+- E1 PR #8 merge commit: `c763602737927b7f3478443800f0371de2ef8bd5`.
 - E1 PR: [#8 Phase E1](https://github.com/booom12133/academic-writing-platform/pull/8).
 - E1 scope: standard PostgreSQL provider and versioned Drizzle schema/migrations, C2/C3/C4 neutral seams, pure provenance contracts, user-scoped repository, atomic import/readiness lifecycle, and no E2/indexing behavior.
 - E1 verification: full regression PASS — 61 suites / 371 passed / 7 skipped; focused C1-C4/E1 PASS — 24 suites / 197 tests; task/AI regression PASS — 35 suites / 172 tests; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS; Drizzle migration check PASS; clean `npm ci` PASS with npm 10.9.2 locally.
@@ -35,7 +36,9 @@ Last Updated: 2026-09-05
 - E1 deployment boundary: no ECS, Miaoda, production PostgreSQL, or E2 changes were made. Self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`.
 - E1 production database rollout: not performed; migration apply remains an explicit deployment-gate operation.
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
-- Next architecture step: Await ChatGPT final acceptance decision; do not merge `main` or create an accepted tag before `PHASE_E1_ACCEPTED`.
+- E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
+- E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
+- Next architecture step: E2 is not authorized by this acceptance; await explicit ChatGPT direction.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
@@ -239,6 +242,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: Not authorized
+- Next Phase: E2 — Not authorized
 - Next Phase Status: `NOT AUTHORIZED`
-- Next Phase Goal: No next implementation phase authorized; the next architecture step is pending ChatGPT direction.
+- Next Phase Goal: No E2 implementation phase is authorized by the Phase E1 acceptance; await explicit ChatGPT direction.

@@ -1,8 +1,7 @@
 # Project Roadmap
 
-Only the already established project phases are listed here. Phase D1, D2, and
-D3 are accepted and closed; later phases remain record-only and are not
-authorized.
+Only established project phases are listed here. Phase E1 is accepted and
+closed; later phases remain record-only and are not authorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -16,6 +15,7 @@ authorized.
 | D1 | Tool Execution Foundation | Shared academic-tool execution foundation and runtime bindings | ACCEPTED | Yes |
 | D2 | Polish Migration | Migrate Polish text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
 | D3 | Paper Revision Migration | Migrate Paper Revision text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
+| E1 | Knowledge Provenance Foundation | Standard PostgreSQL/Drizzle knowledge provenance foundation and immutable document-version lifecycle | ACCEPTED | Yes |
 | E | RAG / Zotero / Search | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
