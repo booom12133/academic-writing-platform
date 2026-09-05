@@ -81,6 +81,25 @@ function errorDetails(error: unknown): {
   };
 }
 
+function prepareEmbeddingText(
+  text: string,
+  maxInputCodePoints: number,
+): string {
+  if (!Number.isInteger(maxInputCodePoints) || maxInputCodePoints <= 0) {
+    throw new EmbeddingProviderError(
+      'unsupported-configuration',
+      'Embedding input limit must be a positive integer.',
+    );
+  }
+  if (Array.from(text).length > maxInputCodePoints) {
+    throw new EmbeddingProviderError(
+      'invalid-input',
+      'Knowledge chunk exceeds the embedding profile input limit.',
+    );
+  }
+  return text;
+}
+
 @Injectable()
 export class KnowledgeIndexingService {
   constructor(
@@ -115,27 +134,22 @@ export class KnowledgeIndexingService {
 
     if (result.index.status === 'indexed') return result.index;
     if (result.index.status === 'stale') {
-      throw new Error(
-        'Embedding index is stale; use a new embedding profile or model configuration.',
-      );
+      await this.repository.reopenStaleIndex(input.userId, result.index.id);
     }
     if (result.index.status === 'failed') {
       await this.repository.reopenFailedIndex(input.userId, result.index.id);
-    } else if (result.created || result.index.status === 'indexing') {
-      await this.repository.createChunkManifest(
-        result.index.id,
-        input.userId,
-        fingerprints.manifest,
-      );
     }
+    await this.repository.createChunkManifest(
+      result.index.id,
+      input.userId,
+      fingerprints.manifest,
+    );
 
     return this.runIndex({
       index: result.index,
       userId: input.userId,
-      version: context.version,
       chunks: context.chunks,
       identity,
-      replacement: result.replacement === true,
     });
   }
 
@@ -151,7 +165,7 @@ export class KnowledgeIndexingService {
   }): Promise<KnowledgeIndexingResult> {
     const index = await this.repository.getIndex(input.userId, input.indexId);
     if (!index) throw new Error('Embedding index not found.');
-    if (index.status !== 'failed') {
+    if (index.status !== 'failed' && index.status !== 'stale') {
       if (index.status === 'indexed') return index;
       throw new Error(
         `Embedding index cannot be retried from ${index.status}.`,
@@ -176,14 +190,21 @@ export class KnowledgeIndexingService {
         'Embedding index inputs no longer match the persisted materialization.',
       );
     }
-    await this.repository.reopenFailedIndex(input.userId, index.id);
+    if (index.status === 'failed') {
+      await this.repository.reopenFailedIndex(input.userId, index.id);
+    } else {
+      await this.repository.reopenStaleIndex(input.userId, index.id);
+    }
+    await this.repository.createChunkManifest(
+      index.id,
+      input.userId,
+      fingerprints.manifest,
+    );
     return this.runIndex({
       index,
       userId: input.userId,
-      version: context.version,
       chunks: context.chunks,
       identity,
-      replacement: false,
     });
   }
 
@@ -262,6 +283,10 @@ export class KnowledgeIndexingService {
     const manifest = chunks.map((chunk) => ({
       knowledgeChunkId: chunk.id,
       inputFingerprint: computeChunkInputFingerprint({
+        userId: chunk.userId,
+        documentVersionId: chunk.documentVersionId,
+        knowledgeChunkId: chunk.id,
+        ordinal: chunk.ordinal,
         e1IndexInputFingerprint: version.indexInputFingerprint,
         textHash: chunk.textHash,
       }),
@@ -272,6 +297,8 @@ export class KnowledgeIndexingService {
     return {
       profileFingerprint,
       indexFingerprint: computeIndexFingerprint({
+        userId: version.userId,
+        documentVersionId: version.id,
         e1IndexInputFingerprint: version.indexInputFingerprint,
         profileFingerprint,
         orderedChunkInputFingerprints: manifest.map(
@@ -285,10 +312,8 @@ export class KnowledgeIndexingService {
   private async runIndex(input: {
     index: KnowledgeEmbeddingIndex;
     userId: string;
-    version: KnowledgeDocumentVersion;
     chunks: KnowledgeChunk[];
     identity: EmbeddingModelIdentity;
-    replacement: boolean;
   }): Promise<KnowledgeIndexingResult> {
     const chunksById = new Map(input.chunks.map((chunk) => [chunk.id, chunk]));
     while (true) {
@@ -324,13 +349,6 @@ export class KnowledgeIndexingService {
       input.userId,
       input.index.id,
     );
-    if (result.status === 'indexed' && input.replacement) {
-      await this.repository.markSameVersionReplacementStale(
-        input.userId,
-        input.version.id,
-        result.id,
-      );
-    }
     return result;
   }
 
@@ -341,15 +359,35 @@ export class KnowledgeIndexingService {
     chunksById: Map<string, KnowledgeChunk>,
     identity: EmbeddingModelIdentity,
   ): Promise<EmbeddingSuccessItem[] | null> {
-    const items = batch.items.map((item) => {
-      const chunk = chunksById.get(item.knowledgeChunkId);
-      if (!chunk) {
-        throw new Error(
-          'Embedding batch references an unknown E1 knowledge chunk.',
-        );
-      }
-      return { inputFingerprint: item.inputFingerprint, text: chunk.text };
-    });
+    let items: Array<{ inputFingerprint: string; text: string }>;
+    try {
+      items = batch.items.map((item) => {
+        const chunk = chunksById.get(item.knowledgeChunkId);
+        if (!chunk) {
+          throw new Error(
+            'Embedding batch references an unknown E1 knowledge chunk.',
+          );
+        }
+        return {
+          inputFingerprint: item.inputFingerprint,
+          text: prepareEmbeddingText(
+            chunk.text,
+            this.config.profile.truncation.maxInputCodePoints,
+          ),
+        };
+      });
+    } catch (error) {
+      const details = errorDetails(error);
+      await this.repository.recordBatchFailed(
+        userId,
+        indexId,
+        batch.leaseOwner,
+        batch.items.map((item) => item.knowledgeChunkId),
+        details.code,
+        details.message,
+      );
+      return null;
+    }
     let lastError:
       | { code: string; message: string; retryable: boolean }
       | undefined;

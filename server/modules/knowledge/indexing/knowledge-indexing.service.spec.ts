@@ -8,6 +8,7 @@ import {
 } from './embedding.types';
 import type { EmbeddingProvider } from './embedding.provider';
 import { computeChunkTextHash } from '../knowledge.hash';
+import { computeEmbeddingProfileFingerprint } from './embedding.fingerprint';
 import type { KnowledgeEmbeddingIndexStatus } from './knowledge-indexing.types';
 
 const userId = 'user-1';
@@ -102,14 +103,15 @@ function createHarness(
       status: KnowledgeEmbeddingIndexStatus;
     };
     provider?: Partial<EmbeddingProvider>;
+    config?: EmbeddingConfig;
+    texts?: string[];
   } = {},
 ) {
   const documentId = randomUUID();
   const documentVersion = version(documentId);
-  const chunks = [
-    chunk(documentId, documentVersion.id, 0, 'first'),
-    chunk(documentId, documentVersion.id, 1, 'second'),
-  ];
+  const chunks = (options.texts ?? ['first', 'second']).map((text, ordinal) =>
+    chunk(documentId, documentVersion.id, ordinal, text),
+  );
   const events: string[] = [];
   const indexes: any[] = options.oldIndex
     ? [
@@ -136,8 +138,7 @@ function createHarness(
           item.embeddingProfileFingerprint ===
             input.embeddingProfileFingerprint,
       );
-      if (existing)
-        return { index: existing, created: false, replacement: false };
+      if (existing) return { index: existing, created: false };
       const created = {
         ...input,
         id: randomUUID(),
@@ -147,20 +148,11 @@ function createHarness(
         failedChunks: 0,
       };
       indexes.push(created);
-      return {
-        index: created,
-        created: true,
-        replacement: indexes.some(
-          (item) =>
-            item.id !== created.id &&
-            item.userId === input.userId &&
-            item.documentVersionId === input.documentVersionId &&
-            item.status === 'indexed',
-        ),
-      };
+      return { index: created, created: true };
     }),
     createChunkManifest: jest.fn(
       async (indexId: string, _userId: string, input: any[]) => {
+        if (rows.has(indexId)) return;
         rows.set(
           indexId,
           input.map((item) => ({
@@ -212,6 +204,7 @@ function createHarness(
     ),
     finalizeIndex: jest.fn(async (_user: string, indexId: string) => {
       const index = indexes.find((item) => item.id === indexId);
+      if (index.status === 'stale') return index;
       const indexRows = rows.get(indexId) ?? [];
       index.indexedChunks = indexRows.filter(
         (item) => item.status === 'indexed',
@@ -220,6 +213,21 @@ function createHarness(
         (item) => item.status === 'failed',
       ).length;
       index.status = index.failedChunks ? 'failed' : 'indexed';
+      if (index.status === 'indexed') {
+        for (const oldIndex of indexes) {
+          if (
+            oldIndex.id !== index.id &&
+            oldIndex.userId === index.userId &&
+            oldIndex.documentVersionId === index.documentVersionId &&
+            (oldIndex.status === 'indexed' || oldIndex.status === 'indexing')
+          ) {
+            oldIndex.status = 'stale';
+            for (const item of rows.get(oldIndex.id) ?? [])
+              if (item.status === 'indexed' || item.status === 'indexing')
+                item.status = 'stale';
+          }
+        }
+      }
       return index;
     }),
     reopenFailedIndex: jest.fn(async (_user: string, indexId: string) => {
@@ -229,31 +237,24 @@ function createHarness(
       index.status = 'indexing';
       return index;
     }),
-    markSameVersionReplacementStale: jest.fn(
-      async (_user: string, versionId: string, replacementId: string) => {
-        for (const item of indexes)
-          if (
-            item.documentVersionId === versionId &&
-            item.id !== replacementId &&
-            item.status === 'indexed'
-          )
-            item.status = 'stale';
-      },
-    ),
+    reopenStaleIndex: jest.fn(async (_user: string, indexId: string) => {
+      const index = indexes.find((item) => item.id === indexId);
+      index.status = 'indexing';
+      for (const item of rows.get(indexId) ?? []) item.status = 'indexing';
+      return index;
+    }),
     getIndex: jest.fn(
       async (_user: string, indexId: string) =>
         indexes.find((item) => item.id === indexId) ?? null,
     ),
   };
   const knowledge = {
-    getDocument: jest
-      .fn()
-      .mockResolvedValue({
-        id: documentId,
-        userId,
-        activeVersionId: documentVersion.id,
-        lifecycleStatus: 'active',
-      }),
+    getDocument: jest.fn().mockResolvedValue({
+      id: documentId,
+      userId,
+      activeVersionId: documentVersion.id,
+      lifecycleStatus: 'active',
+    }),
     getVersion: jest.fn().mockResolvedValue(documentVersion),
     getChunks: jest.fn().mockResolvedValue(chunks),
   };
@@ -275,7 +276,7 @@ function createHarness(
     knowledge as any,
     repository as any,
     provider,
-    config,
+    options.config ?? config,
     async () => undefined,
   );
   return {
@@ -396,9 +397,6 @@ describe('KnowledgeIndexingService', () => {
         (item) => item.embeddingProfileFingerprint === 'old-profile',
       )?.status,
     ).toBe('indexed');
-    expect(
-      harness.repository.markSameVersionReplacementStale,
-    ).not.toHaveBeenCalled();
   });
 
   it('marks only the old same-version materialization stale after replacement succeeds', async () => {
@@ -422,9 +420,6 @@ describe('KnowledgeIndexingService', () => {
         (item) => item.embeddingProfileFingerprint === 'old-profile',
       )?.status,
     ).toBe('stale');
-    expect(
-      harness.repository.markSameVersionReplacementStale,
-    ).toHaveBeenCalledWith(userId, harness.documentVersion.id, result.id);
   });
 
   it('does not stale an old version when a new version is indexed', async () => {
@@ -447,9 +442,82 @@ describe('KnowledgeIndexingService', () => {
       harness.indexes.find((item) => item.documentVersionId === oldVersionId)
         ?.status,
     ).toBe('indexed');
-    expect(
-      harness.repository.markSameVersionReplacementStale,
-    ).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['ASCII boundary', 'abc', 3, true],
+    ['Chinese code points', '中文', 2, true],
+    ['emoji code points', '😀😀', 2, true],
+    ['combining character sequence', 'e\u0301', 2, true],
+    ['CRLF code points', 'a\r\n', 3, true],
+    ['one code point over limit', '😀😀😀', 2, false],
+  ])(
+    'enforces the reject-over-limit input policy for %s',
+    async (_name, text, limit, accepted) => {
+      const inputConfig = {
+        ...config,
+        profile: {
+          ...config.profile,
+          truncation: {
+            ...config.profile.truncation,
+            maxInputCodePoints: limit as number,
+          },
+        },
+      };
+      const harness = createHarness({
+        texts: [text as string],
+        config: inputConfig,
+      });
+
+      const result = await harness.service.indexVersion({
+        userId,
+        documentVersionId: harness.documentVersion.id,
+      });
+
+      expect(result.status).toBe(accepted ? 'indexed' : 'failed');
+      expect(harness.provider.embed).toHaveBeenCalledTimes(accepted ? 1 : 0);
+      if (accepted) {
+        expect(harness.provider.embed).toHaveBeenCalledWith({
+          items: [expect.objectContaining({ text })],
+        });
+      }
+      if (!accepted) {
+        expect(harness.repository.recordBatchFailed).toHaveBeenCalledWith(
+          userId,
+          expect.any(String),
+          expect.any(String),
+          expect.any(Array),
+          'invalid-input',
+          expect.stringContaining('exceeds'),
+        );
+      }
+    },
+  );
+
+  it('reopens a stale materialization through indexing before re-indexing it', async () => {
+    const profileFingerprint = computeEmbeddingProfileFingerprint(
+      identity,
+      config.profile,
+    );
+    const harness = createHarness({
+      oldIndex: {
+        documentVersionId: 'placeholder',
+        profileFingerprint,
+        status: 'stale',
+      },
+    });
+    harness.indexes[0].documentVersionId = harness.documentVersion.id;
+
+    const result = await harness.service.reindexVersion({
+      userId,
+      documentVersionId: harness.documentVersion.id,
+    });
+
+    expect(result.status).toBe('indexed');
+    expect(harness.repository.reopenStaleIndex).toHaveBeenCalledWith(
+      userId,
+      harness.indexes[0].id,
+    );
   });
 
   it('rejects a tombstoned version before calling the provider', async () => {
