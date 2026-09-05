@@ -23,6 +23,12 @@ export interface TaskContext {
   units: ContextUnit[];
 }
 
+export interface StructuralDocumentContext {
+  version: 1;
+  source: ContextDocumentSource;
+  units: ContextUnit[];
+}
+
 export interface ContextDocumentSource {
   id: 'document-1';
   kind: 'parsed-document';

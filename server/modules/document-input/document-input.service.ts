@@ -69,6 +69,12 @@ export interface PreparedDocument {
   };
 }
 
+export interface VerifiedDocumentArtifact {
+  version: 1;
+  document: DocumentInputRef;
+  buffer: Buffer;
+}
+
 @Injectable()
 export class DocumentInputService {
   constructor(
@@ -153,23 +159,9 @@ export class DocumentInputService {
       throw new DocumentInputError('DOCUMENT_PREPARATION_FAILED', 'Document preparation input is invalid.');
     }
 
-    const trusted = await this.validateRef(input.userId, input.documentRef);
-    let buffer: Buffer | null;
-    try {
-      buffer = await this.storage.download({ bucketId: trusted.bucketId, filePath: trusted.filePath });
-    } catch (error) {
-      throw new DocumentInputError('DOCUMENT_STORAGE_FAILED', 'The document could not be downloaded.', error);
-    }
-    if (!buffer) {
-      throw new DocumentInputError('DOCUMENT_NOT_FOUND', 'The document was not found.');
-    }
-    if (buffer.length !== trusted.sizeBytes || buffer.length > MAX_DOCUMENT_INPUT_SIZE_BYTES) {
-      throw new DocumentInputError('DOCUMENT_INTEGRITY_MISMATCH', 'The stored document size does not match its descriptor.');
-    }
-    if (this.hash(buffer) !== trusted.sha256) {
-      throw new DocumentInputError('DOCUMENT_INTEGRITY_MISMATCH', 'The stored document hash does not match its descriptor.');
-    }
-
+    const verified = await this.readVerified(input.userId, input.documentRef);
+    const trusted = verified.document;
+    const buffer = verified.buffer;
     let parsed: ParsedDocument;
     try {
       parsed = await this.parser.parse({
@@ -199,6 +191,27 @@ export class DocumentInputService {
       if (error instanceof DocumentInputError) throw error;
       throw new DocumentInputError('DOCUMENT_PREPARATION_FAILED', 'The document could not be prepared.', error);
     }
+  }
+
+  async readVerified(userId: string, documentRef: DocumentInputRef): Promise<VerifiedDocumentArtifact> {
+    const trusted = await this.validateRef(userId, documentRef);
+    let buffer: Buffer | null;
+    try {
+      buffer = await this.storage.download({ bucketId: trusted.bucketId, filePath: trusted.filePath });
+    } catch (error) {
+      throw new DocumentInputError('DOCUMENT_STORAGE_FAILED', 'The document could not be downloaded.', error);
+    }
+    if (!buffer) {
+      throw new DocumentInputError('DOCUMENT_NOT_FOUND', 'The document was not found.');
+    }
+    if (buffer.length !== trusted.sizeBytes || buffer.length > MAX_DOCUMENT_INPUT_SIZE_BYTES) {
+      throw new DocumentInputError('DOCUMENT_INTEGRITY_MISMATCH', 'The stored document size does not match its descriptor.');
+    }
+    if (this.hash(buffer) !== trusted.sha256) {
+      throw new DocumentInputError('DOCUMENT_INTEGRITY_MISMATCH', 'The stored document hash does not match its descriptor.');
+    }
+
+    return { version: 1, document: { ...trusted }, buffer };
   }
 
   private async validateRef(userId: string, ref: unknown): Promise<{

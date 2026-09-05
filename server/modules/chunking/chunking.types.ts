@@ -1,6 +1,7 @@
 import type {
   ContextHeadingRef,
   ContextUnit,
+  StructuralDocumentContext,
   TaskContext,
 } from '../context-builder/context-builder.types';
 
@@ -17,6 +18,11 @@ export interface AppliedChunkingPolicy {
 
 export interface ChunkTaskContextInput {
   context: TaskContext;
+  policy: ChunkingPolicy;
+}
+
+export interface ChunkStructuralDocumentInput {
+  context: StructuralDocumentContext;
   policy: ChunkingPolicy;
 }
 
@@ -75,6 +81,14 @@ export interface ChunkedTaskContext {
   version: 1;
   task: TaskContext['task'];
   source: TaskContext['source'];
+  policy: AppliedChunkingPolicy;
+  chunks: Chunk[];
+  warnings: ChunkingWarning[];
+}
+
+export interface StructuralChunkedDocument {
+  version: 1;
+  source: StructuralDocumentContext['source'];
   policy: AppliedChunkingPolicy;
   chunks: Chunk[];
   warnings: ChunkingWarning[];

@@ -1,5 +1,5 @@
 import { Global, Inject, Module, OnModuleDestroy } from '@nestjs/common';
-import { DRIZZLE_DATABASE } from '@lark-apaas/fullstack-nestjs-core';
+import { DRIZZLE_DATABASE } from './database.types';
 import {
   createLocalDevelopmentDatabase,
   type LocalDevelopmentDatabase,

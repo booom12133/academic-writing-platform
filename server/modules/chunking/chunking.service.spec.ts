@@ -143,6 +143,26 @@ describe('ChunkingService', () => {
     });
   });
 
+  it('chunks a neutral structural document without a tool task type', () => {
+    const structural = {
+      version: 1 as const,
+      source: baseContext.source,
+      units: baseContext.units,
+    };
+
+    const result = new ChunkingService().chunkStructural({
+      context: structural,
+      policy: { maxSize: 20 },
+    });
+
+    expect(result).not.toHaveProperty('task');
+    expect(result.policy.sizeMetric).toBe('unicode-code-points');
+    expect(result.chunks[0].items[0]).toMatchObject({
+      kind: 'whole-unit',
+      unit: baseContext.units[0],
+    });
+  });
+
   it('greedily packs small units in source order', () => {
     const context = makeContext([
       makeUnit(0, paragraph('b000001', 'abc')),

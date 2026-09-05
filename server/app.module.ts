@@ -10,6 +10,7 @@ import {
 } from './modules/document-input/document-storage.config';
 import { isLocalDevelopmentWithoutPlatformDomain } from './config/local-development';
 import { LocalDevelopmentDatabaseModule } from './database/local-development.module';
+import { StandardPostgresDatabaseModule } from './database/standard-postgres.module';
 import { LocalDevelopmentAuthMiddleware } from './middleware/local-development-auth.middleware';
 import { ViewModule } from './modules/view/view.module';
 import { UsersModule } from './modules/users/users.module';
@@ -18,6 +19,7 @@ import { PointsModule } from './modules/points/points.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { AiToolsModule } from './modules/ai-tools/ai-tools.module';
 import { DocumentInputModule } from './modules/document-input/document-input.module';
+import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 
 const documentStorageConfig = resolveDocumentStorageConfig();
 const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
@@ -25,7 +27,11 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
 @Module({
   imports: [
     ...(documentStorageConfig.driver === 'filesystem' && !useLocalDevelopment
-      ? [ConfigModule.forRoot({ isGlobal: true }), LoggerModule]
+      ? [
+          ConfigModule.forRoot({ isGlobal: true }),
+          LoggerModule,
+          StandardPostgresDatabaseModule,
+        ]
       : []),
     ...(useLocalDevelopment
       ? [
@@ -41,6 +47,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
     OrdersModule,
     AiToolsModule,
     DocumentInputModule,
+    KnowledgeModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last

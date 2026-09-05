@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-03
+Last Updated: 2026-09-05
 
 ## Project
 
@@ -22,9 +22,20 @@ Last Updated: 2026-09-03
 
 ## Current development
 
-- Current Development: Phase D4 — Text Generation Provider Abstraction (accepted / frozen / closed).
-- Current D4 status: `PHASE_D4_ACCEPTED`; PR #7 merged; post-merge governance closeout complete.
-- Next architecture step: No next implementation phase is authorized; Phase E is `NOT AUTHORIZED`.
+- Current Development: Phase E1 — Knowledge Provenance Foundation (Final Acceptance Preparation).
+- Current E1 status: `REVIEW_CANDIDATE / FINAL ACCEPTANCE PREPARATION`; ChatGPT returned `PHASE_E1_REVIEW_PASS`, and final acceptance evidence is prepared for ChatGPT review. This state does not declare `PHASE_E1_ACCEPTED`.
+- E1 branch: `codex/phase-e1-task2-database-preflight`
+- E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
+- E1 implementation HEAD: `b6d82f684017cf39d8ef54b883905953dc4d7fe2` (`fix(e1): narrow drizzle version return type`).
+- E1 review-candidate HEAD: `ebe9c1826d4a69b3cf8f63f38507fa0919cd293f`.
+- E1 PR: [#8 Phase E1](https://github.com/booom12133/academic-writing-platform/pull/8).
+- E1 scope: standard PostgreSQL provider and versioned Drizzle schema/migrations, C2/C3/C4 neutral seams, pure provenance contracts, user-scoped repository, atomic import/readiness lifecycle, and no E2/indexing behavior.
+- E1 verification: full regression PASS — 61 suites / 371 passed / 7 skipped; focused C1-C4/E1 PASS — 24 suites / 197 tests; task/AI regression PASS — 35 suites / 172 tests; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS; Drizzle migration check PASS; clean `npm ci` PASS with npm 10.9.2 locally.
+- E1 final verification evidence: GitHub Actions run [33849094910](https://github.com/booom12133/academic-writing-platform/actions/runs/33849094910) passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/33849094910/job/100947564114) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/33849094910/job/100947563905) on Node 22.23.2/npm 10.9.8. The final evidence records 61 suites / 371 passed / 7 skipped, with lint, combined type-check, server/client build, AppModule bootstrap, and Drizzle migration check passing. The PostgreSQL 16 job used a fresh disposable database and passed the full 0001 → 0002 migration, second-migrate idempotency, schema/constraint checks, and transaction rollback/version lifecycle regressions.
+- E1 deployment boundary: no ECS, Miaoda, production PostgreSQL, or E2 changes were made. Self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`.
+- E1 production database rollout: not performed; migration apply remains an explicit deployment-gate operation.
+- E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
+- Next architecture step: Await ChatGPT final acceptance decision; do not merge `main` or create an accepted tag before `PHASE_E1_ACCEPTED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
