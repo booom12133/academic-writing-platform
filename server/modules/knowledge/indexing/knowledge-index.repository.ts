@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import {
   DRIZZLE_DATABASE,
   type AppDatabase,
@@ -16,6 +16,7 @@ import type {
   KnowledgeChunkEmbeddingManifestItem,
   KnowledgeEmbeddingIndex,
 } from './knowledge-indexing.types';
+import { transitionIndexStatus } from './knowledge-indexing.lifecycle';
 
 export interface CreateEmbeddingIndexInput {
   userId: string;
@@ -28,12 +29,9 @@ export interface CreateEmbeddingIndexInput {
 }
 
 export interface KnowledgeIndexRepositoryPort {
-  createOrGetIndex(
-    input: CreateEmbeddingIndexInput,
-  ): Promise<{
+  createOrGetIndex(input: CreateEmbeddingIndexInput): Promise<{
     index: KnowledgeEmbeddingIndex;
     created: boolean;
-    replacement?: boolean;
   }>;
   createChunkManifest(
     indexId: string,
@@ -72,11 +70,10 @@ export interface KnowledgeIndexRepositoryPort {
     userId: string,
     indexId: string,
   ): Promise<KnowledgeEmbeddingIndex>;
-  markSameVersionReplacementStale(
+  reopenStaleIndex(
     userId: string,
-    documentVersionId: string,
-    replacementIndexId: string,
-  ): Promise<void>;
+    indexId: string,
+  ): Promise<KnowledgeEmbeddingIndex>;
 }
 
 type EmbeddingIndexRow = typeof knowledgeEmbeddingIndexes.$inferSelect;
@@ -119,12 +116,9 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     @Inject(DRIZZLE_DATABASE) private readonly db: EmbeddingDatabase,
   ) {}
 
-  async createOrGetIndex(
-    input: CreateEmbeddingIndexInput,
-  ): Promise<{
+  async createOrGetIndex(input: CreateEmbeddingIndexInput): Promise<{
     index: KnowledgeEmbeddingIndex;
     created: boolean;
-    replacement?: boolean;
   }> {
     const inserted = await this.db
       .insert(knowledgeEmbeddingIndexes)
@@ -175,26 +169,7 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     if (!row)
       throw new Error('Embedding index could not be created or loaded.');
 
-    const replacement =
-      inserted.length > 0 &&
-      (
-        await this.db
-          .select({ id: knowledgeEmbeddingIndexes.id })
-          .from(knowledgeEmbeddingIndexes)
-          .where(
-            and(
-              eq(knowledgeEmbeddingIndexes.userId, input.userId),
-              eq(
-                knowledgeEmbeddingIndexes.documentVersionId,
-                input.documentVersionId,
-              ),
-              eq(knowledgeEmbeddingIndexes.status, 'indexed'),
-              ne(knowledgeEmbeddingIndexes.id, row.id),
-            ),
-          )
-          .limit(1)
-      ).length > 0;
-    return { index: toIndex(row), created: inserted.length > 0, replacement };
+    return { index: toIndex(row), created: inserted.length > 0 };
   }
 
   async createChunkManifest(
@@ -343,17 +318,22 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     await this.db.transaction(async (tx) => {
       const now = new Date();
       const index = await tx
-        .select({ leaseOwner: knowledgeEmbeddingIndexes.leaseOwner })
+        .select({
+          leaseOwner: knowledgeEmbeddingIndexes.leaseOwner,
+          status: knowledgeEmbeddingIndexes.status,
+        })
         .from(knowledgeEmbeddingIndexes)
         .where(
           and(
             eq(knowledgeEmbeddingIndexes.id, indexId),
             eq(knowledgeEmbeddingIndexes.userId, userId),
-            eq(knowledgeEmbeddingIndexes.leaseOwner, leaseOwner),
           ),
         )
         .limit(1);
       if (index.length === 0)
+        throw new Error('Embedding index lease is no longer valid.');
+      if (index[0].status === 'stale') return;
+      if (index[0].leaseOwner !== leaseOwner)
         throw new Error('Embedding index lease is no longer valid.');
       for (const item of items) {
         const updated = await tx
@@ -411,17 +391,22 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     await this.db.transaction(async (tx) => {
       const now = new Date();
       const index = await tx
-        .select({ leaseOwner: knowledgeEmbeddingIndexes.leaseOwner })
+        .select({
+          leaseOwner: knowledgeEmbeddingIndexes.leaseOwner,
+          status: knowledgeEmbeddingIndexes.status,
+        })
         .from(knowledgeEmbeddingIndexes)
         .where(
           and(
             eq(knowledgeEmbeddingIndexes.id, indexId),
             eq(knowledgeEmbeddingIndexes.userId, userId),
-            eq(knowledgeEmbeddingIndexes.leaseOwner, leaseOwner),
           ),
         )
         .limit(1);
       if (index.length === 0)
+        throw new Error('Embedding index lease is no longer valid.');
+      if (index[0].status === 'stale') return;
+      if (index[0].leaseOwner !== leaseOwner)
         throw new Error('Embedding index lease is no longer valid.');
       for (const chunkId of chunkIds) {
         await tx
@@ -465,7 +450,136 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     indexId: string,
   ): Promise<KnowledgeEmbeddingIndex> {
     return this.db.transaction(async (tx) => {
+      const targetRows = await tx
+        .select({
+          documentVersionId: knowledgeEmbeddingIndexes.documentVersionId,
+        })
+        .from(knowledgeEmbeddingIndexes)
+        .where(
+          and(
+            eq(knowledgeEmbeddingIndexes.id, indexId),
+            eq(knowledgeEmbeddingIndexes.userId, userId),
+          ),
+        )
+        .limit(1);
+      if (targetRows.length === 0)
+        throw new Error('Embedding index not found.');
       const indexRows = await tx
+        .select()
+        .from(knowledgeEmbeddingIndexes)
+        .where(
+          and(
+            eq(knowledgeEmbeddingIndexes.userId, userId),
+            eq(
+              knowledgeEmbeddingIndexes.documentVersionId,
+              targetRows[0].documentVersionId,
+            ),
+          ),
+        )
+        .orderBy(asc(knowledgeEmbeddingIndexes.id))
+        .for('update');
+      const index = indexRows.find((row) => row.id === indexId);
+      if (!index) throw new Error('Embedding index not found.');
+      if (index.status === 'stale') return toIndex(index);
+      if (index.status !== 'indexing') return toIndex(index);
+      const rows = await tx
+        .select({ status: knowledgeChunkEmbeddings.status })
+        .from(knowledgeChunkEmbeddings)
+        .where(
+          and(
+            eq(knowledgeChunkEmbeddings.userId, userId),
+            eq(knowledgeChunkEmbeddings.knowledgeEmbeddingIndexId, index.id),
+          ),
+        );
+      const indexedChunks = rows.filter(
+        (row) => row.status === 'indexed',
+      ).length;
+      const failedChunks = rows.filter((row) => row.status === 'failed').length;
+      const status =
+        failedChunks > 0
+          ? 'failed'
+          : indexedChunks === index.totalChunks
+            ? 'indexed'
+            : 'indexing';
+      if (status === 'indexing') return toIndex(index);
+      const now = new Date();
+      const updated = await tx
+        .update(knowledgeEmbeddingIndexes)
+        .set({
+          status: transitionIndexStatus(
+            index.status as KnowledgeEmbeddingIndex['status'],
+            status as KnowledgeEmbeddingIndex['status'],
+          ),
+          indexedChunks,
+          failedChunks,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          indexedAt: status === 'indexed' ? now : null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(knowledgeEmbeddingIndexes.id, index.id),
+            eq(knowledgeEmbeddingIndexes.userId, userId),
+          ),
+        )
+        .returning();
+      const finalized = updated[0];
+      if (status === 'indexed') {
+        const replaced = indexRows.filter(
+          (row) =>
+            row.id !== index.id &&
+            (row.status === 'indexed' || row.status === 'indexing'),
+        );
+        for (const oldIndex of replaced) {
+          await tx
+            .update(knowledgeEmbeddingIndexes)
+            .set({
+              status: transitionIndexStatus(
+                oldIndex.status as KnowledgeEmbeddingIndex['status'],
+                'stale',
+              ),
+              leaseOwner: null,
+              leaseExpiresAt: null,
+              indexedAt: null,
+              updatedAt: now,
+            })
+            .where(
+              and(
+                eq(knowledgeEmbeddingIndexes.id, oldIndex.id),
+                eq(knowledgeEmbeddingIndexes.userId, userId),
+                eq(knowledgeEmbeddingIndexes.status, oldIndex.status),
+              ),
+            );
+          await tx
+            .update(knowledgeChunkEmbeddings)
+            .set({ status: 'stale', updatedAt: now })
+            .where(
+              and(
+                eq(knowledgeChunkEmbeddings.userId, userId),
+                eq(
+                  knowledgeChunkEmbeddings.knowledgeEmbeddingIndexId,
+                  oldIndex.id,
+                ),
+                inArray(knowledgeChunkEmbeddings.status, [
+                  'indexing',
+                  'indexed',
+                ]),
+              ),
+            );
+        }
+      }
+      return toIndex(finalized);
+    });
+  }
+
+  async reopenFailedIndex(
+    userId: string,
+    indexId: string,
+  ): Promise<KnowledgeEmbeddingIndex> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const current = await tx
         .select()
         .from(knowledgeEmbeddingIndexes)
         .where(
@@ -476,56 +590,12 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
         )
         .limit(1)
         .for('update');
-      if (indexRows.length === 0) throw new Error('Embedding index not found.');
-      const rows = await tx
-        .select({ status: knowledgeChunkEmbeddings.status })
-        .from(knowledgeChunkEmbeddings)
-        .where(
-          and(
-            eq(knowledgeChunkEmbeddings.userId, userId),
-            eq(knowledgeChunkEmbeddings.knowledgeEmbeddingIndexId, indexId),
-          ),
-        );
-      const indexedChunks = rows.filter(
-        (row) => row.status === 'indexed',
-      ).length;
-      const failedChunks = rows.filter((row) => row.status === 'failed').length;
-      const status =
-        failedChunks > 0
-          ? 'failed'
-          : indexedChunks === indexRows[0].totalChunks
-            ? 'indexed'
-            : 'indexing';
-      if (status === 'indexing') return toIndex(indexRows[0]);
-      const now = new Date();
-      const updated = await tx
-        .update(knowledgeEmbeddingIndexes)
-        .set({
-          status,
-          indexedChunks,
-          failedChunks,
-          leaseOwner: null,
-          leaseExpiresAt: null,
-          indexedAt: status === 'indexed' ? now : null,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(knowledgeEmbeddingIndexes.id, indexId),
-            eq(knowledgeEmbeddingIndexes.userId, userId),
-          ),
-        )
-        .returning();
-      return toIndex(updated[0]);
-    });
-  }
-
-  async reopenFailedIndex(
-    userId: string,
-    indexId: string,
-  ): Promise<KnowledgeEmbeddingIndex> {
-    return this.db.transaction(async (tx) => {
-      const now = new Date();
+      if (current.length !== 1 || current[0].status !== 'failed')
+        throw new Error('Only failed embedding indexes can be reopened.');
+      transitionIndexStatus(
+        current[0].status as KnowledgeEmbeddingIndex['status'],
+        'indexing',
+      );
       const updated = await tx
         .update(knowledgeEmbeddingIndexes)
         .set({
@@ -570,22 +640,72 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
     });
   }
 
-  async markSameVersionReplacementStale(
+  async reopenStaleIndex(
     userId: string,
-    documentVersionId: string,
-    replacementIndexId: string,
-  ): Promise<void> {
-    const now = new Date();
-    await this.db
-      .update(knowledgeEmbeddingIndexes)
-      .set({ status: 'stale', updatedAt: now })
-      .where(
-        and(
-          eq(knowledgeEmbeddingIndexes.userId, userId),
-          eq(knowledgeEmbeddingIndexes.documentVersionId, documentVersionId),
-          eq(knowledgeEmbeddingIndexes.status, 'indexed'),
-          ne(knowledgeEmbeddingIndexes.id, replacementIndexId),
-        ),
+    indexId: string,
+  ): Promise<KnowledgeEmbeddingIndex> {
+    return this.db.transaction(async (tx) => {
+      const now = new Date();
+      const current = await tx
+        .select()
+        .from(knowledgeEmbeddingIndexes)
+        .where(
+          and(
+            eq(knowledgeEmbeddingIndexes.id, indexId),
+            eq(knowledgeEmbeddingIndexes.userId, userId),
+          ),
+        )
+        .limit(1)
+        .for('update');
+      if (current.length !== 1 || current[0].status !== 'stale')
+        throw new Error('Only stale embedding indexes can be reopened.');
+      transitionIndexStatus(
+        current[0].status as KnowledgeEmbeddingIndex['status'],
+        'indexing',
       );
+      const updated = await tx
+        .update(knowledgeEmbeddingIndexes)
+        .set({
+          status: 'indexing',
+          indexedChunks: 0,
+          failedChunks: 0,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          leaseOwner: null,
+          leaseExpiresAt: null,
+          indexedAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(knowledgeEmbeddingIndexes.id, indexId),
+            eq(knowledgeEmbeddingIndexes.userId, userId),
+            eq(knowledgeEmbeddingIndexes.status, 'stale'),
+          ),
+        )
+        .returning();
+      await tx
+        .update(knowledgeChunkEmbeddings)
+        .set({
+          status: 'indexing',
+          embedding: null,
+          lastErrorCode: null,
+          lastErrorMessage: null,
+          indexedAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(knowledgeChunkEmbeddings.userId, userId),
+            eq(knowledgeChunkEmbeddings.knowledgeEmbeddingIndexId, indexId),
+            inArray(knowledgeChunkEmbeddings.status, [
+              'stale',
+              'indexed',
+              'failed',
+            ]),
+          ),
+        );
+      return toIndex(updated[0]);
+    });
   }
 }

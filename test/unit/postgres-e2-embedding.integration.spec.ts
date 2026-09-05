@@ -173,4 +173,69 @@ describeIfDatabase('E2 PostgreSQL and pgvector embedding persistence', () => {
       versionTwo.id,
     );
   });
+
+  it('arbitrates same-version indexed materializations at finalization time', async () => {
+    const db = drizzle(pool);
+    const knowledge = new KnowledgeRepository(db);
+    const repository = new KnowledgeIndexRepository(db);
+    const userId = `e2-concurrency-${randomUUID()}`;
+    const document = await knowledge.createDocument({
+      userId,
+      originKind: 'user-upload',
+      displayName: 'E2 concurrency',
+      sourceType: 'txt',
+    });
+    const version = await knowledge.createVersion({
+      userId,
+      documentId: document.id,
+      versionNumber: 1,
+      originalContentHash: hashTextInputExact('same-version'),
+      parserProfile: { name: 'c1-document-parser-v1', version: '1' },
+      chunkingProfile: {
+        name: 'c3-deterministic-v1',
+        version: '1',
+        parameters: { maxSize: 100 },
+      },
+      sourceText: 'same-version',
+      lifecycleStatus: 'active',
+      readinessStatus: 'content-ready-for-indexing',
+      indexInputFingerprint: hashTextInputExact('e1-same-version'),
+    });
+    const identity = {
+      provider: 'test',
+      model: 'test',
+      modelRevision: '1',
+      dimensions: 2,
+    };
+    const a = await repository.createOrGetIndex({
+      userId,
+      documentVersionId: version.id,
+      e1IndexInputFingerprint: version.indexInputFingerprint,
+      embeddingProfileFingerprint: 'a'.repeat(64),
+      indexFingerprint: '1'.repeat(64),
+      embeddingModelIdentity: identity,
+      totalChunks: 0,
+    });
+    const b = await repository.createOrGetIndex({
+      userId,
+      documentVersionId: version.id,
+      e1IndexInputFingerprint: version.indexInputFingerprint,
+      embeddingProfileFingerprint: 'b'.repeat(64),
+      indexFingerprint: '2'.repeat(64),
+      embeddingModelIdentity: identity,
+      totalChunks: 0,
+    });
+
+    const finalizedA = await repository.finalizeIndex(userId, a.index.id);
+    const finalizedB = await repository.finalizeIndex(userId, b.index.id);
+
+    expect(finalizedA.status).toBe('indexed');
+    expect(finalizedB.status).toBe('stale');
+    await expect(
+      repository.getIndex(userId, a.index.id),
+    ).resolves.toMatchObject({ status: 'indexed' });
+    await expect(
+      repository.getIndex(userId, b.index.id),
+    ).resolves.toMatchObject({ status: 'stale' });
+  });
 });
