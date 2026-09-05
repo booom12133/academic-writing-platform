@@ -1,5 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
+  check,
+  customType,
   foreignKey,
   index,
   integer,
@@ -11,6 +13,12 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core';
+
+const vector = customType<{ data: number[]; driverData: string }>({
+  dataType: () => 'vector',
+  toDriver: (value) => `[${value.join(',')}]`,
+  fromDriver: (value) => String(value).slice(1, -1).split(',').filter(Boolean).map(Number),
+});
 
 const createdAt = () =>
   timestamp('_created_at', { withTimezone: true, precision: 3 })
@@ -347,6 +355,121 @@ export const knowledgeImports = pgTable(
       columns: [table.documentVersionId, table.userId],
       foreignColumns: [knowledgeDocumentVersions.id, knowledgeDocumentVersions.userId],
       name: 'knowledge_imports_version_owner_fk',
+    }),
+  ],
+);
+
+export const knowledgeEmbeddingIndexes = pgTable(
+  'knowledge_embedding_indexes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    documentVersionId: uuid('document_version_id').notNull(),
+    e1IndexInputFingerprint: varchar('e1_index_input_fingerprint', { length: 64 }).notNull(),
+    embeddingProfileFingerprint: varchar('embedding_profile_fingerprint', { length: 64 }).notNull(),
+    indexFingerprint: varchar('index_fingerprint', { length: 64 }).notNull(),
+    embeddingModelIdentity: jsonb('embedding_model_identity').notNull(),
+    status: varchar('status', { length: 16 }).notNull(),
+    totalChunks: integer('total_chunks').notNull(),
+    indexedChunks: integer('indexed_chunks').notNull().default(0),
+    failedChunks: integer('failed_chunks').notNull().default(0),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    lastErrorCode: varchar('last_error_code', { length: 64 }),
+    lastErrorMessage: varchar('last_error_message', { length: 512 }),
+    leaseOwner: varchar('lease_owner', { length: 128 }),
+    leaseExpiresAt: timestamp('lease_expires_at', { withTimezone: true, precision: 3 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    indexedAt: timestamp('indexed_at', { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    uniqueIndex('knowledge_embedding_indexes_id_user_id_key').on(table.id, table.userId),
+    uniqueIndex('knowledge_embedding_indexes_version_fingerprint_key').on(
+      table.documentVersionId,
+      table.indexFingerprint,
+    ),
+    uniqueIndex('knowledge_embedding_indexes_natural_key').on(
+      table.userId,
+      table.documentVersionId,
+      table.e1IndexInputFingerprint,
+      table.embeddingProfileFingerprint,
+    ),
+    index('knowledge_embedding_indexes_user_version_status_idx').on(
+      table.userId,
+      table.documentVersionId,
+      table.status,
+    ),
+    index('knowledge_embedding_indexes_lease_idx').on(table.status, table.leaseExpiresAt),
+    check(
+      'knowledge_embedding_indexes_status_check',
+      sql`${table.status} in ('indexing', 'indexed', 'failed', 'stale')`,
+    ),
+    check(
+      'knowledge_embedding_indexes_counts_check',
+      sql`${table.totalChunks} >= 0 and ${table.indexedChunks} >= 0 and ${table.failedChunks} >= 0 and ${table.indexedChunks} + ${table.failedChunks} <= ${table.totalChunks}`,
+    ),
+    foreignKey({
+      columns: [table.documentVersionId, table.userId],
+      foreignColumns: [knowledgeDocumentVersions.id, knowledgeDocumentVersions.userId],
+      name: 'knowledge_embedding_indexes_version_owner_fk',
+    }),
+  ],
+);
+
+export const knowledgeChunkEmbeddings = pgTable(
+  'knowledge_chunk_embeddings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    knowledgeEmbeddingIndexId: uuid('knowledge_embedding_index_id').notNull(),
+    knowledgeChunkId: uuid('knowledge_chunk_id').notNull(),
+    inputFingerprint: varchar('input_fingerprint', { length: 64 }).notNull(),
+    embeddingProfileFingerprint: varchar('embedding_profile_fingerprint', { length: 64 }).notNull(),
+    dimensions: integer('dimensions').notNull(),
+    embedding: vector('embedding'),
+    status: varchar('status', { length: 16 }).notNull(),
+    attemptCount: integer('attempt_count').notNull().default(0),
+    lastErrorCode: varchar('last_error_code', { length: 64 }),
+    lastErrorMessage: varchar('last_error_message', { length: 512 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+    indexedAt: timestamp('indexed_at', { withTimezone: true, precision: 3 }),
+  },
+  (table) => [
+    uniqueIndex('knowledge_chunk_embeddings_id_user_id_key').on(table.id, table.userId),
+    uniqueIndex('knowledge_chunk_embeddings_identity_key').on(
+      table.userId,
+      table.knowledgeChunkId,
+      table.embeddingProfileFingerprint,
+      table.inputFingerprint,
+    ),
+    index('knowledge_chunk_embeddings_user_index_status_idx').on(
+      table.userId,
+      table.knowledgeEmbeddingIndexId,
+      table.status,
+    ),
+    check(
+      'knowledge_chunk_embeddings_status_check',
+      sql`${table.status} in ('indexing', 'indexed', 'failed', 'stale')`,
+    ),
+    check('knowledge_chunk_embeddings_dimensions_check', sql`${table.dimensions} > 0`),
+    check(
+      'knowledge_chunk_embeddings_vector_dimensions_check',
+      sql`${table.embedding} is null or vector_dims(${table.embedding}) = ${table.dimensions}`,
+    ),
+    check(
+      'knowledge_chunk_embeddings_indexed_vector_check',
+      sql`${table.status} <> 'indexed' or ${table.embedding} is not null`,
+    ),
+    foreignKey({
+      columns: [table.knowledgeEmbeddingIndexId, table.userId],
+      foreignColumns: [knowledgeEmbeddingIndexes.id, knowledgeEmbeddingIndexes.userId],
+      name: 'knowledge_chunk_embeddings_index_owner_fk',
+    }),
+    foreignKey({
+      columns: [table.knowledgeChunkId, table.userId],
+      foreignColumns: [knowledgeChunks.id, knowledgeChunks.userId],
+      name: 'knowledge_chunk_embeddings_chunk_owner_fk',
     }),
   ],
 );
