@@ -137,9 +137,15 @@ describeIfDatabase('E2 PostgreSQL and pgvector embedding persistence', () => {
     expect(replacement.index.documentVersionId).toBe(version.id);
     expect(replacement.index.id).not.toBe(indexed.id);
 
+    const documentTwo = await knowledge.createDocument({
+      userId,
+      originKind: 'user-upload',
+      displayName: 'E2 second document',
+      sourceType: 'txt',
+    });
     const versionTwo = await knowledge.createVersion({
       userId,
-      documentId: document.id,
+      documentId: documentTwo.id,
       versionNumber: 2,
       originalContentHash: hashTextInputExact('two'),
       parserProfile: { name: 'c1-document-parser-v1', version: '1' },
