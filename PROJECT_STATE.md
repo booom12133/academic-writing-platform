@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-05
+Last Updated: 2026-09-06
 
 ## Project
 
@@ -22,7 +22,17 @@ Last Updated: 2026-09-05
 
 ## Current development
 
-- Current Development: No active implementation phase; Phase E1 closeout complete.
+- Current Development: Phase E2 — Embedding & Index implementation complete on the Review Candidate branch; awaiting ChatGPT GitHub Review.
+- Current E2 status: `PHASE_E2_REVIEW_CANDIDATE`; implementation authorized after `PHASE_E2_DESIGN_REVIEW_PASS` and `PHASE_E2_PLAN_REVIEW_PASS`.
+- E2 branch: `codex/phase-e2-embedding-index`.
+- E2 accepted baseline: `d68331f594f671a1ce0099d008d3aaaa512448b1` (`origin/main`, `phase-e1-accepted`).
+- E2 implementation HEAD: `8212070` (`fix(e2): keep version-binding integration fixture valid`).
+- E2 PR: [#9 Phase E2 — Embedding & Index](https://github.com/booom12133/academic-writing-platform/pull/9); do not merge before explicit `PHASE_E2_ACCEPTED`.
+- E2 scope: independent EmbeddingProvider/config/fake, deterministic semantic fingerprints, pgvector migration 0003, version-bound index lifecycle, bounded batch/retry/resume/re-index orchestration, and PostgreSQL integration coverage. No retrieval or E3 behavior.
+- E2 migration boundary: 0001 and 0002 are unchanged; E1 provenance/parser/context-builder/chunker and D4 TextGenerationProvider/DeepSeek are unchanged.
+- E2 local verification: targeted E2 PASS — 7 suites / 30 passed; full regression PASS — 68 suites / 401 passed / 8 skipped; lint PASS; combined type-check PASS; server/client build PASS; AppModule bootstrap PASS; static migration checks PASS.
+- E2 PostgreSQL verification: integration tests are included in `test:integration:postgres` and CI uses PostgreSQL 16 + pgvector. Local real PostgreSQL execution was not available because `DATABASE_URL` is unset and Docker is unavailable; local integration result is 2 suites / 8 skipped.
+- E2 GitHub Actions: run `33977703520` passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/33977703520/job/101337218630) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/33977703520/job/101337218723) on Node 22.23.2/npm 10.9.8. The PostgreSQL job executed the 0001 → 0003 migrations on PostgreSQL 16 + pgvector and passed the E1 regression plus E2 vector persistence/version-binding integration. The preceding run `33977521292` failed only because the first E2 fixture attempted to violate E1's same-document immutable-version fingerprint constraint; commit `8212070` corrected that fixture and the rerun passed.
 - Current E1 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E1_ACCEPTED`), with PR #8 merged into `main`.
 - E1 branch: `codex/phase-e1-task2-database-preflight`
 - E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
@@ -38,7 +48,7 @@ Last Updated: 2026-09-05
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: E2 is not authorized by this acceptance; await explicit ChatGPT direction.
+- Next architecture step: complete ChatGPT review of the E2 candidate; E3 is not authorized.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
@@ -242,6 +252,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: E2 — Not authorized
-- Next Phase Status: `NOT AUTHORIZED`
-- Next Phase Goal: No E2 implementation phase is authorized by the Phase E1 acceptance; await explicit ChatGPT direction.
+- Next Phase: E2 — Review Candidate
+- Next Phase Status: `PHASE_E2_REVIEW_CANDIDATE`; awaiting ChatGPT GitHub Review; not accepted and not merged.
+- Next Phase Goal: Embedding and version-bound pgvector index materialization over E1 persisted knowledge data; retrieval remains E3 and is not authorized.
