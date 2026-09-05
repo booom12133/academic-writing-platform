@@ -13,10 +13,13 @@ describe('E2 PostgreSQL migration ordering', () => {
       sql.indexOf('CREATE TABLE "knowledge_chunk_embeddings"'),
     );
     const firstForeignKey = sql.indexOf('ADD CONSTRAINT "knowledge_');
+    const referencedIndex = sql.indexOf('CREATE UNIQUE INDEX "knowledge_embedding_indexes_id_user_id_key"');
 
     expect(extension).toBeGreaterThanOrEqual(0);
     expect(firstTable).toBeGreaterThan(extension);
     expect(firstForeignKey).toBeGreaterThan(firstTable);
+    expect(referencedIndex).toBeGreaterThan(firstTable);
+    expect(referencedIndex).toBeLessThan(firstForeignKey);
     expect(sql).toContain('knowledge_embedding_indexes_version_fingerprint_key');
     expect(sql).not.toContain('knowledge_embedding_indexes_user_fingerprint_key');
   });

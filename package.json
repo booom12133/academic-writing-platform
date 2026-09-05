@@ -20,7 +20,7 @@
     "build:client": "cross-env NODE_ENV=production vite build --config vite.config.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "node scripts/db-migrate.js",
-    "test:integration:postgres": "jest test/unit/postgres-schema.integration.spec.ts --runInBand",
+    "test:integration:postgres": "jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-e2-embedding.integration.spec.ts --runInBand",
     "start": "NODE_ENV=production node main.js",
     "test": "jest",
     "test:app-bootstrap": "npm run build:server && node scripts/test-app-bootstrap.js",

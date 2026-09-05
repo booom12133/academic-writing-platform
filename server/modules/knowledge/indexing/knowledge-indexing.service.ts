@@ -13,7 +13,10 @@ import {
   EMBEDDING_PROVIDER,
   type EmbeddingProvider,
 } from './embedding.provider';
-import type { KnowledgeRepositoryPort } from '../knowledge.repository';
+import {
+  KnowledgeRepository,
+  type KnowledgeRepositoryPort,
+} from '../knowledge.repository';
 import { computeChunkTextHash } from '../knowledge.hash';
 import type {
   ClaimedEmbeddingBatch,
@@ -25,7 +28,11 @@ import type {
   KnowledgeChunk,
   KnowledgeDocumentVersion,
 } from '../knowledge.types';
-import type { KnowledgeIndexRepositoryPort } from './knowledge-index.repository';
+import {
+  KnowledgeIndexRepository,
+  type KnowledgeIndexRepositoryPort,
+} from './knowledge-index.repository';
+import { EMBEDDING_CONFIG } from './embedding.config';
 
 interface IndexVersionInput {
   userId: string;
@@ -77,10 +84,12 @@ function errorDetails(error: unknown): {
 @Injectable()
 export class KnowledgeIndexingService {
   constructor(
+    @Inject(KnowledgeRepository)
     private readonly knowledge: KnowledgeRepositoryPort,
+    @Inject(KnowledgeIndexRepository)
     private readonly repository: KnowledgeIndexRepositoryPort,
     @Inject(EMBEDDING_PROVIDER) private readonly provider: EmbeddingProvider,
-    private readonly config: EmbeddingConfig,
+    @Inject(EMBEDDING_CONFIG) private readonly config: EmbeddingConfig,
     private readonly sleep: Sleep = defaultSleep,
   ) {}
 

@@ -50,8 +50,8 @@ describeIfDatabase('standard PostgreSQL migrations', () => {
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
     );
     expect(result.rows.map((row) => row.table_name)).toEqual([
-      'app_users', 'knowledge_chunks', 'knowledge_document_versions', 'knowledge_documents',
-      'knowledge_imports', 'knowledge_metadata_assertions', 'knowledge_source_external_links',
+      'app_users', 'knowledge_chunk_embeddings', 'knowledge_chunks', 'knowledge_document_versions', 'knowledge_documents',
+      'knowledge_embedding_indexes', 'knowledge_imports', 'knowledge_metadata_assertions', 'knowledge_source_external_links',
       'knowledge_source_records', 'point_records', 'recharge_orders', 'tasks',
     ]);
   });

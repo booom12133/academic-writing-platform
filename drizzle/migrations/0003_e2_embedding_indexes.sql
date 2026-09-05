@@ -46,13 +46,13 @@ CREATE TABLE "knowledge_embedding_indexes" (
 	CONSTRAINT "knowledge_embedding_indexes_counts_check" CHECK ("knowledge_embedding_indexes"."total_chunks" >= 0 and "knowledge_embedding_indexes"."indexed_chunks" >= 0 and "knowledge_embedding_indexes"."failed_chunks" >= 0 and "knowledge_embedding_indexes"."indexed_chunks" + "knowledge_embedding_indexes"."failed_chunks" <= "knowledge_embedding_indexes"."total_chunks")
 );
 --> statement-breakpoint
+CREATE UNIQUE INDEX "knowledge_embedding_indexes_id_user_id_key" ON "knowledge_embedding_indexes" USING btree ("id","user_id");--> statement-breakpoint
 ALTER TABLE "knowledge_chunk_embeddings" ADD CONSTRAINT "knowledge_chunk_embeddings_index_owner_fk" FOREIGN KEY ("knowledge_embedding_index_id","user_id") REFERENCES "public"."knowledge_embedding_indexes"("id","user_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "knowledge_chunk_embeddings" ADD CONSTRAINT "knowledge_chunk_embeddings_chunk_owner_fk" FOREIGN KEY ("knowledge_chunk_id","user_id") REFERENCES "public"."knowledge_chunks"("id","user_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "knowledge_embedding_indexes" ADD CONSTRAINT "knowledge_embedding_indexes_version_owner_fk" FOREIGN KEY ("document_version_id","user_id") REFERENCES "public"."knowledge_document_versions"("id","user_id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_chunk_embeddings_id_user_id_key" ON "knowledge_chunk_embeddings" USING btree ("id","user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_chunk_embeddings_identity_key" ON "knowledge_chunk_embeddings" USING btree ("user_id","knowledge_chunk_id","embedding_profile_fingerprint","input_fingerprint");--> statement-breakpoint
 CREATE INDEX "knowledge_chunk_embeddings_user_index_status_idx" ON "knowledge_chunk_embeddings" USING btree ("user_id","knowledge_embedding_index_id","status");--> statement-breakpoint
-CREATE UNIQUE INDEX "knowledge_embedding_indexes_id_user_id_key" ON "knowledge_embedding_indexes" USING btree ("id","user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_embedding_indexes_version_fingerprint_key" ON "knowledge_embedding_indexes" USING btree ("document_version_id","index_fingerprint");--> statement-breakpoint
 CREATE UNIQUE INDEX "knowledge_embedding_indexes_natural_key" ON "knowledge_embedding_indexes" USING btree ("user_id","document_version_id","e1_index_input_fingerprint","embedding_profile_fingerprint");--> statement-breakpoint
 CREATE INDEX "knowledge_embedding_indexes_user_version_status_idx" ON "knowledge_embedding_indexes" USING btree ("user_id","document_version_id","status");--> statement-breakpoint
