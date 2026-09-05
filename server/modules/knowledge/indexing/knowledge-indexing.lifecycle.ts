@@ -5,6 +5,8 @@ const transitions: ReadonlySet<string> = new Set([
   'indexing:failed',
   'failed:indexing',
   'indexed:stale',
+  'indexing:stale',
+  'stale:indexing',
 ]);
 
 export function canTransitionIndexStatus(
@@ -19,7 +21,9 @@ export function transitionIndexStatus(
   to: KnowledgeEmbeddingIndexStatus,
 ): KnowledgeEmbeddingIndexStatus {
   if (!canTransitionIndexStatus(from, to)) {
-    throw new Error(`Invalid embedding index lifecycle transition: ${from} -> ${to}`);
+    throw new Error(
+      `Invalid embedding index lifecycle transition: ${from} -> ${to}`,
+    );
   }
   return to;
 }
