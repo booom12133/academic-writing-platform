@@ -76,4 +76,14 @@ describe('GroundedGenerationService', () => {
     });
     expect(llm.generate).not.toHaveBeenCalled();
   });
+
+  it('does not treat an AcademicDiscoverySet-shaped object as evidence', async () => {
+    const evidence = { retrieve: jest.fn().mockResolvedValue({ status: 'complete', items: [{ provider: 'openalex', title: 'Discovery only' }] }) };
+    const llm = { generate: jest.fn() };
+
+    await expect(new GroundedGenerationService(evidence, llm).generate('user-1', request)).rejects.toMatchObject({
+      code: 'GROUNDED_GENERATION_INSUFFICIENT_EVIDENCE',
+    });
+    expect(llm.generate).not.toHaveBeenCalled();
+  });
 });
