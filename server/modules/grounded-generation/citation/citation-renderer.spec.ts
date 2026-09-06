@@ -10,7 +10,6 @@ describe('CitationRenderer', () => {
     const result = new CitationRenderer().render(output, {
       units: [{ unitId: 'unit-1', text: 'Rendered unit.', citationIds: ['citation-1'] }],
       citations: [{ citationId: 'citation-1', evidenceIds: ['chunk:one'] }],
-      bibliography: [],
     });
 
     expect(result.content).toBe('Rendered unit. [1]');

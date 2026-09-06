@@ -1,13 +1,13 @@
-import type { GroundedModelOutput } from '../grounded-generation.types';
+import type { BibliographyEntry, GroundedModelOutput } from '../grounded-generation.types';
 import type { CitationSemanticsResult } from './citation-semantics.service';
 
 export interface RenderedGroundedContent {
   content: string;
-  bibliography: [];
+  bibliography: BibliographyEntry[];
 }
 
 export class CitationRenderer {
-  render(_output: GroundedModelOutput, semantics: Pick<CitationSemanticsResult, 'units' | 'citations'>): RenderedGroundedContent {
+  render(_output: GroundedModelOutput, semantics: Pick<CitationSemanticsResult, 'units' | 'citations'>, bibliography: BibliographyEntry[] = []): RenderedGroundedContent {
     const citationNumber = new Map(
       semantics.citations.map((citation, index) => [citation.citationId, index + 1]),
     );
@@ -19,6 +19,6 @@ export class CitationRenderer {
         .join('');
       return `${unit.text}${markers ? ` ${markers}` : ' [unbound]'}`;
     }).join('\n\n');
-    return { content, bibliography: [] };
+    return { content, bibliography };
   }
 }

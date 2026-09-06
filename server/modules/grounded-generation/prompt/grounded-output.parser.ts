@@ -22,5 +22,5 @@ export function parseGroundedModelOutput(raw: string): GroundedModelOutput {
       parsed.error.issues,
     );
   }
-  return parsed.data;
+  return parsed.data as GroundedModelOutput;
 }
