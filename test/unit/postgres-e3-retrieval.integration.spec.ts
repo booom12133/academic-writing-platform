@@ -95,6 +95,7 @@ describeIfDatabase('E3 PostgreSQL and pgvector retrieval', () => {
     versionNumber?: number;
     sourceRecordId?: string;
     activate?: boolean;
+    index?: boolean;
     lifecycleStatus?: 'active' | 'tombstoned';
   }) {
     const document = await input.knowledge.createDocument({
@@ -154,7 +155,7 @@ describeIfDatabase('E3 PostgreSQL and pgvector retrieval', () => {
       await input.knowledge.activateVersion(input.userId, document.id, version.id);
     }
     const index =
-      input.lifecycleStatus === 'tombstoned'
+      input.index === false || input.lifecycleStatus === 'tombstoned'
         ? null
         : await input.indexing.indexVersion({ userId: input.userId, documentVersionId: version.id });
     return { document, version, chunk, index };
@@ -279,7 +280,7 @@ describeIfDatabase('E3 PostgreSQL and pgvector retrieval', () => {
     expect(profileUnavailable.status).toBe('partial');
     expect(profileUnavailable.diagnostics).toContainEqual({ code: 'profile-unavailable', documentVersionId: historical.version.id });
 
-    const nonIndexed = await seedVersion({ knowledge, indexing, userId, text: 'far', sourceRecordId: source.id, activate: false, versionNumber: 2 });
+    const nonIndexed = await seedVersion({ knowledge, indexing, userId, text: 'far', sourceRecordId: source.id, activate: false, index: false, versionNumber: 2 });
     const failedIndex = await new KnowledgeIndexRepository(db).createOrGetIndex({
       userId,
       documentVersionId: nonIndexed.version.id,
