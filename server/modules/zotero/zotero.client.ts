@@ -8,6 +8,7 @@ const DEFAULT_CONFIG: ZoteroConfig = {
   maxRetries: 2, maxConcurrency: 4, maxFileBytes: 20 * 1024 * 1024,
 };
 const MAX_PAGINATION_PAGES = 1000;
+const MAX_SERVER_WAIT_SECONDS = 7 * 24 * 60 * 60;
 
 export class ZoteroClient {
   private readonly config: ZoteroConfig;
@@ -81,7 +82,12 @@ export class ZoteroClient {
         if (response.status === 401 || response.status === 403) throw new ZoteroError('ZOTERO_INVALID_CREDENTIAL', 'The Zotero credential is invalid.');
         if (response.status === 404) throw new ZoteroError('ZOTERO_ITEM_NOT_FOUND', 'The Zotero item was not found.');
         if ((response.status === 429 || response.status === 503) && attempt < this.config.maxRetries) {
-          await this.delay(this.retryAfter(response.headers, attempt));
+          const retryDelay = this.retryAfter(response.headers, attempt);
+          if (retryDelay === null) {
+            if (response.status === 429) throw new ZoteroError('ZOTERO_RATE_LIMITED', 'The Zotero request was rate limited.');
+            throw new ZoteroError('ZOTERO_UPSTREAM_FAILED', 'The Zotero request failed.');
+          }
+          await this.delay(retryDelay);
           continue;
         }
         if (response.status === 429) throw new ZoteroError('ZOTERO_RATE_LIMITED', 'The Zotero request was rate limited.');
@@ -180,23 +186,32 @@ export class ZoteroClient {
     return match?.match(/<([^>]+)>/u)?.[1];
   }
 
-  private retryAfter(headers: Headers, attempt: number): number {
-    const seconds = Number(headers.get('Retry-After'));
-    return Number.isFinite(seconds) && seconds >= 0 ? Math.min(seconds * 1000, 5_000) : this.backoff(attempt);
+  private retryAfter(headers: Headers, attempt: number): number | null {
+    const milliseconds = this.parseServerWait(headers.get('Retry-After'));
+    if (milliseconds === 'too-long') return null;
+    return milliseconds ?? this.backoff(attempt);
   }
 
   private observeBackoff(headers: Headers): void {
-    const seconds = Number(headers.get('Backoff'));
-    if (!Number.isFinite(seconds) || seconds < 0) return;
-    this.backoffUntil = Math.max(this.backoffUntil, Date.now() + Math.min(seconds * 1000, 5_000));
+    const milliseconds = this.parseServerWait(headers.get('Backoff'));
+    if (milliseconds === undefined || milliseconds === 'too-long') return;
+    this.backoffUntil = Math.max(this.backoffUntil, Date.now() + milliseconds);
   }
 
   private async waitForBackoff(): Promise<void> {
     while (true) {
       const remaining = this.backoffUntil - Date.now();
       if (remaining <= 0) return;
-      await this.delay(Math.min(remaining, 5_000));
+      await this.delay(remaining);
     }
+  }
+
+  private parseServerWait(value: string | null): number | 'too-long' | undefined {
+    if (value === null) return undefined;
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds < 0) return undefined;
+    if (seconds > MAX_SERVER_WAIT_SECONDS) return 'too-long';
+    return seconds * 1_000;
   }
 
   private backoff(attempt: number): number {
