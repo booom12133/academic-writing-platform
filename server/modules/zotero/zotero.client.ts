@@ -192,15 +192,11 @@ export class ZoteroClient {
   }
 
   private async waitForBackoff(): Promise<void> {
-    const remaining = this.backoffUntil - Date.now();
-    if (remaining <= 0) {
-      this.backoffUntil = 0;
-      return;
+    while (true) {
+      const remaining = this.backoffUntil - Date.now();
+      if (remaining <= 0) return;
+      await this.delay(Math.min(remaining, 5_000));
     }
-    const until = this.backoffUntil;
-    this.backoffUntil = 0;
-    await this.delay(Math.min(remaining, 5_000));
-    if (this.backoffUntil === until) this.backoffUntil = 0;
   }
 
   private backoff(attempt: number): number {

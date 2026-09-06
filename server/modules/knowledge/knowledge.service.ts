@@ -24,6 +24,14 @@ function externalStateIsNotNewer(document: KnowledgeDocument, state: KnowledgeDo
   return BigInt(document.externalVersion) >= BigInt(state.externalVersion);
 }
 
+type PreparedKnowledgeInput = {
+  buffer: Buffer;
+  originalContentHash: string;
+  parsed: Awaited<ReturnType<DocumentParserService['parse']>>;
+  chunked: ReturnType<ChunkingService['chunkStructural']>;
+  verifiedArtifact: Awaited<ReturnType<DocumentInputService['readVerified']>> | undefined;
+};
+
 @Injectable()
 export class KnowledgeService {
   constructor(
@@ -89,14 +97,23 @@ export class KnowledgeService {
         throw new KnowledgeError('KNOWLEDGE_IDEMPOTENCY_CONFLICT', 'The prior import has not completed.');
       }
       const sourceRecordId = await this.resolveSourceRecord(repository, input);
-      const document = await repository.createDocument({
+      const documentInput = {
         userId: input.userId,
         ...(sourceRecordId === undefined ? {} : { sourceRecordId }),
         originKind: input.originKind,
         displayName: input.displayName,
         sourceType: prepared.parsed.source.type,
         ...(input.externalSyncState === undefined ? {} : input.externalSyncState),
-      });
+      };
+      const created = repository.createDocumentWithExternalIdentityArbitration
+        ? await repository.createDocumentWithExternalIdentityArbitration(documentInput)
+        : { document: await repository.createDocument(documentInput), created: true };
+      const document = created.document;
+      if (!created.created) {
+        const result = await this.persistNextVersion(repository, { ...input, documentId: document.id }, prepared, derivationFingerprint);
+        await repository.completeImport(input.userId, importId, document.id, result.version.id);
+        return result;
+      }
       const version = await repository.createVersion({
         userId: input.userId,
         documentId: document.id,
@@ -144,39 +161,48 @@ export class KnowledgeService {
       chunkingProfile,
     });
 
-    const persist = async (repository: KnowledgeRepositoryPort): Promise<KnowledgeImportResult> => {
-      if (!repository.getDocument || !repository.getLatestVersion) {
-        throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Versioning support is unavailable.');
-      }
-      const lockedDocument = await repository.lockDocument(input.userId, input.documentId);
-      const previous = await repository.getLatestVersion(input.userId, input.documentId);
-      if (!lockedDocument || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
-      if (input.externalSyncState && externalStateIsNotNewer(lockedDocument, input.externalSyncState)) {
-        const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
-        return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
-      }
-      if (previous.indexInputFingerprint === derivationFingerprint) {
-        const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
-        return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
-      }
-      const version = await repository.createVersion({
-        userId: input.userId, documentId: input.documentId, versionNumber: previous.versionNumber + 1,
-        originalContentHash: prepared.originalContentHash, parserProfile, chunkingProfile,
-        ...(input.input.kind === 'text' ? { sourceText: input.input.text } : { sourceArtifactRef: prepared.verifiedArtifact?.document }),
-        supersedesVersionId: previous.id, lifecycleStatus: 'active', readinessStatus: 'content-ready-for-indexing', indexInputFingerprint: derivationFingerprint,
-      });
-      const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
-        userId: input.userId, ...(lockedDocument.sourceRecordId === undefined ? {} : { sourceRecordId: lockedDocument.sourceRecordId }),
-        documentId: lockedDocument.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
-      });
-      const chunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
-      await repository.activateVersion(input.userId, lockedDocument.id, version.id);
-      if (input.externalSyncState && repository.updateExternalSyncState) {
-        await repository.updateExternalSyncState(input.userId, lockedDocument.id, input.externalSyncState);
-      }
-      return { document: { ...lockedDocument, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
-    };
+    const persist = (repository: KnowledgeRepositoryPort) => this.persistNextVersion(repository, input, prepared, derivationFingerprint);
     return this.repository.withTransaction ? this.repository.withTransaction(persist) : persist(this.repository);
+  }
+
+  private async persistNextVersion(
+    repository: KnowledgeRepositoryPort,
+    input: ImportKnowledgeDocumentInput & { documentId: string },
+    prepared: PreparedKnowledgeInput,
+    derivationFingerprint: string,
+  ): Promise<KnowledgeImportResult> {
+    if (!repository.getDocument || !repository.getLatestVersion) {
+      throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Versioning support is unavailable.');
+    }
+    const parserProfile = { name: 'c1-document-parser-v1' as const, version: '1' as const };
+    const chunkingProfile = { name: 'c3-deterministic-v1', version: '1', parameters: { maxSize: prepared.chunked.policy.maxSize } };
+    const lockedDocument = await repository.lockDocument(input.userId, input.documentId);
+    const previous = await repository.getLatestVersion(input.userId, input.documentId);
+    if (!lockedDocument || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+    if (input.externalSyncState && externalStateIsNotNewer(lockedDocument, input.externalSyncState)) {
+      const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
+      return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
+    }
+    if (previous.indexInputFingerprint === derivationFingerprint) {
+      const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
+      return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
+    }
+    const version = await repository.createVersion({
+      userId: input.userId, documentId: input.documentId, versionNumber: previous.versionNumber + 1,
+      originalContentHash: prepared.originalContentHash, parserProfile, chunkingProfile,
+      ...(input.input.kind === 'text' ? { sourceText: input.input.text } : { sourceArtifactRef: prepared.verifiedArtifact?.document }),
+      supersedesVersionId: previous.id, lifecycleStatus: 'active', readinessStatus: 'content-ready-for-indexing', indexInputFingerprint: derivationFingerprint,
+    });
+    const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
+      userId: input.userId, ...(lockedDocument.sourceRecordId === undefined ? {} : { sourceRecordId: lockedDocument.sourceRecordId }),
+      documentId: lockedDocument.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
+    });
+    const chunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
+    await repository.activateVersion(input.userId, lockedDocument.id, version.id);
+    if (input.externalSyncState && repository.updateExternalSyncState) {
+      await repository.updateExternalSyncState(input.userId, lockedDocument.id, input.externalSyncState);
+    }
+    return { document: { ...lockedDocument, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
   }
 
   private async rehydrateImport(repository: KnowledgeRepositoryPort, importRecord: { documentId?: string; documentVersionId?: string }, userId: string): Promise<KnowledgeImportResult> {
@@ -203,13 +229,7 @@ export class KnowledgeService {
     return undefined;
   }
 
-  private async prepareInput(input: ImportKnowledgeDocumentInput): Promise<{
-    buffer: Buffer;
-    originalContentHash: string;
-    parsed: Awaited<ReturnType<DocumentParserService['parse']>>;
-    chunked: ReturnType<ChunkingService['chunkStructural']>;
-    verifiedArtifact: Awaited<ReturnType<DocumentInputService['readVerified']>> | undefined;
-  }> {
+  private async prepareInput(input: ImportKnowledgeDocumentInput): Promise<PreparedKnowledgeInput> {
     let buffer: Buffer;
     let verifiedArtifact: Awaited<ReturnType<DocumentInputService['readVerified']>> | undefined;
     let fileName: string;

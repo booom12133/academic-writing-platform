@@ -1,7 +1,7 @@
 import { createLocalDevelopmentDatabase } from '../../server/database/local-development.database';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
 import { randomUUID } from 'node:crypto';
 import { knowledgeDocumentVersions, knowledgeDocuments, knowledgeImports } from '../../server/database/schema';
@@ -117,6 +117,39 @@ describeIfDatabase('E4 real PostgreSQL concurrency arbitration', () => {
     expect(versions).toHaveLength(1);
     expect(imports).toHaveLength(1);
     expect(imports[0].status).toBe('completed');
+  });
+
+  it('converges concurrent first imports with different upstream versions through external identity arbitration', async () => {
+    const repository = new KnowledgeRepository(drizzle(pool));
+    const userId = `e4-first-race-${randomUUID()}`;
+    const otherUserId = `e4-first-race-other-${randomUUID()}`;
+    const source = await repository.createSourceRecord({ userId, kind: 'scholarly-work' });
+    const otherSource = await repository.createSourceRecord({ userId: otherUserId, kind: 'scholarly-work' });
+    const externalIdentity = `zotero:user:42:attachment:${randomUUID()}`;
+    const buildInput = (version: string, text: string, checksum: string, owner: string, sourceRecordId: string) => ({
+      userId: owner, sourceRecordId, idempotencyKey: `zotero:first-race:${version}:${randomUUID()}`, displayName: 'paper.txt', originKind: 'external-attachment' as const,
+      input: { kind: 'text' as const, text, fileName: 'paper.txt' }, chunkingPolicy: { maxSize: 100 },
+      externalSyncState: { externalIdentity, externalVersion: version, externalChecksumAlgorithm: 'md5' as const, externalChecksum: checksum },
+    });
+
+    const [older, newer] = await Promise.all([
+      service(repository).importDocument(buildInput('2', 'older content', '2'.repeat(32), userId, source.id)),
+      service(repository).importDocument(buildInput('3', 'newer content', '3'.repeat(32), userId, source.id)),
+    ]);
+    const documents = await drizzle(pool).select().from(knowledgeDocuments).where(and(eq(knowledgeDocuments.userId, userId), eq(knowledgeDocuments.externalIdentity, externalIdentity)));
+    const versions = await drizzle(pool).select().from(knowledgeDocumentVersions).where(eq(knowledgeDocumentVersions.documentId, documents[0].id)).orderBy(knowledgeDocumentVersions.versionNumber);
+    const current = await repository.findDocumentByExternalIdentity(userId, externalIdentity);
+    const latest = await repository.getLatestVersion(userId, documents[0].id);
+
+    expect(older.document.id).toBe(newer.document.id);
+    expect(documents).toHaveLength(1);
+    expect(current).toMatchObject({ externalVersion: '3', externalChecksum: '3'.repeat(32) });
+    expect(latest).toMatchObject({ sourceText: 'newer content' });
+    expect([1, 2]).toContain(versions.length);
+
+    const other = await service(repository).importDocument(buildInput('4', 'other owner content', '4'.repeat(32), otherUserId, otherSource.id));
+    await expect(repository.findDocumentByExternalIdentity(userId, externalIdentity)).resolves.toMatchObject({ externalVersion: '3', externalChecksum: '3'.repeat(32) });
+    await expect(repository.findDocumentByExternalIdentity(otherUserId, externalIdentity)).resolves.toMatchObject({ id: other.document.id, externalVersion: '4' });
   });
 
   it('prevents a stale concurrent external state update from overwriting a newer version', async () => {

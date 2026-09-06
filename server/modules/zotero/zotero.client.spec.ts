@@ -100,12 +100,13 @@ describe('ZoteroClient', () => {
   });
 
   it('respects a valid Backoff header from a successful response before the next request', async () => {
-    const now = jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    let currentTime = 1_000;
+    const now = jest.spyOn(Date, 'now').mockImplementation(() => currentTime);
     const sleeps: number[] = [];
     const fetchImpl = jest.fn()
       .mockResolvedValueOnce(jsonResponse([itemWrapper('A', 1, { itemType: 'journalArticle' })], 200, { Backoff: '2', Link: '<https://api.zotero.org/users/42/items?start=1>; rel="next"' }))
       .mockResolvedValueOnce(jsonResponse([itemWrapper('B', 2, { itemType: 'journalArticle' })]));
-    const client = new ZoteroClient({ fetchImpl, sleepImpl: async (milliseconds) => { sleeps.push(milliseconds); }, maxRetries: 0 });
+    const client = new ZoteroClient({ fetchImpl, sleepImpl: async (milliseconds) => { sleeps.push(milliseconds); currentTime += milliseconds; }, maxRetries: 0 });
 
     try {
       await expect(client.listItems('42', 'secret-api-key')).resolves.toMatchObject({ items: [{ key: 'A' }, { key: 'B' }] });
@@ -113,6 +114,72 @@ describe('ZoteroClient', () => {
     } finally {
       now.mockRestore();
     }
+  });
+
+  it('keeps all concurrent requests behind a shared Backoff deadline', async () => {
+    jest.useFakeTimers();
+    try {
+      const fetchImpl = jest.fn()
+        .mockResolvedValueOnce(jsonResponse(itemWrapper('A', 1, { itemType: 'journalArticle' }), 200, { Backoff: '2' }))
+        .mockImplementation(() => Promise.resolve(jsonResponse(itemWrapper('B', 2, { itemType: 'journalArticle' }))));
+      const client = new ZoteroClient({ fetchImpl, maxRetries: 0 });
+
+      await client.getItem('42', 'secret-api-key', 'A');
+      const left = client.getItem('42', 'secret-api-key', 'B');
+      const right = client.getItem('42', 'secret-api-key', 'C');
+      await Promise.resolve();
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1_999);
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(1);
+      await Promise.all([left, right]);
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('extends the shared Backoff deadline when an in-flight response reports a longer Backoff', async () => {
+    jest.useFakeTimers();
+    try {
+      let resolveEarly!: (response: Response) => void;
+      const early = new Promise<Response>((resolve) => { resolveEarly = resolve; });
+      const fetchImpl = jest.fn((input: string | URL) => {
+        if (String(input).endsWith('/EARLY')) return early;
+        if (String(input).endsWith('/A')) return Promise.resolve(jsonResponse(itemWrapper('A', 1, { itemType: 'journalArticle' }), 200, { Backoff: '2' }));
+        return Promise.resolve(jsonResponse(itemWrapper('B', 2, { itemType: 'journalArticle' })));
+      });
+      const client = new ZoteroClient({ fetchImpl, maxRetries: 0 });
+
+      const inFlight = client.getItem('42', 'secret-api-key', 'EARLY');
+      await Promise.resolve();
+      await client.getItem('42', 'secret-api-key', 'A');
+      const waiting = client.getItem('42', 'secret-api-key', 'B');
+      await Promise.resolve();
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+      resolveEarly(jsonResponse(itemWrapper('EARLY', 1, { itemType: 'journalArticle' }), 200, { Backoff: '4' }));
+      await inFlight;
+      await jest.advanceTimersByTimeAsync(2_000);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(2_000);
+      await waiting;
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('ignores malformed Backoff while preserving bounded retry fallback', async () => {
+    const sleeps: number[] = [];
+    const fetchImpl = jest.fn()
+      .mockResolvedValueOnce(new Response('', { status: 429, headers: { Backoff: 'not-a-duration', 'Retry-After': 'not-a-duration' } }))
+      .mockResolvedValueOnce(jsonResponse(itemWrapper('ITEM1', 1, { itemType: 'journalArticle' })));
+    const client = new ZoteroClient({ fetchImpl, retryDelayMs: 7, sleepImpl: async (milliseconds) => { sleeps.push(milliseconds); }, maxRetries: 1 });
+
+    await expect(client.getItem('42', 'secret-api-key', 'ITEM1')).resolves.toMatchObject({ key: 'ITEM1' });
+    expect(sleeps).toEqual([7]);
   });
 
   it('falls back to bounded retry delay for a malformed Retry-After header', async () => {

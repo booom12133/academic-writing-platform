@@ -46,7 +46,8 @@ export interface KnowledgeRepositoryPort {
   refreshSourceRecord?(input: { userId: string; sourceRecordId: string; canonicalMetadata: CreateSourceRecordInput['canonicalMetadata']; metadataAssertions: MetadataAssertionInput[]; externalProvenance: ExternalProvenance[] }): Promise<SourceRecord>;
   createExternalLinks(input: { userId: string; sourceRecordId: string; links: ExternalProvenance[] }): Promise<void>;
   getSourceRecord(userId: string, sourceRecordId: string): Promise<SourceRecord | null>;
-  createDocument(input: { userId: string; sourceRecordId?: string; originKind: KnowledgeDocument['originKind']; displayName: string; sourceType: KnowledgeDocument['sourceType'] }): Promise<KnowledgeDocument>;
+  createDocument(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocument>;
+  createDocumentWithExternalIdentityArbitration?(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocumentCreateResult>;
   createVersion(input: Omit<KnowledgeDocumentVersion, 'id' | 'createdAt'>): Promise<KnowledgeDocumentVersion>;
   createChunks(input: KnowledgeChunk[]): Promise<KnowledgeChunk[]>;
   findImport(userId: string, idempotencyKey: string): Promise<{ id: string; requestFingerprint: string; documentId?: string; documentVersionId?: string; status: string } | null>;
@@ -64,6 +65,23 @@ export interface KnowledgeRepositoryPort {
   activateVersion(userId: string, documentId: string, versionId: string): Promise<void>;
   tombstoneDocument(userId: string, documentId: string): Promise<void>;
   withTransaction?<T>(work: (repository: KnowledgeRepositoryPort) => Promise<T>): Promise<T>;
+}
+
+export interface KnowledgeDocumentCreateInput {
+  userId: string;
+  sourceRecordId?: string;
+  originKind: KnowledgeDocument['originKind'];
+  displayName: string;
+  sourceType: KnowledgeDocument['sourceType'];
+  externalIdentity?: string;
+  externalVersion?: string;
+  externalChecksumAlgorithm?: 'md5';
+  externalChecksum?: string;
+}
+
+export interface KnowledgeDocumentCreateResult {
+  document: KnowledgeDocument;
+  created: boolean;
 }
 
 function invalid(message: string): never {
@@ -344,10 +362,13 @@ export class KnowledgeRepository {
     return toSourceRecord(source, links);
   }
 
-  async createDocument(input: { userId: string; sourceRecordId?: string; originKind: KnowledgeDocument['originKind']; displayName: string; sourceType: KnowledgeDocument['sourceType']; externalIdentity?: string; externalVersion?: string; externalChecksumAlgorithm?: 'md5'; externalChecksum?: string }): Promise<KnowledgeDocument> {
+  private async validateDocumentInput(input: KnowledgeDocumentCreateInput): Promise<void> {
     if (!input.userId || !input.displayName || input.displayName.length > 255) invalid('Document user and safe display name are required.');
     if (input.sourceRecordId && !(await this.getSourceRecord(input.userId, input.sourceRecordId))) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Source record was not found.');
-    const [row] = await this.db.insert(knowledgeDocuments).values({
+  }
+
+  private documentInsertValues(input: KnowledgeDocumentCreateInput) {
+    return {
       userId: input.userId,
       ...(input.sourceRecordId === undefined ? {} : { sourceRecordId: input.sourceRecordId }),
       originKind: input.originKind,
@@ -357,9 +378,28 @@ export class KnowledgeRepository {
       ...(input.externalVersion === undefined ? {} : { externalVersion: input.externalVersion }),
       ...(input.externalChecksumAlgorithm === undefined ? {} : { externalChecksumAlgorithm: input.externalChecksumAlgorithm }),
       ...(input.externalChecksum === undefined ? {} : { externalChecksum: input.externalChecksum }),
-      lifecycleStatus: 'active',
+      lifecycleStatus: 'active' as const,
+    };
+  }
+
+  async createDocument(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocument> {
+    await this.validateDocumentInput(input);
+    const [row] = await this.db.insert(knowledgeDocuments).values({
+      ...this.documentInsertValues(input),
     }).returning();
     return toDocument(row);
+  }
+
+  async createDocumentWithExternalIdentityArbitration(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocumentCreateResult> {
+    if (input.externalIdentity === undefined) return { document: await this.createDocument(input), created: true };
+    await this.validateDocumentInput(input);
+    const [row] = await this.db.insert(knowledgeDocuments).values(this.documentInsertValues(input)).onConflictDoNothing({
+      target: [knowledgeDocuments.userId, knowledgeDocuments.externalIdentity],
+    }).returning();
+    if (row) return { document: toDocument(row), created: true };
+    const existing = await this.findDocumentByExternalIdentity(input.userId, input.externalIdentity);
+    if (!existing) throw new KnowledgeError('KNOWLEDGE_EXTERNAL_IDENTITY_CONFLICT', 'The external document identity could not be re-read after arbitration.');
+    return { document: existing, created: false };
   }
 
   async getDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {
