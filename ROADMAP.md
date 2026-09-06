@@ -2,7 +2,8 @@
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
 and closed. E4 is accepted and merged, with post-merge closeout and its
-accepted tag pending. E5 and E6 remain planned and unauthorized.
+accepted tag pending. E5 has passed implementation review and is awaiting
+Final Acceptance; E6 remains planned and unauthorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -20,7 +21,7 @@ accepted tag pending. E5 and E6 remain planned and unauthorized.
 | E2 | Embedding & Index | Embedding provider abstraction, deterministic fingerprints, PostgreSQL/pgvector index lifecycle | ACCEPTED / CLOSED | Yes |
 | E3 | Retrieval / Evidence Assembly | Indexed-only retrieval and provenance-preserving evidence assembly | ACCEPTED / CLOSED | Yes |
 | E4 | Zotero Integration | Server-side personal Zotero connection, bibliographic sync, stored PDF attachment import and independent attachment version sync | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
-| E5 | Academic Search | Future academic search capabilities | PLANNED / NOT AUTHORIZED | No |
+| E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | REVIEW PASS / FINAL ACCEPTANCE PENDING | No |
 | E6 | Grounded Generation / Citation | Future grounded generation and citation capabilities | PLANNED / NOT AUTHORIZED | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
@@ -31,5 +32,17 @@ accepted tag pending. E5 and E6 remain planned and unauthorized.
 - IN_PROGRESS: implementation is active or awaiting review/acceptance.
 - PLANNED: route is recorded but work has not started.
 - NOT_STARTED: a confirmed item has no implementation yet.
+- REVIEW PASS / FINAL ACCEPTANCE PENDING: implementation review passed; formal
+  Final Acceptance has not yet been granted.
+
+## Phase E5 current record
+
+- Branch: `phase/e5-academic-search`.
+- PR: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), OPEN.
+- Reviewed HEAD: `3d8d45545dd709e637b05848b5b2ba0e60e26b25`.
+- Review: `PHASE_E5_REVIEW_PASS`, Review ID `5125877999`.
+- Final Acceptance Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md).
+- CI run `34044028467`: `verify` and `postgres-schema` both SUCCESS.
+- E5 remains unaccepted; do not merge, create an accepted tag, or begin E6.
 
 Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance phases from chat context alone.
