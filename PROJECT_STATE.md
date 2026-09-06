@@ -23,7 +23,7 @@ Last Updated: 2026-09-07
 
 ## Current development
 
-- Current Development: Phase E5 — External Academic Search / Scholarly Discovery is accepted and merged; post-merge governance closeout is complete and the accepted tag is pending.
+- Current Development: Phase E6 — Grounded Generation / Citation implementation is complete on `phase/e6-grounded-generation`; Review Candidate preparation is complete and ChatGPT review is pending.
 - Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
@@ -56,7 +56,21 @@ Last Updated: 2026-09-07
 - E5 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
 - E5 GitHub CI: PASS — review run [34044506843](https://github.com/booom12133/academic-writing-platform/actions/runs/34044506843) at preparation HEAD `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`; both `verify` and `postgres-schema` succeeded. Merge-triggered main run [34044852534](https://github.com/booom12133/academic-writing-platform/actions/runs/34044852534) also passed both jobs at merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
 - E5 implementation was not changed after Final Acceptance; this closeout contains governance documentation only. `PHASE_E5_ACCEPTED` has been granted.
-- E6 remains NOT STARTED / NOT AUTHORIZED.
+- E6 status: `PHASE_E6_REVIEW_CANDIDATE`; implementation branch `phase/e6-grounded-generation`; implementation HEAD before this governance update: `21c67cd`.
+- E6 scope: synchronous authenticated grounded generation using the existing `KnowledgeEvidenceService.retrieve() → EvidenceSet` facade, structured `GroundedSegment`/`ClaimUnit` output, structural evidence binding, server-side citation rendering, and `resolutionStatus=resolved` bibliography projection.
+- E6 frozen boundaries: no E3 retrieval/source-resolution/assembly rewrite, no `knowledge-retrieval.module.ts` change, no E1–E5/D4 semantic changes, no `AcademicDiscoverySet → EvidenceSet`, no generated-content indexing, and no TasksModule integration.
+- E6 targeted verification: PASS — `npx jest server/modules/grounded-generation test/unit/grounded-generation-boundary.spec.ts --runInBand` → 13 suites / 29 tests passed.
+- E6 integration/boundary verification: PASS — `npx jest server/modules/grounded-generation/grounded-generation.integration.spec.ts test/unit/grounded-generation-boundary.spec.ts --runInBand` → 2 suites / 4 tests passed.
+- E6 PostgreSQL integration: PASS — `npm run test:integration:postgres` → 1 suite / 1 test passed; 3 suites / 19 tests skipped by the local PostgreSQL environment guard.
+- E6 full regression: PASS — `npm test -- --runInBand` → 118 suites passed / 601 tests passed / 19 skipped.
+- E6 lint: PASS — `npm run lint`.
+- E6 server type-check: PASS — `npm run type:check:server`.
+- E6 client type-check: PASS — `npm run type:check:client`.
+- E6 server build: PASS — `npm run build:server`.
+- E6 client build: PASS — `npm run build:client`, with existing module-type and chunk-size warnings.
+- E6 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
+- E6 implementation uses no database migration, no client source change, no deployment/P1, and no E7 work. A wiring-only `KnowledgeIndexingModule` factory adjustment preserves the pre-existing default sleep behavior required when the existing E3 module is loaded; E2 indexing semantics are unchanged.
+- E6 Review Candidate preparation: pending push and PR creation on the same branch. Do not merge, tag, announce `PHASE_E6_REVIEW_PASS`, or begin E7.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
