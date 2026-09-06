@@ -20,6 +20,11 @@ import { KnowledgeIndexingService } from './knowledge-indexing.service';
     },
     KnowledgeIndexingService,
   ],
-  exports: [KnowledgeIndexRepository, KnowledgeIndexingService],
+  exports: [
+    KnowledgeIndexRepository,
+    KnowledgeIndexingService,
+    EMBEDDING_PROVIDER,
+    EMBEDDING_CONFIG,
+  ],
 })
 export class KnowledgeIndexingModule {}
