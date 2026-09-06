@@ -35,8 +35,9 @@ ChatGPT final acceptance.
 - PR merge commit: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
 - Merged at: `2026-09-06T08:41:50Z`.
 - Post-merge main SHA before governance closeout: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
-- Post-merge governance commit: this closeout commit; it will be the final
-  `main` HEAD after the documentation push.
+- Primary post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`.
+- The subsequent CI-evidence correction is governance-only; its resulting main
+  SHA is recorded in the post-merge closeout output.
 - Accepted tag: `phase-e4-accepted` — PENDING; no tag object SHA exists.
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET.
 
@@ -306,9 +307,15 @@ The corresponding push workflow run `34019327217` also reported both checks
 successful. CI therefore supplied the authoritative PostgreSQL + pgvector
 evidence unavailable in the local environment.
 
-Post-merge main CI for the governance closeout is pending until the governance
-commit is pushed. It must pass both `verify` and `postgres-schema` before the
-accepted tag can be requested.
+Post-merge main CI for the governance closeout passed in run
+[34022670076](https://github.com/booom12133/academic-writing-platform/actions/runs/34022670076)
+on main HEAD `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`:
+
+- `verify`: SUCCESS.
+- `postgres-schema`: SUCCESS.
+
+The run executed the full regression and PostgreSQL + pgvector migration/test
+job. The accepted tag remains pending and cannot be created by this task.
 
 ## 19. Review History / Findings Closure
 
@@ -383,7 +390,7 @@ The following were not entered:
 - [x] Frozen E1/E2/E3/C4 boundaries and E5/E6 exclusions are recorded.
 - [x] No implementation file was changed during preparation.
 - [x] PR #11 is merged after explicit acceptance.
-- [ ] Post-merge main CI is green.
+- [x] Post-merge main CI run `34022670076` is green (`verify` and `postgres-schema`).
 - [ ] `phase-e4-accepted` is created after merge closeout.
 
 ## 23. Proposed Final Status

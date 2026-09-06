@@ -28,10 +28,11 @@ Last Updated: 2026-09-06
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
 - E4 PR: [#11 Phase E4 — Zotero Integration](https://github.com/booom12133/academic-writing-platform/pull/11), MERGED with merge commit `36b252ad684721c1798fe7f446b4e4b3941a8b9a`; base `main @ 90ce381ab766150d4c90cb821e4235efca9da164`.
 - E4 post-merge main HEAD before governance closeout: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
+- E4 post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`; main CI run `34022670076` passed both `verify` and `postgres-schema`.
 - E4 ChatGPT implementation review: `PHASE_E4_REVIEW_PASS` (Review ID `5124623969`).
 - E4 Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md).
 - E4 Final Acceptance: `PHASE_E4_ACCEPTED`; accepted tag `phase-e4-accepted` is PENDING.
-- E4 post-merge governance commit will be recorded as the final `main` HEAD after this closeout.
+- E4 primary post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`; the following CI-evidence correction is governance-only.
 - E5 and E6 remain NOT STARTED / NOT AUTHORIZED.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
