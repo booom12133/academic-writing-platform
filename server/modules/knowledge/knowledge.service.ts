@@ -90,6 +90,7 @@ export class KnowledgeService {
         originKind: input.originKind,
         displayName: input.displayName,
         sourceType: prepared.parsed.source.type,
+        ...(input.externalSyncState === undefined ? {} : input.externalSyncState),
       });
       const version = await repository.createVersion({
         userId: input.userId,
@@ -112,6 +113,9 @@ export class KnowledgeService {
       });
       const storedChunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
       await repository.activateVersion(input.userId, document.id, version.id);
+      if (input.externalSyncState && repository.updateExternalSyncState) {
+        await repository.updateExternalSyncState(input.userId, document.id, input.externalSyncState);
+      }
       await repository.completeImport(input.userId, importId, document.id, version.id);
       return { document: { ...document, activeVersionId: version.id }, version, chunks: storedChunks, idempotent: false, readiness: 'content-ready-for-indexing' };
     };
@@ -158,6 +162,9 @@ export class KnowledgeService {
       });
       const chunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
       await repository.activateVersion(input.userId, document.id, version.id);
+      if (input.externalSyncState && repository.updateExternalSyncState) {
+        await repository.updateExternalSyncState(input.userId, document.id, input.externalSyncState);
+      }
       return { document: { ...document, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
     };
     return this.repository.withTransaction ? this.repository.withTransaction(persist) : persist(this.repository);

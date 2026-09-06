@@ -214,6 +214,15 @@ export class DocumentInputService {
     return { version: 1, document: { ...trusted }, buffer };
   }
 
+  async removeOwned(userId: string, documentRef: DocumentInputRef): Promise<void> {
+    const trusted = await this.validateRef(userId, documentRef);
+    try {
+      await this.storage.remove({ bucketId: trusted.bucketId, filePath: trusted.filePath });
+    } catch (error) {
+      throw new DocumentInputError('DOCUMENT_STORAGE_FAILED', 'The document could not be removed.', error);
+    }
+  }
+
   private async validateRef(userId: string, ref: unknown): Promise<{
     version: 1;
     provider: DocumentInputProvider;

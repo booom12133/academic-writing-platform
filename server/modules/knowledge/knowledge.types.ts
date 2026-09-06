@@ -23,7 +23,15 @@ export type MetadataField =
   | 'venue'
   | 'abstract'
   | 'doi'
-  | 'citationKey';
+  | 'citationKey'
+  | 'publisher'
+  | 'volume'
+  | 'issue'
+  | 'pages'
+  | 'url'
+  | 'isbn'
+  | 'issn'
+  | 'language';
 
 export interface Author {
   name: string;
@@ -52,6 +60,14 @@ export interface CanonicalSourceMetadata {
   abstract?: CanonicalField<string>;
   doi?: CanonicalField<string>;
   citationKey?: CanonicalField<string>;
+  publisher?: CanonicalField<string>;
+  volume?: CanonicalField<string>;
+  issue?: CanonicalField<string>;
+  pages?: CanonicalField<string>;
+  url?: CanonicalField<string>;
+  isbn?: CanonicalField<string>;
+  issn?: CanonicalField<string>;
+  language?: CanonicalField<string>;
 }
 
 export interface CanonicalSourceMetadataInput {
@@ -62,6 +78,14 @@ export interface CanonicalSourceMetadataInput {
   abstract?: CanonicalFieldInput<string>;
   doi?: CanonicalFieldInput<string>;
   citationKey?: CanonicalFieldInput<string>;
+  publisher?: CanonicalFieldInput<string>;
+  volume?: CanonicalFieldInput<string>;
+  issue?: CanonicalFieldInput<string>;
+  pages?: CanonicalFieldInput<string>;
+  url?: CanonicalFieldInput<string>;
+  isbn?: CanonicalFieldInput<string>;
+  issn?: CanonicalFieldInput<string>;
+  language?: CanonicalFieldInput<string>;
 }
 
 export interface MetadataAssertionInput {
@@ -112,9 +136,20 @@ export interface KnowledgeDocument {
   displayName: string;
   sourceType: 'docx' | 'pdf' | 'txt' | 'markdown';
   activeVersionId?: string;
+  externalIdentity?: string;
+  externalVersion?: string;
+  externalChecksumAlgorithm?: 'md5';
+  externalChecksum?: string;
   lifecycleStatus: KnowledgeLifecycleStatus;
   createdAt?: string;
   updatedAt?: string;
+}
+
+export interface KnowledgeDocumentExternalSyncState {
+  externalIdentity: string;
+  externalVersion: string;
+  externalChecksumAlgorithm: 'md5';
+  externalChecksum: string;
 }
 
 export interface KnowledgeDocumentVersion {
@@ -210,6 +245,7 @@ export interface ImportKnowledgeDocumentInput {
   sourceRecordId?: string;
   newSourceRecord?: Omit<CreateSourceRecordInput, 'userId'>;
   chunkingPolicy: ChunkingPolicy;
+  externalSyncState?: KnowledgeDocumentExternalSyncState;
 }
 
 export interface KnowledgeImportResult {

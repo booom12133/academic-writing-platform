@@ -213,6 +213,29 @@ describe('DocumentInputService', () => {
     expect(storage.remove).toHaveBeenCalledTimes(1);
   });
 
+  it('removes an owned canonical artifact through the provider-neutral compensation seam', async () => {
+    const storage = makeStorage();
+    const { service } = makeService(storage);
+    const owned = ref({
+      filePath: 'academic-writing/users/' + sha256(Buffer.from('user-1')) + '/550e8400-e29b-41d4-a716-446655440000/paper.md',
+    });
+
+    await expect(service.removeOwned('user-1', owned)).resolves.toBeUndefined();
+    expect(storage.remove).toHaveBeenCalledWith({ bucketId: 'bucket-1', filePath: owned.filePath });
+  });
+
+  it('rejects another user or noncanonical document refs without deleting storage', async () => {
+    const storage = makeStorage();
+    const { service } = makeService(storage);
+    const owned = ref({
+      filePath: 'academic-writing/users/' + sha256(Buffer.from('user-1')) + '/550e8400-e29b-41d4-a716-446655440000/paper.md',
+    });
+
+    await expect(service.removeOwned('user-2', owned)).rejects.toMatchObject({ code: 'DOCUMENT_OWNERSHIP_MISMATCH' });
+    await expect(service.removeOwned('user-1', { ...owned, filePath: 'arbitrary/path.pdf' })).rejects.toMatchObject({ code: 'DOCUMENT_OWNERSHIP_MISMATCH' });
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
   it('rejects a ref whose path belongs to another user before download', async () => {
     const storage = makeStorage();
     const { service } = makeService(storage);

@@ -51,4 +51,42 @@ describe('createLocalDevelopmentDatabase', () => {
       await local.close();
     }
   });
+
+  it('creates the E4 connection and generic external artifact state schema', async () => {
+    const local = await createLocalDevelopmentDatabase();
+
+    try {
+      const connectionTable = await local.db.execute(sql`
+        SELECT DISTINCT table_name
+        FROM information_schema.tables
+        WHERE table_name = 'zotero_connections'
+      `);
+      expect(connectionTable.rows).toEqual([{ table_name: 'zotero_connections' }]);
+
+      const connectionColumns = await local.db.execute(sql`
+        SELECT DISTINCT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'zotero_connections'
+        ORDER BY ordinal_position
+      `);
+      expect(connectionColumns.rows.map((row) => row.column_name)).toEqual([
+        'id', 'user_id', 'library_type', 'library_id', 'ciphertext', 'nonce', 'auth_tag',
+        'encryption_algorithm', 'encryption_key_version', 'key_fingerprint', 'status',
+        'last_checked_at', 'last_seen_library_version', '_created_at', '_updated_at',
+      ]);
+
+      const documentColumns = await local.db.execute(sql`
+        SELECT DISTINCT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'knowledge_documents'
+          AND column_name IN ('external_identity', 'external_version', 'external_checksum_algorithm', 'external_checksum')
+        ORDER BY column_name
+      `);
+      expect(documentColumns.rows.map((row) => row.column_name)).toEqual([
+        'external_checksum', 'external_checksum_algorithm', 'external_identity', 'external_version',
+      ]);
+    } finally {
+      await local.close();
+    }
+  });
 });
