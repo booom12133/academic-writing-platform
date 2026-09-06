@@ -71,8 +71,9 @@ export class OpenAlexClient {
           if (attempt < this.config.maxRetries && Date.now() < deadline) continue;
           throw this.timeoutError();
         }
-        if (attempt < this.config.maxRetries && Date.now() < deadline) {
-          await this.sleepImpl(this.backoffMs(attempt));
+        const backoffMs = this.backoffMs(attempt);
+        if (attempt < this.config.maxRetries && Date.now() + backoffMs < deadline) {
+          await this.sleepImpl(backoffMs);
           continue;
         }
         throw new AcademicSearchError('ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE', 'The academic search provider is unavailable.');

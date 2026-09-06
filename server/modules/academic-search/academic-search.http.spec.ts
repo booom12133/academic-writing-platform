@@ -1,4 +1,4 @@
-import { Body, Controller, Inject, Post, Req, UseFilters } from '@nestjs/common';
+import { Body, Controller, HttpCode, Inject, Post, Req, UseFilters } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
@@ -20,6 +20,7 @@ class AcademicSearchHttpBoundaryController {
 Controller('api/academic-search')(AcademicSearchHttpBoundaryController);
 UseFilters(AcademicSearchExceptionFilter)(AcademicSearchHttpBoundaryController);
 Post('search')(AcademicSearchHttpBoundaryController.prototype, 'search', Object.getOwnPropertyDescriptor(AcademicSearchHttpBoundaryController.prototype, 'search')!);
+HttpCode(200)(AcademicSearchHttpBoundaryController.prototype, 'search', Object.getOwnPropertyDescriptor(AcademicSearchHttpBoundaryController.prototype, 'search')!);
 NeedLogin()(AcademicSearchHttpBoundaryController.prototype, 'search', Object.getOwnPropertyDescriptor(AcademicSearchHttpBoundaryController.prototype, 'search')!);
 Req()(AcademicSearchHttpBoundaryController.prototype, 'search', 0);
 Body()(AcademicSearchHttpBoundaryController.prototype, 'search', 1);
@@ -63,7 +64,7 @@ describe('AcademicSearch HTTP contract', () => {
 
     const result = await request('/api/academic-search/search', { q: 'test' });
 
-    expect(result.status).toBe(201);
+    expect(result.status).toBe(200);
     expect(result.body).toEqual(discovery);
     expect(service.search).toHaveBeenCalledWith({ q: 'test' }, 'user-1');
   });

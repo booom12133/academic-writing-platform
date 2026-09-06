@@ -3,6 +3,10 @@ import { AcademicSearchError, ACADEMIC_SEARCH_ERROR_CODES } from './academic-sea
 import { ACADEMIC_SEARCH_PROVIDER, type AcademicSearchProvider } from './academic-search.provider';
 
 describe('academic search contract and configuration', () => {
+  it('fails fast in production when the cursor signing secret is missing', () => {
+    expect(() => resolveAcademicSearchConfig({ NODE_ENV: 'production' })).toThrow('ACADEMIC_SEARCH_CURSOR_SECRET is required in production');
+  });
+
   it('uses bounded OpenAlex defaults and accepts safe environment overrides', () => {
     const config = resolveAcademicSearchConfig({
       OPENALEX_API_BASE_URL: 'https://example.test/',

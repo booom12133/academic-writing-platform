@@ -29,7 +29,7 @@ describe('OpenAlexProvider', () => {
 
     const result = await provider.search({ query: query(), queryFingerprint: 'query-fingerprint' });
 
-    expect(client.searchWorks).toHaveBeenCalledWith({ text: 'graph neural networks', pageSize: 20, filters: undefined, providerCursor: undefined });
+    expect(client.searchWorks).toHaveBeenCalledWith({ text: 'graph neural networks', pageSize: 20, filters: undefined, providerCursor: '*' });
     expect(result.status).toBe('complete');
     expect(result.items.map((item) => item.provenance.providerRank)).toEqual([1, 2]);
     expect(result.items[0].provenance).toEqual({
@@ -42,6 +42,17 @@ describe('OpenAlexProvider', () => {
       verificationStatus: 'observed',
     });
     expect(result.provenance).toEqual({ provider: 'openalex', queryFingerprint: 'query-fingerprint', retrievedAt: '2026-01-01T00:00:00.000Z' });
+  });
+
+  it('starts the first OpenAlex page with the internal cursor wildcard', async () => {
+    const client = {
+      searchWorks: jest.fn().mockResolvedValue({ meta: { count: 0, next_cursor: null }, results: [] }),
+    } as unknown as OpenAlexClient;
+    const provider = new OpenAlexProvider(client, codec, () => '2026-01-01T00:00:00.000Z');
+
+    await provider.search({ query: query(), queryFingerprint: 'query-fingerprint' });
+
+    expect(client.searchWorks).toHaveBeenCalledWith({ text: 'graph neural networks', pageSize: 20, filters: undefined, providerCursor: '*' });
   });
 
   it('skips invalid records, reports duplicates and marks the set partial', async () => {

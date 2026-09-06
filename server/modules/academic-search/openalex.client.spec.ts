@@ -68,6 +68,19 @@ describe('OpenAlexClient', () => {
     expect(attempts).toBe(2);
   });
 
+  it('does not sleep for a generic network retry when backoff exceeds the shared deadline', async () => {
+    const sleeps: number[] = [];
+    const fetchImpl: FetchLike = async () => { throw new Error('network unavailable'); };
+    const client = new OpenAlexClient(
+      config({ timeoutMs: 5, retryDelayMs: 10 }),
+      fetchImpl,
+      async (milliseconds) => { sleeps.push(milliseconds); },
+    );
+
+    await expect(client.searchWorks({ text: 'test', pageSize: 20 })).rejects.toMatchObject({ code: 'ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE' });
+    expect(sleeps).toEqual([]);
+  });
+
   it('maps a final 429 to the stable rate-limit error and honors numeric Retry-After', async () => {
     const sleeps: number[] = [];
     const fetchImpl: FetchLike = async () => response({ error: 'rate limited' }, 429, { 'Retry-After': '1' });

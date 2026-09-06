@@ -14,7 +14,7 @@ export class OpenAlexProvider implements AcademicSearchProvider {
   async search(input: { query: AcademicSearchQuery; queryFingerprint: string }): Promise<AcademicDiscoverySet> {
     const providerCursor = input.query.cursor
       ? this.cursorCodec.decodeProviderCursor(input.query.cursor, input.queryFingerprint)
-      : undefined;
+      : '*';
     const page = await this.client.searchWorks({
       text: input.query.text,
       filters: input.query.filters,

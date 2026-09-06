@@ -4,10 +4,11 @@ jest.mock('@nestjs/common', () => ({
   Catch: () => () => undefined,
   Controller: () => () => undefined,
   ExceptionFilter: class {},
+  HttpCode: jest.fn(() => () => undefined),
   Post: () => () => undefined,
   Req: () => () => undefined,
   UseFilters: () => () => undefined,
-  HttpStatus: { BAD_REQUEST: 400, BAD_GATEWAY: 502, GATEWAY_TIMEOUT: 504, TOO_MANY_REQUESTS: 429 },
+  HttpStatus: { BAD_REQUEST: 400, BAD_GATEWAY: 502, GATEWAY_TIMEOUT: 504, TOO_MANY_REQUESTS: 429, OK: 200 },
 }));
 jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({
   NeedLogin: jest.fn(() => () => undefined),
@@ -16,6 +17,7 @@ jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({
 import { AcademicSearchController } from './academic-search.controller';
 import { AcademicSearchError } from './academic-search.errors';
 import { AcademicSearchService } from './academic-search.service';
+import { HttpCode } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 
 describe('AcademicSearchController', () => {
@@ -29,6 +31,7 @@ describe('AcademicSearchController', () => {
     service.search.mockResolvedValue(result);
 
     expect(NeedLogin).toHaveBeenCalled();
+    expect(HttpCode).toHaveBeenCalledWith(200);
     await expect(controller.search({ userContext: { userId: 'user-1' } } as never, { q: 'test' })).resolves.toBe(result);
     expect(service.search).toHaveBeenCalledWith({ q: 'test' }, 'user-1');
   });

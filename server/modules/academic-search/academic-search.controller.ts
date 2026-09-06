@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, UseFilters } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseFilters } from '@nestjs/common';
 import type { Request } from 'express';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import { AcademicSearchError } from './academic-search.errors';
@@ -12,6 +12,7 @@ export class AcademicSearchController {
   constructor(private readonly service: AcademicSearchService) {}
 
   @NeedLogin()
+  @HttpCode(HttpStatus.OK)
   @Post('search')
   async search(@Req() req: Request, @Body() body: AcademicSearchRequest) {
     const userId = req.userContext?.userId;
