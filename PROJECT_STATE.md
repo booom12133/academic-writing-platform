@@ -13,17 +13,17 @@ Last Updated: 2026-09-07
 
 ## Stable state
 
-- Current Stable Phase: Phase E4 — Zotero Integration
-- Stable Status: `PHASE_E4_ACCEPTED / MERGED / TAG PENDING`
+- Current Stable Phase: Phase E5 — External Academic Search / Scholarly Discovery
+- Stable Status: `PHASE_E5_ACCEPTED / MERGED / TAG PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: this final pre-tag governance closeout commit / current `main` HEAD
-- Latest Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, and Phase E4 are completed/frozen by project records
+- Stable Main Commit: post-merge E5 governance closeout commit / final `main` HEAD
+- Latest Final Acceptance Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, and Phase E5 are completed/frozen by project records
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase E5 — External Academic Search / Scholarly Discovery has passed implementation review; Final Acceptance is pending.
+- Current Development: Phase E5 — External Academic Search / Scholarly Discovery is accepted and merged; post-merge governance closeout is complete and the accepted tag is pending.
 - Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
@@ -34,13 +34,17 @@ Last Updated: 2026-09-07
 - E4 Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md).
 - E4 Final Acceptance: `PHASE_E4_ACCEPTED`; accepted tag `phase-e4-accepted` is PENDING.
 - E4 primary post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`; the following CI-evidence correction is governance-only.
-- E5 status: `PHASE_E5_REVIEW_PASS / FINAL ACCEPTANCE PENDING`; PR #12 has passed implementation review and formal acceptance is pending.
+- E5 status: `PHASE_E5_ACCEPTED / MERGED / TAG PENDING`.
 - E5 branch: `phase/e5-academic-search`.
-- E5 PR: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), OPEN for Final Acceptance.
+- E5 PR: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), MERGED.
 - E5 review-fix candidate implementation commit: `5051a83` (`fix(e5): address academic search review blockers`).
 - E5 reviewed implementation HEAD: `3d8d45545dd709e637b05848b5b2ba0e60e26b25`.
 - E5 ChatGPT implementation review: `PHASE_E5_REVIEW_PASS`, Review ID `5125877999`.
-- E5 Final Acceptance Preparation Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md).
+- E5 Final Acceptance: `PHASE_E5_ACCEPTED`, Review ID `5125902184`.
+- E5 Final Acceptance Preparation HEAD: `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`.
+- E5 PR merge commit: `0ed501ac0592c30987e9e9c6ba8754d934255040`.
+- E5 post-merge governance closeout commit: this final `main` HEAD; tag creation remains the final closeout step.
+- E5 Final Acceptance Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md).
 - E5 review-fix scope: first OpenAlex page uses internal `cursor=*` without exposing raw cursors; the authenticated `POST /api/academic-search/search` contract returns HTTP 200; production cursor signing requires a configured stable secret; retry backoff is bounded by the shared deadline. No persistence, migration, import, generation, reranking, or E6 behavior was added.
 - E5 targeted verification: PASS — `npx jest server/modules/academic-search test/unit/academic-search-frozen-boundary.spec.ts --runInBand` → 10 suites / 58 tests.
 - E5 full regression: PASS — `npm test -- --runInBand` → 105 suites passed / 572 tests passed / 19 skipped.
@@ -50,8 +54,8 @@ Last Updated: 2026-09-07
 - E5 server build: PASS — `npm run build:server`.
 - E5 client build: PASS — `npm run build:client`, with existing module-type and chunk-size warnings.
 - E5 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
-- E5 GitHub CI: PASS — run [34044028467](https://github.com/booom12133/academic-writing-platform/actions/runs/34044028467) at reviewed HEAD `3d8d45545dd709e637b05848b5b2ba0e60e26b25`; both `verify` and `postgres-schema` succeeded.
-- E5 implementation was not changed during Final Acceptance Preparation; `PHASE_E5_ACCEPTED` has not been granted.
+- E5 GitHub CI: PASS — review run [34044506843](https://github.com/booom12133/academic-writing-platform/actions/runs/34044506843) at preparation HEAD `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`; both `verify` and `postgres-schema` succeeded. Merge-triggered main run [34044852534](https://github.com/booom12133/academic-writing-platform/actions/runs/34044852534) also passed both jobs at merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
+- E5 implementation was not changed after Final Acceptance; this closeout contains governance documentation only. `PHASE_E5_ACCEPTED` has been granted.
 - E6 remains NOT STARTED / NOT AUTHORIZED.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
@@ -96,7 +100,7 @@ Last Updated: 2026-09-07
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: E5 Final Acceptance; do not merge, tag, or begin E6 before explicit `PHASE_E5_ACCEPTED`.
+- Next architecture step: E6 remains `PLANNED / NOT AUTHORIZED`; do not begin E6 without separate authorization.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`

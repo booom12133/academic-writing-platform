@@ -2,8 +2,8 @@
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
 and closed. E4 is accepted and merged, with post-merge closeout and its
-accepted tag pending. E5 has passed implementation review and is awaiting
-Final Acceptance; E6 remains planned and unauthorized.
+accepted tag pending. E5 is accepted and merged, with its accepted tag pending;
+E6 remains planned and unauthorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -21,7 +21,7 @@ Final Acceptance; E6 remains planned and unauthorized.
 | E2 | Embedding & Index | Embedding provider abstraction, deterministic fingerprints, PostgreSQL/pgvector index lifecycle | ACCEPTED / CLOSED | Yes |
 | E3 | Retrieval / Evidence Assembly | Indexed-only retrieval and provenance-preserving evidence assembly | ACCEPTED / CLOSED | Yes |
 | E4 | Zotero Integration | Server-side personal Zotero connection, bibliographic sync, stored PDF attachment import and independent attachment version sync | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
-| E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | REVIEW PASS / FINAL ACCEPTANCE PENDING | No |
+| E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | E6 | Grounded Generation / Citation | Future grounded generation and citation capabilities | PLANNED / NOT AUTHORIZED | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
@@ -42,7 +42,11 @@ Final Acceptance; E6 remains planned and unauthorized.
 - Reviewed HEAD: `3d8d45545dd709e637b05848b5b2ba0e60e26b25`.
 - Review: `PHASE_E5_REVIEW_PASS`, Review ID `5125877999`.
 - Final Acceptance Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md).
-- CI run `34044028467`: `verify` and `postgres-schema` both SUCCESS.
-- E5 remains unaccepted; do not merge, create an accepted tag, or begin E6.
+- CI run `34044506843`: `verify` and `postgres-schema` both SUCCESS.
+- E5 is `PHASE_E5_ACCEPTED`; PR #12 merge commit is `0ed501ac0592c30987e9e9c6ba8754d934255040`.
+- Final Acceptance Review ID: `5125902184`.
+- Final Acceptance Preparation HEAD: `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`.
+- CI run `34044506843` passed `verify` and `postgres-schema`; merge-triggered main run `34044852534` also passed both jobs.
+- E5 accepted tag remains the final closeout step; do not begin E6.
 
 Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance phases from chat context alone.

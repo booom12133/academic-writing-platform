@@ -1,23 +1,24 @@
 # PHASE_E5_FINAL_ACCEPTANCE_REPORT
 
 Date: 2026-09-07  
-Status: `PHASE_E5_REVIEW_PASS / FINAL ACCEPTANCE PENDING`
+Status: `PHASE_E5_ACCEPTED / MERGED / TAG PENDING`
 
-This report records the Phase E5 implementation review pass and prepares the
-branch for ChatGPT Final Acceptance. It does not grant `PHASE_E5_ACCEPTED`,
-merge the pull request, create an accepted tag, or authorize E6.
+This report records Phase E5 Final Acceptance and the post-merge governance
+closeout before accepted-tag creation. The accepted tag is intentionally
+deferred to the final main-CI verification step. E6 remains unauthorized.
 
 ## 1. Candidate identity
 
 - Stable base: `main @ 44765c777addc7e65b9da0a616ea2b709ce81bf7`.
 - Implementation branch: `phase/e5-academic-search`.
 - Reviewed implementation HEAD: `3d8d45545dd709e637b05848b5b2ba0e60e26b25`.
-- Pull request: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), currently OPEN.
+- Pull request: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), MERGED with merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
 - ChatGPT implementation review: `PHASE_E5_REVIEW_PASS`, Review ID `5125877999`.
 - Prior review-fix review: `PHASE_E5_FIX_REQUIRED`, Review ID `5125841154`.
-- Final acceptance: pending; `PHASE_E5_ACCEPTED` has not been issued.
+- ChatGPT Final Acceptance: `PHASE_E5_ACCEPTED`, Review ID `5125902184`.
+- Final Acceptance Preparation HEAD: `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`.
 
-The preparation changes in this commit are governance-only. The reviewed E5
+The post-merge changes in this commit are governance-only. The reviewed E5
 business implementation remains unchanged.
 
 ## 2. Phase goal and implemented scope
@@ -93,9 +94,9 @@ no Conda environment was required or used.
 ## 5. GitHub CI evidence
 
 Pull request workflow run
-[34044028467](https://github.com/booom12133/academic-writing-platform/actions/runs/34044028467)
-ran at reviewed HEAD
-`3d8d45545dd709e637b05848b5b2ba0e60e26b25` and completed successfully:
+[34044506843](https://github.com/booom12133/academic-writing-platform/actions/runs/34044506843)
+ran at Final Acceptance Preparation HEAD
+`2dc9fd476ac0b233096fed4d33d33b71d47cc77d` and completed successfully:
 
 - `verify`: SUCCESS.
 - `postgres-schema`: SUCCESS.
@@ -103,6 +104,14 @@ ran at reviewed HEAD
 The CI PostgreSQL job is the authoritative PostgreSQL/schema evidence for the
 reviewed candidate; local environment-guarded skips do not represent E5
 failures.
+
+The merge-triggered main workflow run
+[34044852534](https://github.com/booom12133/academic-writing-platform/actions/runs/34044852534)
+also completed successfully at merge commit
+`0ed501ac0592c30987e9e9c6ba8754d934255040`:
+
+- `verify`: SUCCESS.
+- `postgres-schema`: SUCCESS.
 
 ## 6. Review closure
 
@@ -136,19 +145,19 @@ issue in scope.
 ## 9. Final Acceptance checklist
 
 - [x] E5 implementation review passed: `PHASE_E5_REVIEW_PASS`.
+- [x] ChatGPT Final Acceptance granted: `PHASE_E5_ACCEPTED`, Review ID `5125902184`.
 - [x] Reviewed HEAD and review ID are recorded.
 - [x] Local targeted/full/integration/lint/type-check/build/bootstrap evidence
       is recorded.
 - [x] CI run `34044028467` is green for `verify` and `postgres-schema`.
 - [x] Frozen interfaces and out-of-scope boundaries are recorded.
 - [x] No E5 business implementation was changed during this preparation.
-- [ ] ChatGPT Final Acceptance: `PHASE_E5_ACCEPTED`.
-- [ ] PR #12 merge.
+- [x] PR #12 merged with ordinary merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
 - [ ] Accepted tag creation.
 
 ## 10. Proposed status
 
-`PHASE_E5_REVIEW_PASS / FINAL ACCEPTANCE PENDING`
+`PHASE_E5_ACCEPTED / MERGED / TAG PENDING`
 
-Wait for explicit ChatGPT Final Acceptance. Do not merge, create an accepted
-tag, or begin E6.
+Accepted tag creation remains the final closeout step after final main CI
+verification. Do not begin E6.
