@@ -8,7 +8,7 @@ import { computeDerivationFingerprint, hashTextInputExact } from './knowledge.ha
 import { finalizeKnowledgeChunkDraft, mapStructuralChunksToKnowledgeChunkDrafts } from './knowledge.provenance';
 import { KnowledgeError } from './knowledge.errors';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from './knowledge.repository';
-import type { ImportKnowledgeDocumentInput, KnowledgeImportResult } from './knowledge.types';
+import type { ImportKnowledgeDocumentInput, KnowledgeDocument, KnowledgeDocumentExternalSyncState, KnowledgeImportResult } from './knowledge.types';
 
 function stableSerialize(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableSerialize).join(',')}]`;
@@ -17,6 +17,11 @@ function stableSerialize(value: unknown): string {
     return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`).join(',')}}`;
   }
   return JSON.stringify(value);
+}
+
+function externalStateIsNotNewer(document: KnowledgeDocument, state: KnowledgeDocumentExternalSyncState): boolean {
+  if (!document.externalVersion || !/^\d+$/u.test(document.externalVersion) || !/^\d+$/u.test(state.externalVersion)) return false;
+  return BigInt(document.externalVersion) >= BigInt(state.externalVersion);
 }
 
 @Injectable()
@@ -143,12 +148,16 @@ export class KnowledgeService {
       if (!repository.getDocument || !repository.getLatestVersion) {
         throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Versioning support is unavailable.');
       }
-      const document = await repository.getDocument(input.userId, input.documentId);
+      const lockedDocument = await repository.lockDocument(input.userId, input.documentId);
       const previous = await repository.getLatestVersion(input.userId, input.documentId);
-      if (!document || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+      if (!lockedDocument || !previous) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+      if (input.externalSyncState && externalStateIsNotNewer(lockedDocument, input.externalSyncState)) {
+        const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
+        return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
+      }
       if (previous.indexInputFingerprint === derivationFingerprint) {
         const chunks = repository.getChunks ? await repository.getChunks(input.userId, previous.id) : [];
-        return { document, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
+        return { document: lockedDocument, version: previous, chunks, idempotent: true, readiness: previous.readinessStatus };
       }
       const version = await repository.createVersion({
         userId: input.userId, documentId: input.documentId, versionNumber: previous.versionNumber + 1,
@@ -157,15 +166,15 @@ export class KnowledgeService {
         supersedesVersionId: previous.id, lifecycleStatus: 'active', readinessStatus: 'content-ready-for-indexing', indexInputFingerprint: derivationFingerprint,
       });
       const drafts = mapStructuralChunksToKnowledgeChunkDrafts({
-        userId: input.userId, ...(document.sourceRecordId === undefined ? {} : { sourceRecordId: document.sourceRecordId }),
-        documentId: document.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
+        userId: input.userId, ...(lockedDocument.sourceRecordId === undefined ? {} : { sourceRecordId: lockedDocument.sourceRecordId }),
+        documentId: lockedDocument.id, documentVersionId: version.id, chunks: prepared.chunked.chunks,
       });
       const chunks = await repository.createChunks(drafts.map((draft) => finalizeKnowledgeChunkDraft({ draft, chunkId: randomUUID() })));
-      await repository.activateVersion(input.userId, document.id, version.id);
+      await repository.activateVersion(input.userId, lockedDocument.id, version.id);
       if (input.externalSyncState && repository.updateExternalSyncState) {
-        await repository.updateExternalSyncState(input.userId, document.id, input.externalSyncState);
+        await repository.updateExternalSyncState(input.userId, lockedDocument.id, input.externalSyncState);
       }
-      return { document: { ...document, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
+      return { document: { ...lockedDocument, activeVersionId: version.id }, version, chunks, idempotent: false, readiness: 'content-ready-for-indexing' };
     };
     return this.repository.withTransaction ? this.repository.withTransaction(persist) : persist(this.repository);
   }

@@ -13,7 +13,7 @@ describe('ZoteroAttachmentService', () => {
   function build(existing: unknown = null, fileBytes = bytes) {
     const client = {
       getItem: jest.fn().mockResolvedValue(attachment(2)),
-      getFile: jest.fn().mockResolvedValue({ buffer: fileBytes, contentType: 'application/pdf', etag: 'etag' }),
+      getFile: jest.fn().mockResolvedValue({ buffer: fileBytes, contentType: 'application/pdf', etag: md5 }),
     };
     const documentInput = { upload: jest.fn().mockResolvedValue({ document: ref }), removeOwned: jest.fn().mockResolvedValue(undefined) };
     const knowledge = { importDocument: jest.fn().mockResolvedValue({ document: { id: 'doc-1' }, version: { id: 'v1' } }), createNextVersion: jest.fn().mockResolvedValue({ document: { id: 'doc-1' }, version: { id: 'v2' } }) };
@@ -44,11 +44,42 @@ describe('ZoteroAttachmentService', () => {
     const existing = { id: 'doc-1', userId: 'user-1', lifecycleStatus: 'active', externalIdentity: 'zotero:user:42:attachment:ATT1', externalVersion: '1', externalChecksum: md5 };
     const built = build(existing, changedBytes);
     built.client.getItem.mockResolvedValue(attachment(2, changedMd5));
+    built.client.getFile.mockResolvedValue({ buffer: changedBytes, contentType: 'application/pdf', etag: changedMd5 });
     built.repository.getLatestVersion.mockResolvedValue({ sourceArtifactRef: { sha256: 'old'.repeat(16) } });
 
     await built.service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1', sourceRecordId: 'source-1' });
     expect(built.knowledge.createNextVersion).toHaveBeenCalledWith(expect.objectContaining({ documentId: 'doc-1', externalSyncState: expect.objectContaining({ externalVersion: '2', externalChecksum: changedMd5 }) }));
     expect(built.documentInput.removeOwned).not.toHaveBeenCalled();
+  });
+
+  it('accepts an ETag equal to the attachment MD5, including the quoted representation', async () => {
+    const built = build(null);
+    built.client.getFile.mockResolvedValue({ buffer: bytes, contentType: 'application/pdf', etag: `"${md5}"` });
+
+    await expect(built.service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1' })).resolves.toMatchObject({ document: { id: 'doc-1' } });
+  });
+
+  it('re-fetches the item once when the item MD5 is stale and accepts the refreshed state', async () => {
+    const built = build(null);
+    built.client.getItem
+      .mockResolvedValueOnce(attachment(1, '0'.repeat(32)))
+      .mockResolvedValueOnce(attachment(2, md5));
+
+    await built.service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1' });
+    expect(built.client.getItem).toHaveBeenCalledTimes(2);
+    expect(built.knowledge.importDocument).toHaveBeenCalledWith(expect.objectContaining({ externalSyncState: expect.objectContaining({ externalVersion: '2', externalChecksum: md5 }) }));
+  });
+
+  it('rejects a persistent ETag mismatch without advancing accepted state', async () => {
+    const existing = { id: 'doc-1', userId: 'user-1', lifecycleStatus: 'active', externalIdentity: 'zotero:user:42:attachment:ATT1', externalVersion: '1', externalChecksum: '0'.repeat(32) };
+    const built = build(existing);
+    built.client.getFile.mockResolvedValue({ buffer: bytes, contentType: 'application/pdf', etag: 'f'.repeat(32) });
+    built.client.getItem.mockResolvedValueOnce(attachment(2, '0'.repeat(32))).mockResolvedValueOnce(attachment(3, '0'.repeat(32)));
+
+    await expect(built.service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1' })).rejects.toMatchObject({ code: 'ZOTERO_ATTACHMENT_INTEGRITY_FAILED' });
+    expect(built.repository.updateExternalSyncState).not.toHaveBeenCalled();
+    expect(built.knowledge.createNextVersion).not.toHaveBeenCalled();
+    expect(built.documentInput.upload).not.toHaveBeenCalled();
   });
 
   it('compensates a durable C4 upload when E1 downstream persistence fails without masking the original error', async () => {
@@ -65,6 +96,17 @@ describe('ZoteroAttachmentService', () => {
     documentInput.removeOwned.mockRejectedValueOnce(new Error('cleanup failed'));
 
     await expect(service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1', sourceRecordId: 'source-1' })).rejects.toThrow('original import error');
+  });
+
+  it('removes a duplicate uploaded artifact when downstream version arbitration returns idempotent', async () => {
+    const existing = { id: 'doc-1', userId: 'user-1', lifecycleStatus: 'active', externalIdentity: 'zotero:user:42:attachment:ATT1', externalVersion: '1', externalChecksum: '0'.repeat(32) };
+    const built = build(existing);
+    built.repository.getLatestVersion.mockResolvedValueOnce({ sourceArtifactRef: { sha256: 'old'.repeat(16) } });
+    built.knowledge.createNextVersion.mockResolvedValueOnce({ document: { id: 'doc-1' }, version: { id: 'v2' }, idempotent: true });
+
+    await built.service.syncAttachment({ userId: 'user-1', libraryId: '42', apiKey: 'key', attachmentKey: 'ATT1' });
+
+    expect(built.documentInput.removeOwned).toHaveBeenCalledWith('user-1', ref);
   });
 
   it('tombstones only an explicitly trashed attachment and restores the same document when active again', async () => {

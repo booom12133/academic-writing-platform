@@ -24,6 +24,8 @@ describe('KnowledgeDocument external artifact state', () => {
     await expect(repository.findDocumentByExternalIdentity('user-1', 'zotero:user:42:attachment:PDF1')).resolves.toMatchObject({ id: document.id, externalVersion: '3' });
     await repository.updateExternalSyncState('user-1', document.id, { externalVersion: '4', externalChecksumAlgorithm: 'md5', externalChecksum: 'b'.repeat(32) });
     await expect(repository.findDocumentByExternalIdentity('user-1', 'zotero:user:42:attachment:PDF1')).resolves.toMatchObject({ externalVersion: '4', externalChecksum: 'b'.repeat(32) });
+    await expect(repository.updateExternalSyncState('user-1', document.id, { externalVersion: '2', externalChecksumAlgorithm: 'md5', externalChecksum: 'c'.repeat(32) })).resolves.toBeUndefined();
+    await expect(repository.findDocumentByExternalIdentity('user-1', 'zotero:user:42:attachment:PDF1')).resolves.toMatchObject({ externalVersion: '4', externalChecksum: 'b'.repeat(32) });
 
     await repository.tombstoneDocument('user-1', document.id);
     await expect(repository.getDocument('user-1', document.id)).resolves.toBeNull();

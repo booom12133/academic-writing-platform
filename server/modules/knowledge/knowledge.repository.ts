@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import {
   knowledgeChunks,
@@ -53,6 +53,7 @@ export interface KnowledgeRepositoryPort {
   createImportMarker(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<string>;
   claimImportMarker?(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<{ id: string; created: boolean }>;
   getDocument?(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
+  lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
   findDocumentByExternalIdentity?(userId: string, externalIdentity: string): Promise<KnowledgeDocument | null>;
   updateExternalSyncState?(userId: string, documentId: string, state: { externalVersion: string; externalChecksumAlgorithm: 'md5'; externalChecksum: string }): Promise<void>;
   restoreDocument?(userId: string, documentId: string): Promise<void>;
@@ -366,6 +367,15 @@ export class KnowledgeRepository {
     return row ? toDocument(row) : null;
   }
 
+  async lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {
+    const [row] = await this.db.select().from(knowledgeDocuments).where(and(
+      eq(knowledgeDocuments.id, documentId),
+      eq(knowledgeDocuments.userId, userId),
+      eq(knowledgeDocuments.lifecycleStatus, 'active'),
+    )).for('update').limit(1);
+    return row ? toDocument(row) : null;
+  }
+
   async findSourceRecordByExternalIdentity(input: { userId: string; connectorKind: string; provider: string; externalRecordId: string }): Promise<SourceRecord | null> {
     const [link] = await this.db.select().from(knowledgeSourceExternalLinks).where(and(
       eq(knowledgeSourceExternalLinks.userId, input.userId),
@@ -429,13 +439,23 @@ export class KnowledgeRepository {
   }
 
   async updateExternalSyncState(userId: string, documentId: string, state: { externalVersion: string; externalChecksumAlgorithm: 'md5'; externalChecksum: string }): Promise<void> {
+    if (!/^\d+$/u.test(state.externalVersion)) throw new KnowledgeError('INVALID_KNOWLEDGE_INPUT', 'External version must be a numeric Zotero version.');
     const result = await this.db.update(knowledgeDocuments).set({
       externalVersion: state.externalVersion,
       externalChecksumAlgorithm: state.externalChecksumAlgorithm,
       externalChecksum: state.externalChecksum,
       updatedAt: new Date(),
-    }).where(and(eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId))).returning({ id: knowledgeDocuments.id });
-    if (!result.length) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+    }).where(and(
+      eq(knowledgeDocuments.id, documentId),
+      eq(knowledgeDocuments.userId, userId),
+      sql`(${knowledgeDocuments.externalVersion} IS NULL OR CAST(${knowledgeDocuments.externalVersion} AS bigint) < ${state.externalVersion})`,
+    )).returning({ id: knowledgeDocuments.id });
+    if (result.length) return;
+    const [existing] = await this.db.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments).where(and(
+      eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId),
+    )).limit(1);
+    if (existing) return;
+    throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
   }
 
   async restoreDocument(userId: string, documentId: string): Promise<void> {

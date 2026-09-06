@@ -8,7 +8,7 @@ describe('E4 fake Zotero-to-E1 pipeline', () => {
     const indexing = { index: jest.fn() };
     const client = {
       getItem: jest.fn().mockResolvedValue({ key: 'ATT1', version: 1, itemType: 'attachment', data: { linkMode: 'imported_file', contentType: 'application/pdf', filename: 'paper.pdf', md5: checksum } }),
-      getFile: jest.fn().mockResolvedValue({ buffer: bytes, contentType: 'application/pdf' }),
+      getFile: jest.fn().mockResolvedValue({ buffer: bytes, contentType: 'application/pdf', etag: checksum }),
     };
     const documentRef = { version: 1 as const, provider: 'platform-file' as const, bucketId: 'bucket', filePath: 'academic-writing/users/scope/id/paper.pdf', fileName: 'paper.pdf', sourceType: 'pdf' as const, mimeType: 'application/pdf', sizeBytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') };
     const documentInput = { upload: jest.fn().mockResolvedValue({ document: documentRef }), removeOwned: jest.fn() };

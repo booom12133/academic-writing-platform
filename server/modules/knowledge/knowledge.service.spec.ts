@@ -54,6 +54,7 @@ function repositoryMock() {
     createExternalLinks: jest.fn(),
     getSourceRecord: jest.fn().mockResolvedValue(null),
     getDocument: jest.fn().mockResolvedValue(document),
+    lockDocument: jest.fn().mockResolvedValue(document),
     getVersion: jest.fn().mockResolvedValue(version),
     getChunks: jest.fn().mockResolvedValue([chunk]),
     getLatestVersion: jest.fn().mockResolvedValue(version),

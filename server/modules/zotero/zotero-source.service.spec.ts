@@ -39,7 +39,7 @@ describe('ZoteroSourceService', () => {
     const repository = { findSourceRecordByExternalIdentity: jest.fn().mockResolvedValue(existing), createSourceRecord: jest.fn(), refreshSourceRecord: jest.fn() };
     const service = new ZoteroSourceService(client as never, repository as never);
 
-    await expect(service.syncItem('platform-user', '42', 'key', 'ITEM1')).resolves.toBe(existing);
+    await expect(service.syncItem('platform-user', '42', 'key', 'ITEM1')).resolves.toMatchObject({ sourceRecord: existing, upstreamStatus: 'trashed' });
     expect(repository.refreshSourceRecord).not.toHaveBeenCalled();
   });
 });

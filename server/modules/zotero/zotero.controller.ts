@@ -5,12 +5,12 @@ import { ZoteroExceptionFilter } from './zotero.exception-filter';
 import { ZoteroImportService } from './zotero-import.service';
 
 @Controller('api/zotero')
+@UseFilters(ZoteroExceptionFilter)
 export class ZoteroController {
   constructor(private readonly service: ZoteroImportService) {}
 
   @NeedLogin()
   @Post('connection')
-  @UseFilters(ZoteroExceptionFilter)
   async connect(@Req() req: Request, @Body() body: { apiKey?: unknown }) {
     const userId = req.userContext?.userId;
     if (!userId || typeof body?.apiKey !== 'string' || !body.apiKey) throw new BadRequestException('A Zotero API key is required.');

@@ -8,6 +8,8 @@ jest.mock('@nestjs/common', () => ({
   Req: () => () => undefined,
   UseFilters: () => () => undefined,
   Catch: () => () => undefined,
+  Injectable: () => () => undefined,
+  Inject: () => () => undefined,
   ExceptionFilter: class {},
   HttpStatus: { UNAUTHORIZED: 401, FORBIDDEN: 403, CONFLICT: 409, NOT_FOUND: 404, UNPROCESSABLE_ENTITY: 422, BAD_GATEWAY: 502, PAYLOAD_TOO_LARGE: 413, TOO_MANY_REQUESTS: 429, GATEWAY_TIMEOUT: 504 },
   BadRequestException: class extends Error {},
