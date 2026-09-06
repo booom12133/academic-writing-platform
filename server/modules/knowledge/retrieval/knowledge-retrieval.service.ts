@@ -127,17 +127,10 @@ export class KnowledgeRetrievalService {
       rank: index + 1,
       retrievalScore: scoreDistance(runtime.distanceMetric, item.rawDistance),
     }));
-    const hasAvailabilityDiagnostic = diagnostics.some(
-      (diagnostic) =>
-        diagnostic.code === 'profile-unavailable' ||
-        diagnostic.code === 'materialization-unavailable',
-    );
     const status =
       items.length === 0
-        ? hasAvailabilityDiagnostic
-          ? 'partial'
-          : 'empty'
-        : hasAvailabilityDiagnostic || diagnostics.length > 0 || items.length < runtime.policy.topK
+        ? 'empty'
+        : diagnostics.length > 0 || items.length < runtime.policy.topK
           ? 'partial'
           : 'complete';
     return {

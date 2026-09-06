@@ -153,7 +153,7 @@ describe('KnowledgeRetrievalService', () => {
     expect(result.items[0]).toMatchObject({ rank: 1, retrievalScore: 0.9 });
   });
 
-  it('uses explicit historical versions and reports profile-incompatible versions as partial', async () => {
+  it('uses explicit historical versions and reports profile-incompatible versions as empty when no rows remain', async () => {
     const harness = createHarness();
     harness.repository.resolveExplicitCandidates.mockResolvedValue([
       candidate('version-1', 'version-2'),
@@ -176,7 +176,7 @@ describe('KnowledgeRetrievalService', () => {
       documentVersionIds: ['version-1', 'version-2'],
       filters: undefined,
     });
-    expect(result.status).toBe('partial');
+    expect(result.status).toBe('empty');
     expect(result.diagnostics).toEqual([
       { code: 'profile-unavailable', documentVersionId: 'version-1' },
     ]);
