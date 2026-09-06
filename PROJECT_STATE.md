@@ -22,7 +22,15 @@ Last Updated: 2026-09-06
 
 ## Current development
 
-- Current Development: Phase E2 — Embedding & Index post-merge governance closeout completed; E3 remains unauthorized.
+- Current Development: Phase E3 — Retrieval / Evidence Assembly implementation completed and submitted for GitHub review.
+- Current E3 status: `REVIEW CANDIDATE` (`PHASE_E3_REVIEW_CANDIDATE`); implementation is complete, not accepted, and E4 remains unauthorized.
+- E3 branch: `phase/e3-retrieval`.
+- E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
+- E3 implementation commits: `3927695`, `3e5863f`, `67cd738`, `285d1b4`.
+- E3 scope: single-profile query embedding, exact provider/model/modelRevision/dimensions/profile-fingerprint compatibility, indexed-only pgvector exact retrieval, active/explicit version scope, owner/document/source filters, deterministic top-k/threshold policy, and provenance-preserving EvidenceSet assembly. No reranker, RAG, external search, citation generation, or E4/E5/E6 work.
+- E3 schema boundary: no migration, no new vector storage, no HNSW/IVFFlat, and no E2 indexing-lifecycle change. Only the existing E2 embedding provider/config tokens were exported for retrieval wiring.
+- E3 local verification: targeted retrieval PASS — 10 suites / 31 passed; full regression PASS — 78 suites / 440 passed / 12 skipped; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS.
+- E3 PostgreSQL verification: `test:integration:postgres` includes the E3 suite; local execution was not available because `DATABASE_URL` is unset, so 3 suites / 12 tests were skipped. GitHub CI PostgreSQL + pgvector execution is required for final acceptance.
 - Current E2 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E2_ACCEPTED_CLOSED`); ChatGPT Final Acceptance: `PHASE_E2_ACCEPTED`.
 - E2 branch: `codex/phase-e2-embedding-index`.
 - E2 accepted baseline: `d68331f594f671a1ce0099d008d3aaaa512448b1` (`origin/main`, `phase-e1-accepted`).
@@ -52,7 +60,7 @@ Last Updated: 2026-09-06
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: E3 remains `PLANNED / NOT AUTHORIZED`; no E3 implementation has started.
+- Next architecture step: wait for ChatGPT/GitHub E3 review and explicit acceptance; do not merge, tag, or enter E4.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
