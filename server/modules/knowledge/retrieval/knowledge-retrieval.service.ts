@@ -31,7 +31,7 @@ export interface KnowledgeRetrievalInput {
 }
 
 export interface RetrievalDiagnostic {
-  code: 'profile-unavailable' | 'threshold-excluded';
+  code: 'profile-unavailable' | 'materialization-unavailable' | 'threshold-excluded';
   documentVersionId?: string;
 }
 
@@ -45,7 +45,7 @@ export interface RetrievalResult {
   selectedVersionIds: string[];
   items: RetrievalResultItem[];
   diagnostics: RetrievalDiagnostic[];
-  profile: {
+  profile?: {
     provider: string;
     model: string;
     modelRevision?: string;
@@ -83,6 +83,14 @@ export class KnowledgeRetrievalService {
             filters: input.filters,
           });
     const scope = selectVersionScope(selection, candidates);
+    if (scope.length === 0) {
+      return {
+        status: 'empty',
+        selectedVersionIds: [],
+        items: [],
+        diagnostics: [],
+      };
+    }
     const policy = normalizeRetrievalPolicy(input.policy ?? {}, this.retrievalConfig);
     const runtime = await createQueryEmbeddingRuntime({
       queryText: input.queryText,
@@ -103,6 +111,12 @@ export class KnowledgeRetrievalService {
     const diagnostics: RetrievalDiagnostic[] = search.profileUnavailableVersionIds.map(
       (documentVersionId) => ({ code: 'profile-unavailable', documentVersionId }),
     );
+    diagnostics.push(
+      ...search.unavailableVersionIds.map((documentVersionId) => ({
+        code: 'materialization-unavailable' as const,
+        documentVersionId,
+      })),
+    );
     const filtered = search.items.filter((item) => {
       const score = scoreDistance(runtime.distanceMetric, item.rawDistance);
       return runtime.policy.minRetrievalScore === undefined || score >= runtime.policy.minRetrievalScore;
@@ -113,12 +127,17 @@ export class KnowledgeRetrievalService {
       rank: index + 1,
       retrievalScore: scoreDistance(runtime.distanceMetric, item.rawDistance),
     }));
+    const hasAvailabilityDiagnostic = diagnostics.some(
+      (diagnostic) =>
+        diagnostic.code === 'profile-unavailable' ||
+        diagnostic.code === 'materialization-unavailable',
+    );
     const status =
       items.length === 0
-        ? diagnostics.length > 0
+        ? hasAvailabilityDiagnostic
           ? 'partial'
           : 'empty'
-        : diagnostics.length > 0 || items.length < runtime.policy.topK
+        : hasAvailabilityDiagnostic || diagnostics.length > 0 || items.length < runtime.policy.topK
           ? 'partial'
           : 'complete';
     return {

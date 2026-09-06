@@ -41,6 +41,7 @@ export interface RetrievedChunkRow {
 export interface RetrievalSearchResult {
   items: RetrievedChunkRow[];
   profileUnavailableVersionIds: string[];
+  unavailableVersionIds: string[];
 }
 
 export interface KnowledgeRetrievalRepositoryPort {
@@ -235,7 +236,11 @@ export class KnowledgeRetrievalRepository implements KnowledgeRetrievalRepositor
     candidateLimit: number;
   }): Promise<RetrievalSearchResult> {
     if (input.versionIds.length === 0) {
-      return { items: [], profileUnavailableVersionIds: [] };
+      return {
+        items: [],
+        profileUnavailableVersionIds: [],
+        unavailableVersionIds: [],
+      };
     }
     const vectorLiteral = `[${input.vector.join(',')}]`;
     const operator = buildRetrievalOperator(input.distanceMetric);
@@ -351,6 +356,11 @@ export class KnowledgeRetrievalRepository implements KnowledgeRetrievalRepositor
         )
         .map((row) => row.versionId),
     )].filter((versionId) => !compatibleVersionIds.has(versionId));
+    const unavailableVersionIds = input.versionIds.filter(
+      (versionId) =>
+        !compatibleVersionIds.has(versionId) &&
+        !profileUnavailableVersionIds.includes(versionId),
+    );
 
     return {
       items: rows.map((row) => ({
@@ -364,6 +374,7 @@ export class KnowledgeRetrievalRepository implements KnowledgeRetrievalRepositor
         rawDistance: Number(row.rawDistance),
       })),
       profileUnavailableVersionIds,
+      unavailableVersionIds,
     };
   }
 }

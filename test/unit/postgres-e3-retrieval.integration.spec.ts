@@ -294,5 +294,9 @@ describeIfDatabase('E3 PostgreSQL and pgvector retrieval', () => {
     const empty = await retrieval.retrieve({ userId, queryText: 'query', selection: { mode: 'explicit', documentVersionIds: [nonIndexed.version.id] } });
     expect(empty.status).toBe('empty');
     expect(empty.items).toEqual([]);
+    expect(empty.diagnostics).toContainEqual({
+      code: 'materialization-unavailable',
+      documentVersionId: nonIndexed.version.id,
+    });
   });
 });

@@ -7,7 +7,11 @@ import type {
 import type { RetrievalResult, RetrievalResultItem } from './knowledge-retrieval.service';
 
 export interface EvidenceDiagnostic {
-  code: 'profile-unavailable' | 'threshold-excluded' | 'source-unavailable';
+  code:
+    | 'profile-unavailable'
+    | 'materialization-unavailable'
+    | 'threshold-excluded'
+    | 'source-unavailable';
   documentVersionId?: string;
   sourceRecordId?: string;
 }

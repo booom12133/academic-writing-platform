@@ -126,6 +126,7 @@ describe('KnowledgeRetrievalService', () => {
         },
       ],
       profileUnavailableVersionIds: [],
+      unavailableVersionIds: [],
     });
 
     const result = await harness.service.retrieve({
@@ -161,6 +162,7 @@ describe('KnowledgeRetrievalService', () => {
     harness.repository.searchIndexedChunks.mockResolvedValue({
       items: [],
       profileUnavailableVersionIds: ['version-1'],
+      unavailableVersionIds: [],
     });
 
     const result = await harness.service.retrieve({
@@ -186,6 +188,7 @@ describe('KnowledgeRetrievalService', () => {
     harness.repository.searchIndexedChunks.mockResolvedValue({
       items: [],
       profileUnavailableVersionIds: [],
+      unavailableVersionIds: [],
     });
 
     await expect(
@@ -204,5 +207,92 @@ describe('KnowledgeRetrievalService', () => {
       code: 'RETRIEVAL_QUERY_EMBEDDING_FAILED',
     });
     expect(harness.repository.searchIndexedChunks).not.toHaveBeenCalled();
+  });
+
+  it('short-circuits an empty resolved scope before calling the embedding provider', async () => {
+    const harness = createHarness();
+    harness.repository.resolveActiveCandidates.mockResolvedValue([]);
+    harness.provider.getIdentity = jest.fn().mockRejectedValue(new Error('provider must not run'));
+    harness.provider.embed = jest.fn().mockRejectedValue(new Error('provider must not run'));
+
+    await expect(
+      harness.service.retrieve({ userId: 'user-1', queryText: 'query' }),
+    ).resolves.toMatchObject({
+      status: 'empty',
+      selectedVersionIds: [],
+      items: [],
+    });
+    expect(harness.provider.getIdentity).not.toHaveBeenCalled();
+    expect(harness.provider.embed).not.toHaveBeenCalled();
+    expect(harness.repository.searchIndexedChunks).not.toHaveBeenCalled();
+  });
+
+  it('returns empty when every retrieved candidate is excluded by the threshold', async () => {
+    const harness = createHarness();
+    harness.repository.resolveActiveCandidates.mockResolvedValue([candidate('version-1')]);
+    harness.repository.searchIndexedChunks.mockResolvedValue({
+      items: [
+        {
+          chunk: chunk('version-1'),
+          document: candidate('version-1').document,
+          version: candidate('version-1').version,
+          indexId: 'index-1',
+          indexFingerprint: 'd'.repeat(64),
+          embeddingProfileFingerprint: 'e'.repeat(64),
+          embeddingModelIdentity: identity,
+          rawDistance: 0.9,
+        },
+      ],
+      profileUnavailableVersionIds: [],
+      unavailableVersionIds: [],
+    });
+
+    const result = await harness.service.retrieve({
+      userId: 'user-1',
+      queryText: 'query',
+      policy: { topK: 1, candidateLimit: 1, minRetrievalScore: 0.5 },
+    });
+
+    expect(result.status).toBe('empty');
+    expect(result.items).toEqual([]);
+    expect(result.diagnostics).toEqual([{ code: 'threshold-excluded' }]);
+  });
+
+  it('returns partial when one selected version has no indexed materialization', async () => {
+    const harness = createHarness();
+    harness.repository.resolveExplicitCandidates.mockResolvedValue([
+      candidate('version-1', 'version-2'),
+      candidate('version-2', 'version-2'),
+    ]);
+    harness.repository.searchIndexedChunks.mockResolvedValue({
+      items: [
+        {
+          chunk: chunk('version-1'),
+          document: candidate('version-1').document,
+          version: candidate('version-1').version,
+          indexId: 'index-1',
+          indexFingerprint: 'd'.repeat(64),
+          embeddingProfileFingerprint: 'e'.repeat(64),
+          embeddingModelIdentity: identity,
+          rawDistance: 0.1,
+        },
+      ],
+      profileUnavailableVersionIds: [],
+      unavailableVersionIds: ['version-2'],
+    });
+
+    const result = await harness.service.retrieve({
+      userId: 'user-1',
+      queryText: 'query',
+      selection: { mode: 'explicit', documentVersionIds: ['version-1', 'version-2'] },
+      policy: { topK: 1, candidateLimit: 1 },
+    });
+
+    expect(result.status).toBe('partial');
+    expect(result.items).toHaveLength(1);
+    expect(result.diagnostics).toContainEqual({
+      code: 'materialization-unavailable',
+      documentVersionId: 'version-2',
+    });
   });
 });
