@@ -1,24 +1,24 @@
 # Phase E2 Final Acceptance Report
 
 Date: 2026-09-06  
-Status: `PHASE_E2_FINAL_ACCEPTANCE_CANDIDATE`
+Status: `PHASE_E2_ACCEPTED`
 
-This document is the evidence package for ChatGPT Final Acceptance review. It
-does not itself grant acceptance, merge the pull request, or create an
-accepted tag.
+This document records ChatGPT Final Acceptance and the post-merge governance
+closeout for Phase E2.
 
 ## 1. Executive Summary
 
 - Phase: Phase E2 — Embedding & Index
 - Reviewed implementation/code candidate SHA: `f2fdd9e87d24257094146af07e9d4899d206d9aa`
-- Final Acceptance Preparation HEAD: the current branch HEAD containing this report and the accompanying governance update; the exact SHA is recorded in `PROJECT_STATE.md` and verified on GitHub after push.
+- Final Acceptance Preparation HEAD: `db1d08e5aff058b0aa2912cf5ea943d487c253b5`
 - Pull request: [#9 Phase E2 — Embedding & Index](https://github.com/booom12133/academic-writing-platform/pull/9)
 - Accepted baseline: `d68331f594f671a1ce0099d008d3aaaa512448b1`
 - ChatGPT review status: `PHASE_E2_REVIEW_PASS`
 - Review ID: `5122161365`
-- PR state: OPEN and not merged
-- Acceptance state: not yet accepted
-- Accepted tag: not created
+- PR state: MERGED
+- PR #9 merge commit: `7acd0720f4d892a11fc10457b418e9e05a2fd718`
+- Acceptance state: `PHASE_E2_ACCEPTED`
+- Accepted tag: `phase-e2-accepted`
 
 ## 2. Accepted Baseline
 
@@ -29,8 +29,8 @@ E2 was implemented from the accepted E1 baseline:
 - Baseline phase: Phase E1 — Knowledge Provenance Foundation
 - Baseline tag: `phase-e1-accepted`
 
-At preparation time, `origin/main` resolves to the baseline SHA and does not
-contain the E2 branch commits.
+The E2 branch was merged into `main` with the recorded PR merge commit after
+ChatGPT issued Final Acceptance.
 
 ## 3. Phase Scope
 
@@ -215,17 +215,16 @@ regression.
 
 ## 9. Git / Repository State
 
-- Branch: `codex/phase-e2-embedding-index`
+- Stable branch: `main`
 - Reviewed implementation SHA: `f2fdd9e87d24257094146af07e9d4899d206d9aa`
+- Final Acceptance Preparation SHA: `db1d08e5aff058b0aa2912cf5ea943d487c253b5`
 - Base SHA: `d68331f594f671a1ce0099d008d3aaaa512448b1`
-- PR #9: OPEN
-- Merge state: not merged
-- Working tree before this documentation change: clean
-- No accepted tag created
+- PR #9: MERGED
+- PR #9 merge commit: `7acd0720f4d892a11fc10457b418e9e05a2fd718`
+- Final main HEAD: the post-merge governance closeout commit recorded in `PROJECT_STATE.md` and verified on GitHub.
+- Annotated tag: `phase-e2-accepted`, pointing to final main HEAD
+- Working tree: clean after closeout
 - E3 is not authorized
-
-The final preparation SHA is the branch HEAD after the report and
-`PROJECT_STATE.md` documentation commits are pushed and verified on GitHub.
 
 ## 10. Known Non-blocking Items
 
@@ -238,13 +237,14 @@ The final preparation SHA is the branch HEAD after the report and
   job.
 
 No unrelated warning or inherited issue was modified during Final Acceptance
-Preparation.
+Preparation or closeout.
 
-## 11. Final Acceptance Candidate Statement
+## 11. Final Acceptance and Closeout Statement
 
-Phase E2 satisfies the reviewed and frozen implementation contract and is ready
-for ChatGPT Final Acceptance review.
+Phase E2 satisfied the reviewed and frozen implementation contract. ChatGPT
+issued `PHASE_E2_ACCEPTED`; PR #9 was merged into `main`, and the annotated
+accepted tag was created only after the post-merge governance closeout.
 
 Final status:
 
-`PHASE_E2_FINAL_ACCEPTANCE_CANDIDATE`
+`PHASE_E2_ACCEPTED_CLOSED`

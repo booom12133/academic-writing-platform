@@ -13,29 +13,30 @@ Last Updated: 2026-09-06
 
 ## Stable state
 
-- Current Stable Phase: Phase E1 — Knowledge Provenance Foundation
-- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_E1_ACCEPTED`)
+- Current Stable Phase: Phase E2 — Embedding & Index
+- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_E2_ACCEPTED_CLOSED`)
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge E1 governance closeout commit, anchored by annotated tag `phase-e1-accepted`
-- Latest Final Acceptance Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, and Phase E1 are completed/frozen by project records
+- Stable Main Commit: final post-merge E2 governance closeout commit, anchored by annotated tag `phase-e2-accepted`
+- Latest Final Acceptance Report: [PHASE_E2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E2_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, and Phase E2 are completed/frozen by project records
 
 ## Current development
 
-- Current Development: Phase E2 — Embedding & Index Final Acceptance Preparation; awaiting ChatGPT Final Acceptance review.
-- Current E2 status: `PHASE_E2_FINAL_ACCEPTANCE_CANDIDATE`; reviewed by ChatGPT with `PHASE_E2_REVIEW_PASS`, not accepted and not merged.
+- Current Development: Phase E2 — Embedding & Index post-merge governance closeout completed; E3 remains unauthorized.
+- Current E2 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E2_ACCEPTED_CLOSED`); ChatGPT Final Acceptance: `PHASE_E2_ACCEPTED`.
 - E2 branch: `codex/phase-e2-embedding-index`.
 - E2 accepted baseline: `d68331f594f671a1ce0099d008d3aaaa512448b1` (`origin/main`, `phase-e1-accepted`).
 - E2 reviewed implementation/code candidate SHA: `f2fdd9e87d24257094146af07e9d4899d206d9aa`.
-- E2 Final Acceptance Preparation HEAD: current `codex/phase-e2-embedding-index` branch HEAD after the documentation update; this is not an accepted main or tag.
+- E2 Final Acceptance Preparation HEAD: `db1d08e5aff058b0aa2912cf5ea943d487c253b5`.
 - E2 ChatGPT Review ID: `5122161365` (`PHASE_E2_REVIEW_PASS`).
-- E2 PR: [#9 Phase E2 — Embedding & Index](https://github.com/booom12133/academic-writing-platform/pull/9); do not merge before explicit `PHASE_E2_ACCEPTED`.
+- E2 PR: [#9 Phase E2 — Embedding & Index](https://github.com/booom12133/academic-writing-platform/pull/9); MERGED with commit `7acd0720f4d892a11fc10457b418e9e05a2fd718`.
 - E2 Final Acceptance Report: [PHASE_E2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E2_FINAL_ACCEPTANCE_REPORT.md).
+- E2 post-merge governance commit: final `main` HEAD after this closeout; annotated tag `phase-e2-accepted` points to the same final HEAD.
 - E2 scope: independent EmbeddingProvider/config/fake, deterministic semantic fingerprints, pgvector migration 0003, version-bound index lifecycle, bounded batch/retry/resume/re-index orchestration, and PostgreSQL integration coverage. No retrieval or E3 behavior.
 - E2 migration boundary: 0001 and 0002 are unchanged; E1 provenance/parser/context-builder/chunker and D4 TextGenerationProvider/DeepSeek are unchanged.
 - E2 local verification: targeted Review-fix PASS — 4 suites / 27 passed; full regression PASS — 68 suites / 409 passed / 9 skipped; lint PASS; combined type-check PASS; server/client build PASS; AppModule bootstrap PASS; static migration checks PASS.
 - E2 PostgreSQL verification: integration tests are included in `test:integration:postgres` and CI uses PostgreSQL 16 + pgvector. Local real PostgreSQL execution was not available because `DATABASE_URL` is unset and Docker is unavailable; local integration result is 2 suites / 9 skipped. The replacement-finalization regression is therefore authoritative in CI.
-- E2 GitHub Actions: authoritative CI run `33979560005` passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/33979560005/job/101342220585) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/33979560005/job/101342220335) on Node 22.23.2/npm 10.9.8. The PostgreSQL job executed 0001 → 0003 on PostgreSQL 16 + pgvector and passed the replacement-finalization regression.
+- E2 GitHub Actions: final-preparation run `33980578928` passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/33980578928/job/101344954494) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/33980578928/job/101344954690) on Node 22.23.2/npm 10.9.8. The PostgreSQL job executed 0001 → 0003 on PostgreSQL 16 + pgvector and passed the replacement-finalization regression.
 - Current E1 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E1_ACCEPTED`), with PR #8 merged into `main`.
 - E1 branch: `codex/phase-e1-task2-database-preflight`
 - E1 base SHA: `156eb45e00bb727c69bb891f056f384bb600d415` (`phase-d4-accepted` peeled SHA)
@@ -51,7 +52,7 @@ Last Updated: 2026-09-06
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: complete ChatGPT Final Acceptance review of the E2 candidate; E3 is not authorized.
+- Next architecture step: E3 remains `PLANNED / NOT AUTHORIZED`; no E3 implementation has started.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
@@ -142,6 +143,7 @@ Last Updated: 2026-09-06
 - Phase D1: ACCEPTED / FROZEN / CLOSED (`PHASE_D1_ACCEPTED_CLOSED`)
 - Phase D2: ACCEPTED / FROZEN / CLOSED (`PHASE_D2_ACCEPTED_CLOSED`)
 - Phase D3: ACCEPTED / FROZEN / CLOSED (`PHASE_D3_ACCEPTED_CLOSED`)
+- Phase E2: ACCEPTED / FROZEN / CLOSED (`PHASE_E2_ACCEPTED_CLOSED`)
 
 ## Previous accepted Phase goal (C3)
 
@@ -255,6 +257,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: E2 — Final Acceptance Candidate
-- Next Phase Status: `PHASE_E2_FINAL_ACCEPTANCE_CANDIDATE`; awaiting ChatGPT Final Acceptance; not accepted, not merged, and no accepted tag.
-- Next Phase Goal: Embedding and version-bound pgvector index materialization over E1 persisted knowledge data; retrieval remains E3 and is not authorized.
+- Next Phase: E3 — Retrieval
+- Next Phase Status: `PLANNED / NOT AUTHORIZED`; no implementation branch or code is authorized.
+- Next Phase Goal: future retrieval design only; query embedding, similarity search, top-k, RAG, and evidence assembly remain outside the accepted E2 scope.
