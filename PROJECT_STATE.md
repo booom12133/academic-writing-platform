@@ -34,7 +34,20 @@ Last Updated: 2026-09-06
 - E4 Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md).
 - E4 Final Acceptance: `PHASE_E4_ACCEPTED`; accepted tag `phase-e4-accepted` is PENDING.
 - E4 primary post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`; the following CI-evidence correction is governance-only.
-- E5 and E6 remain NOT STARTED / NOT AUTHORIZED.
+- E5 status: `PHASE_E5_REVIEW_CANDIDATE`; PR #12 review fixes are implemented and formal acceptance is pending.
+- E5 branch: `phase/e5-academic-search`.
+- E5 PR: [#12 Phase E5 — External Academic Search / Scholarly Discovery](https://github.com/booom12133/academic-writing-platform/pull/12), open for re-review.
+- E5 review-fix candidate implementation commit: `5051a83` (`fix(e5): address academic search review blockers`).
+- E5 review-fix scope: first OpenAlex page uses internal `cursor=*` without exposing raw cursors; the authenticated `POST /api/academic-search/search` contract returns HTTP 200; production cursor signing requires a configured stable secret; retry backoff is bounded by the shared deadline. No persistence, migration, import, generation, reranking, or E6 behavior was added.
+- E5 targeted verification: PASS — `npx jest server/modules/academic-search test/unit/academic-search-frozen-boundary.spec.ts --runInBand` → 10 suites / 58 tests.
+- E5 full regression: PASS — `npm test -- --runInBand` → 105 suites passed / 572 tests passed / 19 skipped.
+- E5 PostgreSQL integration: PASS — `npm run test:integration:postgres` → 1 suite / 1 test passed / 3 suites and 19 tests skipped because local PostgreSQL is unavailable.
+- E5 lint: PASS — `npm run lint`.
+- E5 type-check: PASS — `npm run type:check` (server and client).
+- E5 server build: PASS — `npm run build:server`.
+- E5 client build: PASS — `npm run build:client`, with existing module-type and chunk-size warnings.
+- E5 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
+- E6 remains NOT STARTED / NOT AUTHORIZED.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
@@ -78,7 +91,7 @@ Last Updated: 2026-09-06
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: E5 remains `PLANNED / NOT AUTHORIZED`; do not begin E5 or E6.
+- Next architecture step: E5 re-review; do not merge, tag, or begin E6 before explicit `PHASE_E5_ACCEPTED`.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
