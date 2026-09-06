@@ -8,7 +8,7 @@ import {
 } from '../indexing/embedding.provider';
 import type { EmbeddingConfig } from '../indexing/embedding.types';
 import { createQueryEmbeddingRuntime } from './query-embedding';
-import { createRetrievalConfig, normalizeRetrievalPolicy } from './retrieval.config';
+import { createRetrievalConfig, normalizeRetrievalPolicy, RETRIEVAL_CONFIG } from './retrieval.config';
 import type {
   RetrievalConfig,
   RetrievalFilters,
@@ -64,7 +64,7 @@ export class KnowledgeRetrievalService {
     private readonly repository: KnowledgeRetrievalRepositoryPort,
     @Inject(EMBEDDING_PROVIDER) private readonly provider: EmbeddingProvider,
     @Inject(EMBEDDING_CONFIG) private readonly embeddingConfig: EmbeddingConfig,
-    retrievalConfig: RetrievalConfig = createRetrievalConfig(),
+    @Inject(RETRIEVAL_CONFIG) retrievalConfig: RetrievalConfig = createRetrievalConfig(),
   ) {
     this.retrievalConfig = retrievalConfig;
   }

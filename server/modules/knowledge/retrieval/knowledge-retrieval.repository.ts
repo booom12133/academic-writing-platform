@@ -143,6 +143,7 @@ function identityConditions(identity: EmbeddingModelIdentity) {
     identity.modelRevision === undefined
       ? isNull(sql`${knowledgeEmbeddingIndexes.embeddingModelIdentity}->>'modelRevision'`)
       : sql`${knowledgeEmbeddingIndexes.embeddingModelIdentity}->>'modelRevision' = ${identity.modelRevision}`,
+    sql`${knowledgeEmbeddingIndexes.embeddingModelIdentity}->>'dimensions' = ${String(identity.dimensions)}`,
     eq(knowledgeChunkEmbeddings.dimensions, identity.dimensions),
   ];
 }
@@ -307,7 +308,6 @@ export class KnowledgeRetrievalRepository implements KnowledgeRetrievalRepositor
       )
       .limit(input.candidateLimit);
 
-    const compatibleVersionIds = new Set(rows.map((row) => row.version.id));
     const profileRows = await this.db
       .select({
         versionId: knowledgeEmbeddingIndexes.documentVersionId,
@@ -331,6 +331,16 @@ export class KnowledgeRetrievalRepository implements KnowledgeRetrievalRepositor
           eq(knowledgeEmbeddingIndexes.status, 'indexed'),
         ),
       );
+    const compatibleVersionIds = new Set(
+      profileRows
+        .filter(
+          (row) =>
+            row.profileFingerprint === input.embeddingProfileFingerprint &&
+            row.dimensions === input.identity.dimensions &&
+            samePersistedIdentity(row.identity, input.identity),
+        )
+        .map((row) => row.versionId),
+    );
     const profileUnavailableVersionIds = [...new Set(
       profileRows
         .filter(

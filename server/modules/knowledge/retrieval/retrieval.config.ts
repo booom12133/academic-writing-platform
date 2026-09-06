@@ -1,5 +1,7 @@
 import type { RetrievalConfig, RetrievalDistanceMetric, RetrievalPolicy } from './retrieval.types';
 
+export const RETRIEVAL_CONFIG = Symbol('RETRIEVAL_CONFIG');
+
 function boundedInteger(
   env: NodeJS.ProcessEnv,
   name: string,
