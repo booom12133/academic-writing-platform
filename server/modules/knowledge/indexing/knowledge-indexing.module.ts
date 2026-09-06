@@ -5,6 +5,10 @@ import { DeterministicEmbeddingProvider } from './embedding.fake';
 import { EMBEDDING_CONFIG, createEmbeddingConfig } from './embedding.config';
 import { KnowledgeIndexRepository } from './knowledge-index.repository';
 import { KnowledgeIndexingService } from './knowledge-indexing.service';
+import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../knowledge.repository';
+import type { EmbeddingConfig } from './embedding.types';
+import { type EmbeddingProvider } from './embedding.provider';
+import type { KnowledgeIndexRepositoryPort } from './knowledge-index.repository';
 
 @Module({
   imports: [KnowledgeModule],
@@ -18,7 +22,16 @@ import { KnowledgeIndexingService } from './knowledge-indexing.service';
       provide: EMBEDDING_CONFIG,
       useFactory: () => createEmbeddingConfig(),
     },
-    KnowledgeIndexingService,
+    {
+      provide: KnowledgeIndexingService,
+      useFactory: (
+        knowledge: KnowledgeRepositoryPort,
+        repository: KnowledgeIndexRepositoryPort,
+        provider: EmbeddingProvider,
+        config: EmbeddingConfig,
+      ) => new KnowledgeIndexingService(knowledge, repository, provider, config),
+      inject: [KnowledgeRepository, KnowledgeIndexRepository, EMBEDDING_PROVIDER, EMBEDDING_CONFIG],
+    },
   ],
   exports: [
     KnowledgeIndexRepository,
