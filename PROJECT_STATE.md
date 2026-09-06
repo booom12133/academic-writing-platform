@@ -22,8 +22,15 @@ Last Updated: 2026-09-06
 
 ## Current development
 
-- Current Development: Phase E3 — Retrieval / Evidence Assembly is accepted and closed.
-- Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`); E4 remains unauthorized.
+- Current Development: Phase E4 — Zotero Integration is in final-acceptance preparation.
+- Current E4 status: `PHASE_E4_REVIEW_PASS / PENDING FINAL ACCEPTANCE`; E4 is not accepted, merged, or tagged.
+- E4 branch: `phase/e4-zotero-integration`.
+- E4 accepted baseline candidate: `90ce381ab766150d4c90cb821e4235efca9da164` (`main`); reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
+- E4 PR: [#11 Phase E4 — Zotero Integration](https://github.com/booom12133/academic-writing-platform/pull/11), OPEN; base `main @ 90ce381ab766150d4c90cb821e4235efca9da164`.
+- E4 ChatGPT implementation review: `PHASE_E4_REVIEW_PASS` (Review ID `5124623969`).
+- E4 Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md).
+- E4 final acceptance, merge, accepted tag, E5, and E6 remain pending; no such action is authorized\.
+- Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
 - E3 implementation commits: `3927695`, `3e5863f`, `67cd738`, `285d1b4`, `76af8d8`, `f43d882`, `247157b`, `27f0354`, `3aa5082`.
