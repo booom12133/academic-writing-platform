@@ -35,8 +35,10 @@ export class ClaimBindingValidator {
       const validRefs = unit.evidenceRefs.filter((ref) => evidenceById.has(ref.evidenceId));
       if (validRefs.length === 0) {
         diagnostics.push({ code: 'unbound-unit', unitId: unit.unitId });
-      } else {
+      } else if (validRefs.length === unit.evidenceRefs.length) {
         boundUnits += 1;
+      } else {
+        diagnostics.push({ code: 'unbound-unit', unitId: unit.unitId });
       }
       for (const ref of validRefs) {
         if (seenEvidenceIds.has(ref.evidenceId)) continue;

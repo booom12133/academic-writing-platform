@@ -58,4 +58,14 @@ describe('ClaimBindingValidator', () => {
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain('unbound-unit');
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain('empty-evidence');
   });
+
+  it('does not treat a unit with any unknown reference as completely bound', () => {
+    const output = modelOutput();
+    output.segments[0].units[0].evidenceRefs = [{ evidenceId: 'chunk:one' }, { evidenceId: 'chunk:missing' }];
+
+    const result = new ClaimBindingValidator().validate(output, evidenceSet());
+
+    expect(result.bindingStatus).toBe('partially-bound');
+    expect(result.groundingCoverage).toBe('partial');
+  });
 });
