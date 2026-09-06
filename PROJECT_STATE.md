@@ -13,16 +13,17 @@ Last Updated: 2026-09-06
 
 ## Stable state
 
-- Current Stable Phase: Phase E3 — Retrieval / Evidence Assembly
-- Stable Status: ACCEPTED / FROZEN / CLOSED (`PHASE_E3_ACCEPTED_CLOSED`)
+- Current Stable Phase: Phase E4 — Zotero Integration
+- Stable Status: `PHASE_E4_ACCEPTED / MERGED / TAG PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: final post-merge E3 governance closeout commit, anchored by annotated tag `phase-e3-accepted`
-- Latest Final Acceptance Report: [PHASE_E3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E3_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, and Phase E3 are completed/frozen by project records
+- Stable Main Commit: this final pre-tag governance closeout commit / current `main` HEAD
+- Latest Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, and Phase E4 are completed/frozen by project records
+- `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase E4 — Zotero Integration is accepted and merged; post-merge governance closeout is in progress.
+- Current Development: Phase E4 — Zotero Integration is accepted and merged; post-merge governance closeout is complete and the accepted tag is pending.
 - Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.

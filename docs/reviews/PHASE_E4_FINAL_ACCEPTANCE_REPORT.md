@@ -36,8 +36,14 @@ ChatGPT final acceptance.
 - Merged at: `2026-09-06T08:41:50Z`.
 - Post-merge main SHA before governance closeout: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
 - Primary post-merge governance commit: `300dcd8a89659fab4fc1ea525c270be99ab2bcfb`.
-- The subsequent CI-evidence correction is governance-only; its resulting main
-  SHA is recorded in the post-merge closeout output.
+- Governance correction commit: `520b86197e4bfc12b39702f681c343e7203f52ed`.
+- Governance correction commit: `d8c44f69313f6e34bd75974f72700e472a925b4d`.
+- Verified main CI before this final correction: run `34023063603` on head
+  `d8c44f69313f6e34bd75974f72700e472a925b4d`; `verify` and `postgres-schema`
+  were both SUCCESS.
+- `34023063603` is the verified pre-correction main CI evidence. The final
+  accepted-tag target will be the final governance-only main HEAD after this
+  correction and its CI passes.
 - Accepted tag: `phase-e4-accepted` — PENDING; no tag object SHA exists.
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET.
 
@@ -397,6 +403,7 @@ The following were not entered:
 
 `PHASE_E4_ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING`
 
-Final Acceptance: `PHASE_E4_ACCEPTED`. The post-merge governance closeout and
-main CI remain to be completed before `PHASE_E4_ACCEPTED_CLOSED` and accepted
-tag authorization. No tag SHA is recorded or invented.
+Final Acceptance: `PHASE_E4_ACCEPTED`. Post-merge governance closeout is
+completed. The final accepted tag remains pending until this correction and its
+main CI are verified; `PHASE_E4_ACCEPTED_CLOSED` is not yet established. No tag
+SHA is recorded or invented.
