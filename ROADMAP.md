@@ -1,7 +1,8 @@
 # Project Roadmap
 
-Only established project phases are listed here. Phase E1 is accepted and
-closed; later phases remain record-only and are not authorized.
+Only established project phases are listed here. E1, E2, and E3 are accepted
+and closed. E4 is accepted and merged, with post-merge closeout and its
+accepted tag pending. E5 and E6 remain planned and unauthorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -16,12 +17,17 @@ closed; later phases remain record-only and are not authorized.
 | D2 | Polish Migration | Migrate Polish text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
 | D3 | Paper Revision Migration | Migrate Paper Revision text/file execution onto the accepted preparation and execution pipeline | ACCEPTED | Yes |
 | E1 | Knowledge Provenance Foundation | Standard PostgreSQL/Drizzle knowledge provenance foundation and immutable document-version lifecycle | ACCEPTED | Yes |
-| E | RAG / Zotero / Search | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
+| E2 | Embedding & Index | Embedding provider abstraction, deterministic fingerprints, PostgreSQL/pgvector index lifecycle | ACCEPTED / CLOSED | Yes |
+| E3 | Retrieval / Evidence Assembly | Indexed-only retrieval and provenance-preserving evidence assembly | ACCEPTED / CLOSED | Yes |
+| E4 | Zotero Integration | Server-side personal Zotero connection, bibliographic sync, stored PDF attachment import and independent attachment version sync | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
+| E5 | Academic Search | Future academic search capabilities | PLANNED / NOT AUTHORIZED | No |
+| E6 | Grounded Generation / Citation | Future grounded generation and citation capabilities | PLANNED / NOT AUTHORIZED | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
 
-- ACCEPTED: explicit `PHASE_x_ACCEPTED`, Final Acceptance Report, accepted commit, and tag exist.
+- ACCEPTED: explicit `PHASE_x_ACCEPTED` and Final Acceptance Report exist; accepted tag and closeout determine the separate CLOSED state.
+- ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING: acceptance and merge are complete, but final governance closeout and accepted tag are still pending.
 - IN_PROGRESS: implementation is active or awaiting review/acceptance.
 - PLANNED: route is recorded but work has not started.
 - NOT_STARTED: a confirmed item has no implementation yet.

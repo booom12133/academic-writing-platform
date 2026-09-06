@@ -22,14 +22,17 @@ Last Updated: 2026-09-06
 
 ## Current development
 
-- Current Development: Phase E4 — Zotero Integration is in final-acceptance preparation.
-- Current E4 status: `PHASE_E4_REVIEW_PASS / PENDING FINAL ACCEPTANCE`; E4 is not accepted, merged, or tagged.
+- Current Development: Phase E4 — Zotero Integration is accepted and merged; post-merge governance closeout is in progress.
+- Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
-- E4 accepted baseline candidate: `90ce381ab766150d4c90cb821e4235efca9da164` (`main`); reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
-- E4 PR: [#11 Phase E4 — Zotero Integration](https://github.com/booom12133/academic-writing-platform/pull/11), OPEN; base `main @ 90ce381ab766150d4c90cb821e4235efca9da164`.
+- E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
+- E4 PR: [#11 Phase E4 — Zotero Integration](https://github.com/booom12133/academic-writing-platform/pull/11), MERGED with merge commit `36b252ad684721c1798fe7f446b4e4b3941a8b9a`; base `main @ 90ce381ab766150d4c90cb821e4235efca9da164`.
+- E4 post-merge main HEAD before governance closeout: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
 - E4 ChatGPT implementation review: `PHASE_E4_REVIEW_PASS` (Review ID `5124623969`).
 - E4 Final Acceptance Report: [PHASE_E4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E4_FINAL_ACCEPTANCE_REPORT.md).
-- E4 final acceptance, merge, accepted tag, E5, and E6 remain pending; no such action is authorized\.
+- E4 Final Acceptance: `PHASE_E4_ACCEPTED`; accepted tag `phase-e4-accepted` is PENDING.
+- E4 post-merge governance commit will be recorded as the final `main` HEAD after this closeout.
+- E5 and E6 remain NOT STARTED / NOT AUTHORIZED.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
@@ -73,7 +76,7 @@ Last Updated: 2026-09-06
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: E4 remains `NOT_AUTHORIZED`; do not begin E4.
+- Next architecture step: E5 remains `PLANNED / NOT AUTHORIZED`; do not begin E5 or E6.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`

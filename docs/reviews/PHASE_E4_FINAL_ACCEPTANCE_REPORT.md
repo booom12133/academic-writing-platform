@@ -1,12 +1,12 @@
 # PHASE_E4_FINAL_ACCEPTANCE_REPORT
 
 Date: 2026-09-06  
-Status: `PHASE_E4_REVIEW_PASS / PENDING FINAL ACCEPTANCE`
+Status: `PHASE_E4_ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING`
 
-This is the Phase E4 final-acceptance preparation record. It records the
-reviewed implementation and verification evidence, but it does not declare
-`PHASE_E4_ACCEPTED`, merge the pull request, create an accepted tag, or advance
-the project to E5/E6. Final acceptance remains the responsibility of ChatGPT.
+This is the Phase E4 Final Acceptance record and post-merge closeout record. It
+records ChatGPT's `PHASE_E4_ACCEPTED` decision and the normal PR merge. The
+accepted tag is intentionally still pending; `PHASE_E4_ACCEPTED_CLOSED` has not
+yet been established, and E5/E6 remain unauthorized.
 
 ## 1. Executive Summary
 
@@ -30,11 +30,18 @@ ChatGPT final acceptance.
 - Pull request: [#11 Phase E4 — Zotero Integration](https://github.com/booom12133/academic-writing-platform/pull/11).
 - PR base: `main @ 90ce381ab766150d4c90cb821e4235efca9da164`.
 - ChatGPT final implementation review: `PHASE_E4_REVIEW_PASS`, Review ID `5124623969`.
-- PR state at preparation start: open.
+- ChatGPT Final Acceptance: `PHASE_E4_ACCEPTED`.
+- PR state: MERGED.
+- PR merge commit: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
+- Merged at: `2026-09-06T08:41:50Z`.
+- Post-merge main SHA before governance closeout: `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
+- Post-merge governance commit: this closeout commit; it will be the final
+  `main` HEAD after the documentation push.
+- Accepted tag: `phase-e4-accepted` — PENDING; no tag object SHA exists.
+- `PHASE_E4_ACCEPTED_CLOSED`: NOT YET.
 
-The reviewed implementation HEAD is unchanged at the start of final-acceptance
-preparation. Any later preparation commit is documentation-only and is not an
-implementation re-review HEAD.
+The reviewed implementation HEAD is unchanged. The merge commit and this
+post-merge governance change contain no further business implementation.
 
 ## 3. Phase E4 Goal
 
@@ -299,6 +306,10 @@ The corresponding push workflow run `34019327217` also reported both checks
 successful. CI therefore supplied the authoritative PostgreSQL + pgvector
 evidence unavailable in the local environment.
 
+Post-merge main CI for the governance closeout is pending until the governance
+commit is pushed. It must pass both `verify` and `postgres-schema` before the
+accepted tag can be requested.
+
 ## 19. Review History / Findings Closure
 
 ### Initial Review
@@ -362,21 +373,23 @@ The following were not entered:
 ## 22. Final Acceptance Checklist
 
 - [x] Stable base is `90ce381ab766150d4c90cb821e4235efca9da164`.
-- [x] PR #11 remains open on `phase/e4-zotero-integration`.
+- [x] PR #11 is merged with normal merge commit `36b252ad684721c1798fe7f446b4e4b3941a8b9a`.
 - [x] Reviewed implementation HEAD is `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
 - [x] Final ChatGPT implementation review is `PHASE_E4_REVIEW_PASS`.
+- [x] ChatGPT Final Acceptance is `PHASE_E4_ACCEPTED`.
 - [x] Required implementation and regression evidence is recorded.
 - [x] PostgreSQL + pgvector CI evidence is recorded.
 - [x] Migration 0004 scope is recorded; it was not changed during preparation.
 - [x] Frozen E1/E2/E3/C4 boundaries and E5/E6 exclusions are recorded.
 - [x] No implementation file was changed during preparation.
-- [ ] ChatGPT issues `PHASE_E4_ACCEPTED`.
-- [ ] PR #11 is merged after explicit acceptance.
+- [x] PR #11 is merged after explicit acceptance.
+- [ ] Post-merge main CI is green.
 - [ ] `phase-e4-accepted` is created after merge closeout.
 
 ## 23. Proposed Final Status
 
-`PHASE_E4_REVIEW_PASS / PENDING FINAL ACCEPTANCE`
+`PHASE_E4_ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING`
 
-This report is a final-acceptance candidate only. It does not authorize merge,
-tagging, E5, E6, or any further business implementation.
+Final Acceptance: `PHASE_E4_ACCEPTED`. The post-merge governance closeout and
+main CI remain to be completed before `PHASE_E4_ACCEPTED_CLOSED` and accepted
+tag authorization. No tag SHA is recorded or invented.
