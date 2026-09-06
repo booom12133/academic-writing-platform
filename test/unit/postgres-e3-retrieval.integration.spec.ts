@@ -277,7 +277,7 @@ describeIfDatabase('E3 PostgreSQL and pgvector retrieval', () => {
 
     const profileUnavailable = await retrieval.retrieve({ userId, queryText: 'query', selection: { mode: 'explicit', documentVersionIds: [historical.version.id] } });
     expect(profileUnavailable.items).toEqual([]);
-    expect(profileUnavailable.status).toBe('partial');
+    expect(profileUnavailable.status).toBe('empty');
     expect(profileUnavailable.diagnostics).toContainEqual({ code: 'profile-unavailable', documentVersionId: historical.version.id });
 
     const nonIndexed = await seedVersion({ knowledge, indexing, userId, text: 'far', sourceRecordId: source.id, activate: false, index: false, versionNumber: 2 });
