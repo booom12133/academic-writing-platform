@@ -23,7 +23,7 @@ Last Updated: 2026-09-06
 ## Current development
 
 - Current Development: Phase E3 — Retrieval / Evidence Assembly implementation completed and submitted for GitHub review.
-- Current E3 status: `REVIEW CANDIDATE` (`PHASE_E3_REVIEW_CANDIDATE`); implementation is complete, not accepted, and E4 remains unauthorized.
+- Current E3 status: `FINAL ACCEPTANCE CANDIDATE` (`PHASE_E3_FINAL_ACCEPTANCE_CANDIDATE`); implementation is complete, Final Acceptance is not granted, and E4 remains unauthorized.
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).
 - E3 implementation commits: `3927695`, `3e5863f`, `67cd738`, `285d1b4`, `76af8d8`, `f43d882`, `247157b`, `27f0354`, `3aa5082`.
@@ -31,7 +31,10 @@ Last Updated: 2026-09-06
 - E3 schema boundary: no migration, no new vector storage, no HNSW/IVFFlat, and no E2 indexing-lifecycle change. Only the existing E2 embedding provider/config tokens were exported for retrieval wiring.
 - E3 local verification: targeted retrieval PASS — 10 suites / 36 passed; full regression PASS — 78 suites / 445 passed / 12 skipped; lint PASS; combined type-check PASS; server build PASS; client build PASS; AppModule bootstrap PASS.
 - E3 PostgreSQL verification: `test:integration:postgres` includes the E3 suite; local execution was not available because `DATABASE_URL` is unset and Docker is unavailable, so 3 suites / 12 tests were skipped. GitHub Actions run [34007966469](https://github.com/booom12133/academic-writing-platform/actions/runs/34007966469) passed both [verify](https://github.com/booom12133/academic-writing-platform/actions/runs/34007966469/job/101418551727) and [postgres-schema](https://github.com/booom12133/academic-writing-platform/actions/runs/34007966469/job/101418551604).
-- E3 PR: [#10 Phase E3 — Retrieval / Evidence Assembly](https://github.com/booom12133/academic-writing-platform/pull/10), open for ChatGPT review; do not merge or tag before `PHASE_E3_ACCEPTED`.
+- E3 PR: [#10 Phase E3 — Retrieval / Evidence Assembly](https://github.com/booom12133/academic-writing-platform/pull/10), open for ChatGPT Final Acceptance; do not merge or tag before explicit Final Acceptance.
+- E3 reviewed implementation HEAD: `9832f78086440beefef306823b6ba10ecbde54aa`.
+- E3 ChatGPT Review ID: `5123910281` (`PHASE_E3_REVIEW_PASS`).
+- E3 Final Acceptance Preparation Report: [PHASE_E3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E3_FINAL_ACCEPTANCE_REPORT.md).
 - Current E2 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E2_ACCEPTED_CLOSED`); ChatGPT Final Acceptance: `PHASE_E2_ACCEPTED`.
 - E2 branch: `codex/phase-e2-embedding-index`.
 - E2 accepted baseline: `d68331f594f671a1ce0099d008d3aaaa512448b1` (`origin/main`, `phase-e1-accepted`).
@@ -61,7 +64,7 @@ Last Updated: 2026-09-06
 - E1 Final Acceptance Preparation Report: [PHASE_E1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E1_FINAL_ACCEPTANCE_REPORT.md).
 - E1 Final Acceptance: `PHASE_E1_ACCEPTED`; post-merge governance closeout and annotated tag `phase-e1-accepted` are recorded on `main`.
 - E1 deployment boundary: self-hosted authentication remains `PRODUCTION_DEPLOYMENT_BLOCKER`; no ECS deployment or production PostgreSQL mutation occurred.
-- Next architecture step: wait for ChatGPT/GitHub E3 review and explicit acceptance; do not merge, tag, or enter E4.
+- Next architecture step: wait for ChatGPT Final Acceptance of E3; do not merge, tag, or enter E4.
 - D3 Status: `ACCEPTED / FROZEN / CLOSED`
 - D3 Branch: `phase/d3-paper-revision-migration`
 - D3 Implementation Candidate SHA: `6290540811fdfe06af1316a035dc7a5d1466cc02`
