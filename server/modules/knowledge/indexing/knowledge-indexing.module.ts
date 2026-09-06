@@ -14,6 +14,9 @@ import type { KnowledgeIndexRepositoryPort } from './knowledge-index.repository'
   imports: [KnowledgeModule],
   providers: [
     KnowledgeIndexRepository,
+    // Keep the injectable visible to the Nest lint rule; the explicit factory below
+    // preserves the constructor's default sleep implementation during bootstrap.
+    KnowledgeIndexingService,
     {
       provide: EMBEDDING_PROVIDER,
       useClass: DeterministicEmbeddingProvider,
