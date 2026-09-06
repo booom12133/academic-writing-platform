@@ -109,4 +109,54 @@ describe('KnowledgeEvidenceService', () => {
     expect(knowledgeRepository.getSourceRecord).toHaveBeenCalledWith('user-1', 'source-1');
     expect(result.items[0].sourceIdentity).toEqual(source);
   });
+
+  it('preserves empty evidence when every candidate was excluded by the threshold', async () => {
+    const input: KnowledgeRetrievalInput = { userId: 'user-1', queryText: 'query' };
+    const retrievalService = {
+      retrieve: jest.fn().mockResolvedValue({
+        ...retrieval,
+        status: 'empty',
+        items: [],
+        diagnostics: [{ code: 'threshold-excluded' }],
+      } satisfies RetrievalResult),
+    };
+    const knowledgeRepository: Pick<KnowledgeRepositoryPort, 'getSourceRecord'> = {
+      getSourceRecord: jest.fn(),
+    };
+
+    const result = await new KnowledgeEvidenceService(
+      retrievalService,
+      knowledgeRepository,
+      new EvidenceAssemblyService(),
+    ).retrieve(input);
+
+    expect(result.status).toBe('empty');
+    expect(result.diagnostics).toEqual([{ code: 'threshold-excluded' }]);
+  });
+
+  it('preserves empty evidence when the selected scope has no compatible profile', async () => {
+    const input: KnowledgeRetrievalInput = { userId: 'user-1', queryText: 'query' };
+    const retrievalService = {
+      retrieve: jest.fn().mockResolvedValue({
+        ...retrieval,
+        status: 'empty',
+        items: [],
+        diagnostics: [{ code: 'profile-unavailable', documentVersionId: 'version-1' }],
+      } satisfies RetrievalResult),
+    };
+    const knowledgeRepository: Pick<KnowledgeRepositoryPort, 'getSourceRecord'> = {
+      getSourceRecord: jest.fn(),
+    };
+
+    const result = await new KnowledgeEvidenceService(
+      retrievalService,
+      knowledgeRepository,
+      new EvidenceAssemblyService(),
+    ).retrieve(input);
+
+    expect(result.status).toBe('empty');
+    expect(result.diagnostics).toEqual([
+      { code: 'profile-unavailable', documentVersionId: 'version-1' },
+    ]);
+  });
 });

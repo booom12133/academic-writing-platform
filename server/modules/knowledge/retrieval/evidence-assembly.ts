@@ -62,7 +62,12 @@ export class EvidenceAssemblyService {
     }
 
     return {
-      status: diagnostics.length > 0 ? 'partial' : retrieval.status,
+      status:
+        items.length === 0
+          ? 'empty'
+          : diagnostics.length > 0
+            ? 'partial'
+            : retrieval.status,
       selectedVersionIds: [...retrieval.selectedVersionIds],
       items,
       diagnostics,
