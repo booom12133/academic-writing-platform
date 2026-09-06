@@ -21,6 +21,7 @@ import { AiToolsModule } from './modules/ai-tools/ai-tools.module';
 import { DocumentInputModule } from './modules/document-input/document-input.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
+import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
 
 const documentStorageConfig = resolveDocumentStorageConfig();
 const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
@@ -50,6 +51,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
     DocumentInputModule,
     KnowledgeModule,
     ZoteroModule,
+    AcademicSearchModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last
