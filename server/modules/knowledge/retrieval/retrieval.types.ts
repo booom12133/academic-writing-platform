@@ -39,3 +39,8 @@ export interface RetrievalProfile {
   distanceMetric: RetrievalDistanceMetric;
   policy: RetrievalPolicy;
 }
+
+export interface QueryEmbeddingRuntime extends RetrievalProfile {
+  queryInputFingerprint: string;
+  vector: number[];
+}
