@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import {
   knowledgeChunks,
@@ -35,17 +35,29 @@ type ChunkRow = typeof knowledgeChunks.$inferSelect;
 type KnowledgeTransaction = Parameters<Parameters<AppDatabase['transaction']>[0]>[0];
 type KnowledgeDatabase = AppDatabase | KnowledgeTransaction;
 
+const CANONICAL_METADATA_FIELDS: ReadonlySet<MetadataField> = new Set([
+  'title', 'authors', 'year', 'venue', 'abstract', 'doi', 'citationKey',
+  'publisher', 'volume', 'issue', 'pages', 'url', 'isbn', 'issn', 'language',
+]);
+
 export interface KnowledgeRepositoryPort {
   createSourceRecord(input: CreateSourceRecordInput): Promise<SourceRecord>;
+  findSourceRecordByExternalIdentity?(input: { userId: string; connectorKind: string; provider: string; externalRecordId: string }): Promise<SourceRecord | null>;
+  refreshSourceRecord?(input: { userId: string; sourceRecordId: string; canonicalMetadata: CreateSourceRecordInput['canonicalMetadata']; metadataAssertions: MetadataAssertionInput[]; externalProvenance: ExternalProvenance[] }): Promise<SourceRecord>;
   createExternalLinks(input: { userId: string; sourceRecordId: string; links: ExternalProvenance[] }): Promise<void>;
   getSourceRecord(userId: string, sourceRecordId: string): Promise<SourceRecord | null>;
-  createDocument(input: { userId: string; sourceRecordId?: string; originKind: KnowledgeDocument['originKind']; displayName: string; sourceType: KnowledgeDocument['sourceType'] }): Promise<KnowledgeDocument>;
+  createDocument(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocument>;
+  createDocumentWithExternalIdentityArbitration?(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocumentCreateResult>;
   createVersion(input: Omit<KnowledgeDocumentVersion, 'id' | 'createdAt'>): Promise<KnowledgeDocumentVersion>;
   createChunks(input: KnowledgeChunk[]): Promise<KnowledgeChunk[]>;
   findImport(userId: string, idempotencyKey: string): Promise<{ id: string; requestFingerprint: string; documentId?: string; documentVersionId?: string; status: string } | null>;
   createImportMarker(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<string>;
   claimImportMarker?(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<{ id: string; created: boolean }>;
   getDocument?(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
+  lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
+  findDocumentByExternalIdentity?(userId: string, externalIdentity: string): Promise<KnowledgeDocument | null>;
+  updateExternalSyncState?(userId: string, documentId: string, state: { externalVersion: string; externalChecksumAlgorithm: 'md5'; externalChecksum: string }): Promise<void>;
+  restoreDocument?(userId: string, documentId: string): Promise<void>;
   getVersion?(userId: string, versionId: string): Promise<KnowledgeDocumentVersion | null>;
   getChunks?(userId: string, versionId: string): Promise<KnowledgeChunk[]>;
   getLatestVersion?(userId: string, documentId: string): Promise<KnowledgeDocumentVersion | null>;
@@ -53,6 +65,23 @@ export interface KnowledgeRepositoryPort {
   activateVersion(userId: string, documentId: string, versionId: string): Promise<void>;
   tombstoneDocument(userId: string, documentId: string): Promise<void>;
   withTransaction?<T>(work: (repository: KnowledgeRepositoryPort) => Promise<T>): Promise<T>;
+}
+
+export interface KnowledgeDocumentCreateInput {
+  userId: string;
+  sourceRecordId?: string;
+  originKind: KnowledgeDocument['originKind'];
+  displayName: string;
+  sourceType: KnowledgeDocument['sourceType'];
+  externalIdentity?: string;
+  externalVersion?: string;
+  externalChecksumAlgorithm?: 'md5';
+  externalChecksum?: string;
+}
+
+export interface KnowledgeDocumentCreateResult {
+  document: KnowledgeDocument;
+  created: boolean;
 }
 
 function invalid(message: string): never {
@@ -141,6 +170,10 @@ function toDocument(row: DocumentRow): KnowledgeDocument {
     displayName: row.displayName,
     sourceType: row.sourceType as KnowledgeDocument['sourceType'],
     ...(row.activeVersionId === null ? {} : { activeVersionId: row.activeVersionId }),
+    ...(row.externalIdentity === null ? {} : { externalIdentity: row.externalIdentity }),
+    ...(row.externalVersion === null ? {} : { externalVersion: row.externalVersion }),
+    ...(row.externalChecksumAlgorithm === null ? {} : { externalChecksumAlgorithm: row.externalChecksumAlgorithm as 'md5' }),
+    ...(row.externalChecksum === null ? {} : { externalChecksum: row.externalChecksum }),
     lifecycleStatus: row.lifecycleStatus as KnowledgeDocument['lifecycleStatus'],
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -215,6 +248,9 @@ function validateCanonicalMetadata(input: CreateSourceRecordInput, rows: Metadat
   const byKey = new Map(rows.map((row, index) => [input.metadataAssertions?.[index].localKey ?? '', row]));
   const result: Record<string, unknown> = {};
   for (const [field, value] of Object.entries(input.canonicalMetadata ?? {})) {
+    if (!CANONICAL_METADATA_FIELDS.has(field as MetadataField)) {
+      invalid(`Canonical ${field} is not a supported platform citation field.`);
+    }
     result[field] = validateCanonicalField(field as MetadataField, value as CanonicalFieldInput<unknown>, byKey);
   }
   return result as CanonicalSourceMetadata;
@@ -326,23 +362,147 @@ export class KnowledgeRepository {
     return toSourceRecord(source, links);
   }
 
-  async createDocument(input: { userId: string; sourceRecordId?: string; originKind: KnowledgeDocument['originKind']; displayName: string; sourceType: KnowledgeDocument['sourceType'] }): Promise<KnowledgeDocument> {
+  private async validateDocumentInput(input: KnowledgeDocumentCreateInput): Promise<void> {
     if (!input.userId || !input.displayName || input.displayName.length > 255) invalid('Document user and safe display name are required.');
     if (input.sourceRecordId && !(await this.getSourceRecord(input.userId, input.sourceRecordId))) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Source record was not found.');
-    const [row] = await this.db.insert(knowledgeDocuments).values({
+  }
+
+  private documentInsertValues(input: KnowledgeDocumentCreateInput) {
+    return {
       userId: input.userId,
       ...(input.sourceRecordId === undefined ? {} : { sourceRecordId: input.sourceRecordId }),
       originKind: input.originKind,
       displayName: input.displayName,
       sourceType: input.sourceType,
-      lifecycleStatus: 'active',
+      ...(input.externalIdentity === undefined ? {} : { externalIdentity: input.externalIdentity }),
+      ...(input.externalVersion === undefined ? {} : { externalVersion: input.externalVersion }),
+      ...(input.externalChecksumAlgorithm === undefined ? {} : { externalChecksumAlgorithm: input.externalChecksumAlgorithm }),
+      ...(input.externalChecksum === undefined ? {} : { externalChecksum: input.externalChecksum }),
+      lifecycleStatus: 'active' as const,
+    };
+  }
+
+  async createDocument(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocument> {
+    await this.validateDocumentInput(input);
+    const [row] = await this.db.insert(knowledgeDocuments).values({
+      ...this.documentInsertValues(input),
     }).returning();
     return toDocument(row);
+  }
+
+  async createDocumentWithExternalIdentityArbitration(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocumentCreateResult> {
+    if (input.externalIdentity === undefined) return { document: await this.createDocument(input), created: true };
+    await this.validateDocumentInput(input);
+    const [row] = await this.db.insert(knowledgeDocuments).values(this.documentInsertValues(input)).onConflictDoNothing({
+      target: [knowledgeDocuments.userId, knowledgeDocuments.externalIdentity],
+    }).returning();
+    if (row) return { document: toDocument(row), created: true };
+    const existing = await this.findDocumentByExternalIdentity(input.userId, input.externalIdentity);
+    if (!existing) throw new KnowledgeError('KNOWLEDGE_EXTERNAL_IDENTITY_CONFLICT', 'The external document identity could not be re-read after arbitration.');
+    return { document: existing, created: false };
   }
 
   async getDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {
     const [row] = await this.db.select().from(knowledgeDocuments).where(and(eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId), eq(knowledgeDocuments.lifecycleStatus, 'active'))).limit(1);
     return row ? toDocument(row) : null;
+  }
+
+  async lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {
+    const [row] = await this.db.select().from(knowledgeDocuments).where(and(
+      eq(knowledgeDocuments.id, documentId),
+      eq(knowledgeDocuments.userId, userId),
+      eq(knowledgeDocuments.lifecycleStatus, 'active'),
+    )).for('update').limit(1);
+    return row ? toDocument(row) : null;
+  }
+
+  async findSourceRecordByExternalIdentity(input: { userId: string; connectorKind: string; provider: string; externalRecordId: string }): Promise<SourceRecord | null> {
+    const [link] = await this.db.select().from(knowledgeSourceExternalLinks).where(and(
+      eq(knowledgeSourceExternalLinks.userId, input.userId),
+      eq(knowledgeSourceExternalLinks.connectorKind, input.connectorKind),
+      eq(knowledgeSourceExternalLinks.provider, input.provider),
+      eq(knowledgeSourceExternalLinks.externalRecordId, input.externalRecordId),
+    )).limit(1);
+    return link ? this.getSourceRecord(input.userId, link.sourceRecordId) : null;
+  }
+
+  async refreshSourceRecord(input: { userId: string; sourceRecordId: string; canonicalMetadata: CreateSourceRecordInput['canonicalMetadata']; metadataAssertions: MetadataAssertionInput[]; externalProvenance: ExternalProvenance[] }): Promise<SourceRecord> {
+    if (!(await this.getSourceRecord(input.userId, input.sourceRecordId))) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Source record was not found.');
+    const execute = async (db: KnowledgeDatabase) => {
+      const assertions = input.metadataAssertions;
+      const inserted = assertions.length === 0 ? [] : await db.insert(knowledgeMetadataAssertions).values(assertions.map((item) => ({
+        userId: input.userId, sourceRecordId: input.sourceRecordId, field: item.field, value: item.value,
+        providerKind: item.providerKind, provider: item.provider, externalRecordId: item.externalRecordId,
+        ...(item.observedAt === undefined ? {} : { observedAt: new Date(item.observedAt) }),
+        verificationStatus: item.verificationStatus, assertionHash: assertionHash(item),
+      }))).returning();
+      const canonicalMetadata = validateCanonicalMetadata({ ...input, kind: 'scholarly-work' }, inserted.map(toMetadataAssertion));
+      for (const link of input.externalProvenance) {
+        await db.insert(knowledgeSourceExternalLinks).values({
+          userId: input.userId, sourceRecordId: input.sourceRecordId, connectorKind: link.connectorKind,
+          provider: link.provider, externalRecordId: link.externalRecordId,
+          ...(link.externalVersion === undefined ? {} : { externalVersion: link.externalVersion }),
+          ...(link.canonicalUrl === undefined ? {} : { canonicalUrl: link.canonicalUrl }),
+          ...(link.retrievedAt === undefined ? {} : { retrievedAt: new Date(link.retrievedAt) }),
+          ...(link.licenseOrAccessNote === undefined ? {} : { licenseOrAccessNote: link.licenseOrAccessNote }),
+          verificationStatus: link.verificationStatus,
+        }).onConflictDoUpdate({
+          target: [knowledgeSourceExternalLinks.userId, knowledgeSourceExternalLinks.connectorKind, knowledgeSourceExternalLinks.provider, knowledgeSourceExternalLinks.externalRecordId],
+          set: {
+            sourceRecordId: input.sourceRecordId,
+            externalVersion: link.externalVersion,
+            retrievedAt: link.retrievedAt === undefined ? new Date() : new Date(link.retrievedAt),
+            verificationStatus: link.verificationStatus,
+          },
+        });
+      }
+      await db.update(knowledgeSourceRecords).set({ canonicalMetadata: canonicalMetadata as unknown as Record<string, unknown>, updatedAt: new Date() }).where(and(eq(knowledgeSourceRecords.id, input.sourceRecordId), eq(knowledgeSourceRecords.userId, input.userId)));
+    };
+    try {
+      if (this.transactional) await execute(this.db);
+      else await this.db.transaction(execute);
+    } catch (error) {
+      if (error instanceof KnowledgeError) throw error;
+      if (isUniqueViolation(error)) throw new KnowledgeError('KNOWLEDGE_METADATA_CONFLICT', 'Source metadata conflicts with existing evidence.');
+      throw error;
+    }
+    const result = await this.getSourceRecord(input.userId, input.sourceRecordId);
+    if (!result) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Source record was not found after refresh.');
+    return result;
+  }
+
+  async findDocumentByExternalIdentity(userId: string, externalIdentity: string): Promise<KnowledgeDocument | null> {
+    const [row] = await this.db.select().from(knowledgeDocuments).where(and(
+      eq(knowledgeDocuments.userId, userId), eq(knowledgeDocuments.externalIdentity, externalIdentity),
+    )).limit(1);
+    return row ? toDocument(row) : null;
+  }
+
+  async updateExternalSyncState(userId: string, documentId: string, state: { externalVersion: string; externalChecksumAlgorithm: 'md5'; externalChecksum: string }): Promise<void> {
+    if (!/^\d+$/u.test(state.externalVersion)) throw new KnowledgeError('INVALID_KNOWLEDGE_INPUT', 'External version must be a numeric Zotero version.');
+    const result = await this.db.update(knowledgeDocuments).set({
+      externalVersion: state.externalVersion,
+      externalChecksumAlgorithm: state.externalChecksumAlgorithm,
+      externalChecksum: state.externalChecksum,
+      updatedAt: new Date(),
+    }).where(and(
+      eq(knowledgeDocuments.id, documentId),
+      eq(knowledgeDocuments.userId, userId),
+      sql`(${knowledgeDocuments.externalVersion} IS NULL OR CAST(${knowledgeDocuments.externalVersion} AS bigint) < ${state.externalVersion})`,
+    )).returning({ id: knowledgeDocuments.id });
+    if (result.length) return;
+    const [existing] = await this.db.select({ id: knowledgeDocuments.id }).from(knowledgeDocuments).where(and(
+      eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId),
+    )).limit(1);
+    if (existing) return;
+    throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Document was not found.');
+  }
+
+  async restoreDocument(userId: string, documentId: string): Promise<void> {
+    const result = await this.db.update(knowledgeDocuments).set({ lifecycleStatus: 'active', updatedAt: new Date() }).where(and(
+      eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId), eq(knowledgeDocuments.lifecycleStatus, 'tombstoned'),
+    )).returning({ id: knowledgeDocuments.id });
+    if (!result.length) throw new KnowledgeError('KNOWLEDGE_NOT_FOUND', 'Tombstoned document was not found.');
   }
 
   async createVersion(input: Omit<KnowledgeDocumentVersion, 'id' | 'createdAt'>): Promise<KnowledgeDocumentVersion> {

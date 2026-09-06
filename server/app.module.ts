@@ -20,6 +20,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { AiToolsModule } from './modules/ai-tools/ai-tools.module';
 import { DocumentInputModule } from './modules/document-input/document-input.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { ZoteroModule } from './modules/zotero/zotero.module';
 
 const documentStorageConfig = resolveDocumentStorageConfig();
 const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
@@ -48,6 +49,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
     AiToolsModule,
     DocumentInputModule,
     KnowledgeModule,
+    ZoteroModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last

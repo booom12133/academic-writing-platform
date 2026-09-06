@@ -77,6 +77,29 @@ CREATE TABLE recharge_orders (
   _updated_by text
 );
 
+CREATE TABLE zotero_connections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id varchar(64) NOT NULL,
+  library_type varchar(16) NOT NULL,
+  library_id varchar(64) NOT NULL,
+  ciphertext text NOT NULL,
+  nonce varchar(128) NOT NULL,
+  auth_tag varchar(128) NOT NULL,
+  encryption_algorithm varchar(32) NOT NULL,
+  encryption_key_version varchar(64) NOT NULL,
+  key_fingerprint varchar(128) NOT NULL,
+  status varchar(24) NOT NULL,
+  last_checked_at timestamptz,
+  last_seen_library_version varchar(255),
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT zotero_connections_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT zotero_connections_identity_key UNIQUE (user_id, library_type, library_id)
+);
+
+CREATE INDEX zotero_connections_user_status_idx
+  ON zotero_connections (user_id, status);
+
 CREATE TABLE knowledge_source_records (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id varchar(64) NOT NULL,
@@ -147,6 +170,10 @@ CREATE TABLE knowledge_documents (
   display_name varchar(255) NOT NULL,
   source_type varchar(16) NOT NULL,
   active_version_id uuid,
+  external_identity varchar(255),
+  external_version varchar(255),
+  external_checksum_algorithm varchar(32),
+  external_checksum varchar(128),
   lifecycle_status varchar(24) NOT NULL,
   _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -160,6 +187,8 @@ CREATE INDEX knowledge_documents_user_lifecycle_idx
   ON knowledge_documents (user_id, lifecycle_status);
 CREATE INDEX knowledge_documents_user_source_idx
   ON knowledge_documents (user_id, source_record_id);
+CREATE UNIQUE INDEX knowledge_documents_external_identity_key
+  ON knowledge_documents (user_id, external_identity);
 
 CREATE TABLE knowledge_document_versions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

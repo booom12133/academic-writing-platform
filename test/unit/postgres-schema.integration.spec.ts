@@ -52,7 +52,7 @@ describeIfDatabase('standard PostgreSQL migrations', () => {
     expect(result.rows.map((row) => row.table_name)).toEqual([
       'app_users', 'knowledge_chunk_embeddings', 'knowledge_chunks', 'knowledge_document_versions', 'knowledge_documents',
       'knowledge_embedding_indexes', 'knowledge_imports', 'knowledge_metadata_assertions', 'knowledge_source_external_links',
-      'knowledge_source_records', 'point_records', 'recharge_orders', 'tasks',
+      'knowledge_source_records', 'point_records', 'recharge_orders', 'tasks', 'zotero_connections',
     ]);
   });
 

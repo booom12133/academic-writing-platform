@@ -125,6 +125,32 @@ export const appUsers = pgTable(
   ],
 );
 
+export const zoteroConnections = pgTable(
+  'zotero_connections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    libraryType: varchar('library_type', { length: 16 }).notNull(),
+    libraryId: varchar('library_id', { length: 64 }).notNull(),
+    ciphertext: text('ciphertext').notNull(),
+    nonce: varchar('nonce', { length: 128 }).notNull(),
+    authTag: varchar('auth_tag', { length: 128 }).notNull(),
+    encryptionAlgorithm: varchar('encryption_algorithm', { length: 32 }).notNull(),
+    encryptionKeyVersion: varchar('encryption_key_version', { length: 64 }).notNull(),
+    keyFingerprint: varchar('key_fingerprint', { length: 128 }).notNull(),
+    status: varchar('status', { length: 24 }).notNull(),
+    lastCheckedAt: timestamp('last_checked_at', { withTimezone: true, precision: 3 }),
+    lastSeenLibraryVersion: varchar('last_seen_library_version', { length: 255 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex('zotero_connections_id_user_id_key').on(table.id, table.userId),
+    uniqueIndex('zotero_connections_identity_key').on(table.userId, table.libraryType, table.libraryId),
+    index('zotero_connections_user_status_idx').on(table.userId, table.status),
+  ],
+);
+
 export const knowledgeSourceRecords = pgTable(
   'knowledge_source_records',
   {
@@ -224,6 +250,10 @@ export const knowledgeDocuments = pgTable(
     displayName: varchar('display_name', { length: 255 }).notNull(),
     sourceType: varchar('source_type', { length: 16 }).notNull(),
     activeVersionId: uuid('active_version_id'),
+    externalIdentity: varchar('external_identity', { length: 255 }),
+    externalVersion: varchar('external_version', { length: 255 }),
+    externalChecksumAlgorithm: varchar('external_checksum_algorithm', { length: 32 }),
+    externalChecksum: varchar('external_checksum', { length: 128 }),
     lifecycleStatus: varchar('lifecycle_status', { length: 24 }).notNull(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -232,6 +262,7 @@ export const knowledgeDocuments = pgTable(
     uniqueIndex('knowledge_documents_id_user_id_key').on(table.id, table.userId),
     index('knowledge_documents_user_lifecycle_idx').on(table.userId, table.lifecycleStatus),
     index('knowledge_documents_user_source_idx').on(table.userId, table.sourceRecordId),
+    uniqueIndex('knowledge_documents_external_identity_key').on(table.userId, table.externalIdentity),
     foreignKey({
       columns: [table.sourceRecordId, table.userId],
       foreignColumns: [knowledgeSourceRecords.id, knowledgeSourceRecords.userId],
