@@ -1,6 +1,7 @@
 const { NestFactory } = require('@nestjs/core');
 
 process.env.NODE_ENV = 'development';
+process.env.RUNTIME_PROFILE = 'local';
 process.env.MIAODA_LOCAL_DEV = '1';
 process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
 process.env.DOCUMENT_STORAGE_ROOT =

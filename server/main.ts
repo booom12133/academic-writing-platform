@@ -6,8 +6,10 @@ import { __express as hbsExpressEngine } from 'hbs';
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
+import { loadRuntimeConfig } from './config/production-config';
 
 async function bootstrap() {
+  loadRuntimeConfig();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     abortOnError: process.env.NODE_ENV !== 'development',
   });

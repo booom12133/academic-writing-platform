@@ -1,7 +1,11 @@
 import type { Provider } from '@nestjs/common';
 import { createRequire } from 'node:module';
 
-import { resolveDocumentStorageConfig, type DocumentStorageConfig } from './document-storage.config';
+import { loadRuntimeConfig } from '../../config/production-config';
+import {
+  resolveRuntimeDocumentStorageConfig,
+  type DocumentStorageConfig,
+} from './document-storage.config';
 import { SelfHostedFilesystemDocumentStorageAdapter } from './filesystem-document-storage.adapter';
 import { PlatformDocumentStorageAdapter } from './platform-document-storage.adapter';
 import { DOCUMENT_STORAGE } from './document-input.storage';
@@ -9,7 +13,7 @@ import { DOCUMENT_STORAGE } from './document-input.storage';
 const loadPlatformModule = createRequire(__filename);
 
 export function createDocumentStorageProvider(
-  config: DocumentStorageConfig = resolveDocumentStorageConfig(),
+  config: DocumentStorageConfig = resolveRuntimeDocumentStorageConfig(loadRuntimeConfig()),
 ): Provider {
   if (config.driver === 'filesystem') {
     return {

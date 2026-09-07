@@ -18,6 +18,7 @@ function warn(msg) {
 
 if (!process.env.MIAODA_APP_TYPE) process.env.MIAODA_APP_TYPE = '3';
 process.env.MIAODA_LOCAL_DEV = '1';
+process.env.RUNTIME_PROFILE = 'local';
 
 const logDir = process.env.LOG_DIR || 'logs';
 fs.mkdirSync(logDir, { recursive: true });

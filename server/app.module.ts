@@ -5,10 +5,10 @@ import { LoggerModule } from '@lark-apaas/nestjs-logger';
 
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import {
-  createPlatformModuleImports,
-  resolveDocumentStorageConfig,
-} from './modules/document-input/document-storage.config';
-import { isLocalDevelopmentWithoutPlatformDomain } from './config/local-development';
+  loadRuntimeConfig,
+  type RuntimeConfig,
+} from './config/production-config';
+import { createPlatformRuntimeModuleImports } from './modules/document-input/document-storage.config';
 import { LocalDevelopmentDatabaseModule } from './database/local-development.module';
 import { StandardPostgresDatabaseModule } from './database/standard-postgres.module';
 import { LocalDevelopmentAuthMiddleware } from './middleware/local-development-auth.middleware';
@@ -24,25 +24,22 @@ import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
 
-const documentStorageConfig = resolveDocumentStorageConfig();
-const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
+const runtimeConfig = loadRuntimeConfig();
+
+export function createRuntimeModuleImports(config: RuntimeConfig) {
+  const imports = [ConfigModule.forRoot({ isGlobal: true }), LoggerModule];
+  if (config.database.mode === 'local-memory') {
+    return [...imports, LocalDevelopmentDatabaseModule];
+  }
+  if (config.database.mode === 'postgres') {
+    return [...imports, StandardPostgresDatabaseModule];
+  }
+  return [...imports, ...createPlatformRuntimeModuleImports()];
+}
 
 @Module({
   imports: [
-    ...(documentStorageConfig.driver === 'filesystem' && !useLocalDevelopment
-      ? [
-          ConfigModule.forRoot({ isGlobal: true }),
-          LoggerModule,
-          StandardPostgresDatabaseModule,
-        ]
-      : []),
-    ...(useLocalDevelopment
-      ? [
-          ConfigModule.forRoot({ isGlobal: true }),
-          LoggerModule,
-          LocalDevelopmentDatabaseModule,
-        ]
-      : createPlatformModuleImports(documentStorageConfig)),
+    ...createRuntimeModuleImports(runtimeConfig),
     // ====== @route-section: business-modules START ======
     UsersModule,
     TasksModule,
@@ -68,7 +65,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    if (useLocalDevelopment) {
+    if (runtimeConfig.auth.mode === 'local-fixed') {
       consumer.apply(LocalDevelopmentAuthMiddleware).forRoutes('*');
     }
   }

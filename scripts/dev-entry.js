@@ -25,6 +25,8 @@ function runNodeScript(script, args = []) {
 }
 
 function main() {
+  process.env.RUNTIME_PROFILE = 'local';
+
   if (process.env.MIAODA_DEP_CACHE_DIR || process.env.SANDBOX_ID) {
     runNodeScript('dev.js', process.argv.slice(2));
     return;
