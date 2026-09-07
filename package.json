@@ -39,7 +39,6 @@
     "format": "prettier --write \"{server,client,test}/**/*.{js,ts,tsx,json,md}\"",
     "precommit": "node scripts/hooks/run-precommit.js",
     "prepare": "chmod +x .githooks/pre-commit 2>/dev/null; git config core.hooksPath .githooks 2>/dev/null || true",
-    "postinstall": "npx -y @lark-apaas/fullstack-cli@latest action-plugin init",
     "dev:local": "node ./scripts/dev-local.js"
   },
   "dependencies": {
@@ -137,6 +136,7 @@
     "@types/node": "^22.18.6",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "@vercel/nft": "^1.11.0",
     "autoprefixer": "^10.4.21",
     "class-variance-authority": "^0.7.1",
     "clsx": "~2.0.1",
@@ -146,6 +146,7 @@
     "cross-env": "^10.1.0",
     "css-loader": "^7.1.2",
     "date-fns": "^4.1.0",
+    "drizzle-kit": "0.31.5",
     "echarts": "~5.6.0",
     "echarts-for-react": "~3.0.2",
     "embla-carousel-react": "^8.6.0",
@@ -164,7 +165,6 @@
     "lucide-react": "^0.554.0",
     "nanoid": "^5.1.6",
     "next-themes": "^0.4.6",
-    "drizzle-kit": "0.31.5",
     "pg-mem": "^3.0.14",
     "pg-server": "^0.1.8",
     "pinyin-pro": "^3.27.0",

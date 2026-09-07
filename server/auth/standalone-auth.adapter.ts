@@ -52,6 +52,7 @@ function isNonEmptyString(value: unknown): value is string {
 }
 
 @Injectable()
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through the StandaloneAuthModule factory.
 export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
   private readonly cachedKeys = new Map<string, CachedKey>();
   private readonly fetchImpl: typeof fetch;
@@ -71,7 +72,10 @@ export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
       }
 
       const segments = token.split('.');
-      if (segments.length !== 3 || segments.some((segment) => segment.length === 0)) {
+      if (
+        segments.length !== 3 ||
+        segments.some((segment) => segment.length === 0)
+      ) {
         throw new Error('invalid token');
       }
 
@@ -129,7 +133,8 @@ export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
   private hasAudience(audience: unknown): boolean {
     return (
       audience === this.configuration.audience ||
-      (Array.isArray(audience) && audience.includes(this.configuration.audience))
+      (Array.isArray(audience) &&
+        audience.includes(this.configuration.audience))
     );
   }
 
@@ -141,7 +146,8 @@ export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
     const keys = await this.fetchKeys();
     for (const key of keys) {
       const id = key.kid;
-      if (!isNonEmptyString(id) || !isNonEmptyString(key.kty as unknown)) continue;
+      if (!isNonEmptyString(id) || !isNonEmptyString(key.kty as unknown))
+        continue;
       try {
         const publicKey = createPublicKey({
           key: key as unknown as import('node:crypto').JsonWebKey,
@@ -163,7 +169,10 @@ export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
 
   private async fetchKeys(): Promise<readonly Record<string, unknown>[]> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.configuration.timeoutMs);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.configuration.timeoutMs,
+    );
     try {
       const response = await this.fetchImpl(this.configuration.jwksUrl, {
         method: 'GET',
@@ -172,7 +181,8 @@ export class StandaloneAuthAdapter implements StandaloneAuthVerifier {
       });
       if (!response.ok) throw new Error('jwks request failed');
       const body = (await response.json()) as JsonWebKeySet;
-      if (!body || !Array.isArray(body.keys)) throw new Error('jwks response invalid');
+      if (!body || !Array.isArray(body.keys))
+        throw new Error('jwks response invalid');
       return body.keys;
     } finally {
       clearTimeout(timeout);

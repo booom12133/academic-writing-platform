@@ -4,7 +4,12 @@ import { ApplicationShutdownCoordinator } from './application-shutdown.coordinat
 
 @Global()
 @Module({
-  providers: [ApplicationShutdownCoordinator],
+  providers: [
+    {
+      provide: ApplicationShutdownCoordinator,
+      useFactory: () => new ApplicationShutdownCoordinator(),
+    },
+  ],
   exports: [ApplicationShutdownCoordinator],
 })
 export class LifecycleModule {}

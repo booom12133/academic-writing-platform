@@ -5,6 +5,7 @@ export interface DrainResult {
 }
 
 @Injectable()
+// eslint-disable-next-line @darraghor/nestjs-typed/injectable-should-be-provided -- registered through the LifecycleModule factory.
 export class ApplicationShutdownCoordinator {
   private readonly logger = new Logger(ApplicationShutdownCoordinator.name);
   private activeWork = 0;

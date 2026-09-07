@@ -18,13 +18,6 @@ print_time() {
   echo "   ⏱️  耗时: ${seconds}.$(printf "%03d" $ms)s"
 }
 
-# ==================== 步骤 0 ====================
-echo "🗑️  [0/6] 安装插件"
-STEP_START=$(node -e "console.log(Date.now())")
-npx fullstack-cli action-plugin init
-print_time $STEP_START
-echo ""
-
 # ==================== 步骤 1 ====================
 echo "📝 [1/6] 更新 openapi 代码"
 STEP_START=$(node -e "console.log(Date.now())")
@@ -46,11 +39,11 @@ STEP_START=$(node -e "console.log(Date.now())")
 # 在 client/server 构建之前生成到 dist/，供 DefinePlugin 注入前端 bundle
 # 注意：nest-cli.json 中 deleteOutDir 必须为 false（模板默认值），否则 nest build 会清掉 dist/
 echo "   ├─ 生成 API 路由定义..."
-npx generate-api-routes --server-dir ./server --out-dir ./dist > /tmp/gen-api-routes.log 2>&1 &
+"$ROOT_DIR/node_modules/.bin/generate-api-routes" --server-dir ./server --out-dir ./dist > /tmp/gen-api-routes.log 2>&1 &
 API_ROUTES_PID=$!
 
 echo "   ├─ 生成页面路由定义..."
-npx generate-page-routes --app-path ./client/src/app.tsx --out-dir ./dist > /tmp/gen-page-routes.log 2>&1 &
+"$ROOT_DIR/node_modules/.bin/generate-page-routes" --app-path ./client/src/app.tsx --out-dir ./dist > /tmp/gen-page-routes.log 2>&1 &
 PAGE_ROUTES_PID=$!
 
 API_ROUTES_EXIT=0
@@ -161,10 +154,7 @@ else
   # 拷贝 run.sh 到 dist/（prod 从 dist/ 启动，确保 cwd 一致性）
   cp "$ROOT_DIR/scripts/run.sh" "$DIST_DIR/"
 
-  # 拷贝 .env 文件（如果存在）
-  if [ -f "$ROOT_DIR/.env" ]; then
-    cp "$ROOT_DIR/.env" "$DIST_DIR/"
-  fi
+  # Secrets are supplied by the deployment environment; never copy .env into the artifact.
 fi
 
 # 清理无用文件

@@ -1,11 +1,13 @@
 import {
   CanActivate,
   ExecutionContext,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { StandaloneAuthAdapter } from './standalone-auth.adapter';
 import type { StandaloneAuthVerifier } from './standalone-auth.types';
 
 export const NEED_LOGIN_METADATA_KEY = 'authnpaas:needLogin';
@@ -19,6 +21,7 @@ interface AuthenticatedRequest {
 export class StandaloneAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
+    @Inject(StandaloneAuthAdapter)
     private readonly verifier: StandaloneAuthVerifier,
   ) {}
 
@@ -31,7 +34,8 @@ export class StandaloneAuthGuard implements CanActivate {
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const authorization = request.headers?.authorization;
-    if (!authorization) throw new UnauthorizedException('Authentication required.');
+    if (!authorization)
+      throw new UnauthorizedException('Authentication required.');
 
     const match = /^Bearer\s+(.+)$/i.exec(authorization.trim());
     if (!match) throw new UnauthorizedException('Authentication required.');
