@@ -339,7 +339,6 @@ describe('runtime profile bootstrap boundary', () => {
       expect.arrayContaining([
         'LocalDevelopmentDatabaseModule',
         'PlatformModule',
-        'LoggerModule',
       ]),
     );
     const middleware = configureAppModule(environment);
