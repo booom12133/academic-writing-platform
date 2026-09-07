@@ -89,10 +89,12 @@ export class TasksController {
   @NeedLogin()
   @Patch(':id/status')
   async updateStatus(
+    @Req() req: Request,
     @Param('id') id: string,
     @Body() body: UpdateTaskStatusBody,
   ): Promise<Task> {
-    const updated = await this.tasksService.updateTask(id, {
+    const { userId } = req.userContext;
+    const updated = await this.tasksService.updateTask(id, userId, {
       status: body.status as Task['status'] | undefined,
       progress: body.progress,
       resultData: body.resultData,

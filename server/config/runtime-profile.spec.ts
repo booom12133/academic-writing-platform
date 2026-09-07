@@ -33,6 +33,13 @@ const RUNTIME_ENV_KEYS = [
   'DOCUMENT_STORAGE_DRIVER',
   'DOCUMENT_STORAGE_ROOT',
   'DATABASE_URL',
+  'OIDC_ISSUER_URL',
+  'OIDC_AUDIENCE',
+  'OIDC_JWKS_URL',
+  'OIDC_USER_ID_CLAIM',
+  'OIDC_ALLOWED_ALGORITHMS',
+  'OIDC_TIMEOUT_MS',
+  'CORS_ALLOWED_ORIGINS',
 ] as const;
 
 function withRuntimeEnvironment<T>(
@@ -265,6 +272,10 @@ describe('runtime profile bootstrap boundary', () => {
       RUNTIME_PROFILE: 'standalone',
       DATABASE_URL: 'postgresql://db.example/academic_writing',
       DOCUMENT_STORAGE_ROOT: '/var/lib/academic-writing-platform/documents',
+      OIDC_ISSUER_URL: 'https://issuer.example.com',
+      OIDC_AUDIENCE: 'academic-writing-platform',
+      OIDC_JWKS_URL: 'https://issuer.example.com/.well-known/jwks.json',
+      CORS_ALLOWED_ORIGINS: 'https://app.example.com',
     };
     const imports = appModuleImportNames(environment);
 
@@ -295,6 +306,11 @@ describe('runtime profile bootstrap boundary', () => {
         auth: { mode: 'platform' },
         database: { mode: 'platform' },
         storage: { mode: 'platform' },
+        security: {
+          corsAllowedOrigins: [],
+          bodySizeLimit: '1mb',
+          rateLimit: { windowMs: 60_000, maxRequests: 120, expensiveMaxRequests: 30 },
+        },
       };
 
       expect(() =>

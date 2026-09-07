@@ -23,18 +23,31 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
+import { StandaloneAuthModule } from './auth/standalone-auth.module';
+import { ApiSecurityModule } from './common/security/api-security.module';
 
 const runtimeConfig = loadRuntimeConfig();
 
 export function createRuntimeModuleImports(config: RuntimeConfig) {
   const imports = [ConfigModule.forRoot({ isGlobal: true }), LoggerModule];
+  const productionSecurity =
+    config.nodeEnv === 'production'
+      ? [ApiSecurityModule.forRoot(config.security.rateLimit)]
+      : [];
   if (config.database.mode === 'local-memory') {
-    return [...imports, LocalDevelopmentDatabaseModule];
+    return [...imports, LocalDevelopmentDatabaseModule, ...productionSecurity];
   }
   if (config.database.mode === 'postgres') {
-    return [...imports, StandardPostgresDatabaseModule];
+    return [
+      ...imports,
+      StandardPostgresDatabaseModule,
+      ...(config.auth.standalone
+        ? [StandaloneAuthModule.forRoot(config.auth.standalone)]
+        : []),
+      ...productionSecurity,
+    ];
   }
-  return [...imports, ...createPlatformRuntimeModuleImports()];
+  return [...imports, ...createPlatformRuntimeModuleImports(), ...productionSecurity];
 }
 
 @Module({

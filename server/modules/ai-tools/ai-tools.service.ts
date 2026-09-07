@@ -91,7 +91,7 @@ export class AiToolsService {
     });
 
     // 2. 立即更新为 processing
-    const processingTask = await this.tasksService.updateTask(task.id, {
+    const processingTask = await this.tasksService.updateTask(task.id, userId, {
       status: 'processing',
       progress: 10,
     });
@@ -101,7 +101,7 @@ export class AiToolsService {
     }
 
     // 3. 异步处理（不阻塞请求）
-    this.processTaskAsync(task.id, taskType, inputData).catch((err) => {
+    this.processTaskAsync(task.id, userId, taskType, inputData).catch((err) => {
       this.logger.error(`任务异步处理异常: ${task.id}`, JSON.stringify(err));
     });
 
@@ -110,6 +110,7 @@ export class AiToolsService {
 
   private async processTaskAsync(
     taskId: string,
+    userId: string,
     taskType: TaskType,
     inputData: Record<string, any>,
   ): Promise<void> {
@@ -118,8 +119,8 @@ export class AiToolsService {
 
     setTimeout(async () => {
       try {
-        await this.tasksService.updateTask(taskId, { progress: 30 });
-        await this.tasksService.updateTask(taskId, { progress: 60 });
+        await this.tasksService.updateTask(taskId, userId, { progress: 30 });
+        await this.tasksService.updateTask(taskId, userId, { progress: 60 });
 
         let resultData: Record<string, any>;
         switch (taskType) {
@@ -204,10 +205,10 @@ export class AiToolsService {
             throw new Error(`未知任务类型: ${taskType}`);
         }
 
-        await this.tasksService.updateTask(taskId, { progress: 85 });
+        await this.tasksService.updateTask(taskId, userId, { progress: 85 });
 
         // 完成
-        await this.tasksService.updateTask(taskId, {
+        await this.tasksService.updateTask(taskId, userId, {
           status: 'completed',
           progress: 100,
           resultData,
@@ -218,7 +219,7 @@ export class AiToolsService {
         const errorMessage = error instanceof Error ? error.message : String(error);
         this.logger.error(`任务失败: ${taskId}, taskType=${taskType}, ${errorMessage}`);
         try {
-          await this.tasksService.updateTask(taskId, {
+          await this.tasksService.updateTask(taskId, userId, {
             status: 'failed',
             errorMessage,
           });

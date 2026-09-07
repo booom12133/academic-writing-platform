@@ -8,13 +8,23 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { loadRuntimeConfig } from './config/production-config';
 
+const runtimeConfig = loadRuntimeConfig();
+
 async function bootstrap() {
-  loadRuntimeConfig();
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     abortOnError: process.env.NODE_ENV !== 'development',
   });
   await configureApp(app, { 
     disableSwagger: true,
+    bodyLimit: runtimeConfig.security.bodySizeLimit,
+  });
+  app.enableCors({
+    origin:
+      runtimeConfig.profile === 'local'
+        ? true
+        : runtimeConfig.security.corsAllowedOrigins.length > 0
+          ? [...runtimeConfig.security.corsAllowedOrigins]
+          : false,
   });
   const logger = new Logger('Bootstrap');
   const host = process.env.SERVER_HOST || 'localhost';

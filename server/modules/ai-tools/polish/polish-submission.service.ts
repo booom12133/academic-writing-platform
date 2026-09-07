@@ -45,7 +45,7 @@ export class PolishSubmissionService {
           inputData: request.inputData,
           preparedBillingText: preparedBilling.billingText,
         });
-        const updated = await this.tasks.updateTask(created.id, {
+        const updated = await this.tasks.updateTask(created.id, request.userId, {
           status: 'processing',
           progress: 10,
         });
@@ -56,7 +56,7 @@ export class PolishSubmissionService {
 
         const taskId = updated.id;
         setTimeout(() => {
-          void this.processAsync(taskId, prepared.context, normalized.options);
+          void this.processAsync(taskId, request.userId, prepared.context, normalized.options);
         }, 0);
       },
     );
@@ -69,6 +69,7 @@ export class PolishSubmissionService {
 
   private async processAsync(
     taskId: string,
+    userId: string,
     context: Parameters<AcademicToolExecutionService['execute']>[0],
     options: Record<string, unknown>,
   ): Promise<void> {
@@ -79,13 +80,13 @@ export class PolishSubmissionService {
         options,
       );
       const result = this.aggregator.aggregate(execution);
-      await this.tasks.updateTask(taskId, {
+      await this.tasks.updateTask(taskId, userId, {
         status: 'completed',
         progress: 100,
         resultData: result as unknown as Record<string, any>,
       });
     } catch (error) {
-      await this.tasks.updateTask(taskId, {
+      await this.tasks.updateTask(taskId, userId, {
         status: 'failed',
         progress: 100,
         errorMessage: error instanceof Error ? error.message : '学术润色任务失败',
