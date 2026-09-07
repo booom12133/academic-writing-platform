@@ -7,6 +7,7 @@ import {
 } from '@client/src/components/ui/accordion';
 import { HelpCircle, MessageCircle, BookOpen } from 'lucide-react';
 import type { TaskType } from '@shared/api.interface';
+import { productCapabilityFor } from '@shared/product-capability.catalog';
 
 interface ToolHelperProps {
   toolType: TaskType;
@@ -270,7 +271,24 @@ const helperContentMap: Record<TaskType, HelperContent> = {
 };
 
 const ToolHelper: React.FC<ToolHelperProps> = ({ toolType }) => {
+  const capability = productCapabilityFor(toolType);
   const content = helperContentMap[toolType];
+
+  if (capability?.readiness !== 'production') {
+    return (
+      <div className="flex h-full flex-col">
+        <div className="border-b border-slate-200 px-5 py-4">
+          <h3 className="text-base font-semibold text-slate-800">工具状态</h3>
+          <p className="mt-1 text-xs text-slate-500">当前产品能力说明</p>
+        </div>
+        <div className="p-5 text-sm leading-relaxed text-slate-500">
+          {capability?.readiness === 'disabled'
+            ? '该工具已停止提供，页面不会提交任务。'
+            : '该工具正在预览中，页面不会提交任务。'}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full flex-col">

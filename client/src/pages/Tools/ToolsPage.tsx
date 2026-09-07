@@ -1,8 +1,10 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { TOOL_CONFIGS, type TaskType } from '@shared/api.interface';
+import type { TaskType } from '@shared/api.interface';
+import { productCapabilityFor } from '@shared/product-capability.catalog';
 import ToolSidebar from './ToolSidebar';
 import ToolHelper from './ToolHelper';
+import CapabilityGate from './CapabilityGate';
 import OutlineTool from './tools/OutlineTool';
 import LiteratureTool from './tools/LiteratureTool';
 import PolishTool from './tools/PolishTool';
@@ -57,11 +59,14 @@ const ToolsPage: React.FC = () => {
   const { toolType } = useParams<{ toolType: string }>();
   const navigate = useNavigate();
 
-  const currentType = (toolType as TaskType) || 'thesis';
-  const isValidTool = TOOL_CONFIGS.some((t) => t.type === currentType);
-  const activeType: TaskType = isValidTool ? currentType : 'thesis';
+  const requestedType = toolType as TaskType | undefined;
+  const fallbackType: TaskType = 'topic-generation';
+  const requestedCapability = requestedType
+    ? productCapabilityFor(requestedType)
+    : productCapabilityFor(fallbackType);
+  const activeType: TaskType = requestedCapability?.type ?? fallbackType;
 
-  const currentConfig = TOOL_CONFIGS.find((t) => t.type === activeType);
+  const currentConfig = productCapabilityFor(activeType);
   const ToolComponent = TOOL_COMPONENTS[activeType];
 
   const handleToolChange = (type: TaskType) => {
@@ -87,7 +92,9 @@ const ToolsPage: React.FC = () => {
               {currentConfig?.description}
             </p>
           </div>
-          <ToolComponent />
+          <CapabilityGate type={activeType}>
+            <ToolComponent />
+          </CapabilityGate>
         </div>
       </main>
 

@@ -32,11 +32,13 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
-  TOOL_CONFIGS,
   TOOL_CATEGORIES,
-  type ToolConfig,
   type ToolCategory,
 } from '@shared/api.interface';
+import {
+  getProductCapabilities,
+} from '@shared/product-capability.catalog';
+import type { ProductToolCapability } from '@shared/product-capability.interface';
 
 const iconMap: Record<string, typeof ListTree> = {
   'list-tree': ListTree,
@@ -68,7 +70,7 @@ const steps = [
   {
     num: 1,
     title: '选择工具',
-    description: '从23+核心工具中选择需要的学术写作辅助功能',
+    description: '从当前可用的学术写作工具中选择需要的辅助功能',
     icon: MousePointerClick,
   },
   {
@@ -143,8 +145,8 @@ const HomePage: React.FC = () => {
       {/* Tools Section */}
       <section className="max-w-[1200px] mx-auto px-6 py-16 space-y-12">
         <div className="text-center mb-4">
-          <h2 className="text-2xl font-semibold text-slate-800 mb-3">
-            23+ 学术写作工具
+            <h2 className="text-2xl font-semibold text-slate-800 mb-3">
+            当前可用的学术写作工具
           </h2>
           <p className="text-sm text-slate-500">
             覆盖写作全流程，从选题到排版一站式辅助
@@ -152,8 +154,10 @@ const HomePage: React.FC = () => {
         </div>
 
         {TOOL_CATEGORIES.map((cat) => {
-          const tools = TOOL_CONFIGS.filter(
-            (t: ToolConfig) => t.category === (cat.key as ToolCategory)
+          const tools = getProductCapabilities().filter(
+            (t: ProductToolCapability) =>
+              t.readiness === 'production' &&
+              t.category === (cat.key as ToolCategory),
           );
           const catDesc =
             cat.key === 'writing-planning'
@@ -173,7 +177,7 @@ const HomePage: React.FC = () => {
                 className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
                 data-ai-section-type="card-list"
               >
-                {tools.map((tool: ToolConfig) => {
+                {tools.map((tool: ProductToolCapability) => {
                   const IconComp = iconMap[tool.icon] || Sparkles;
                   return (
                     <Card
