@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { UniversalLink } from '@lark-apaas/client-toolkit/components/UniversalLink';
 import { useAppAuth } from '../../auth/AppAuthProvider';
+import { sanitizeReturnPath } from '../../auth/return-path';
 
 function returnPath(search: string): string {
   const value = new URLSearchParams(search).get('returnTo');
-  return value?.startsWith('/') ? value : '/';
+  return sanitizeReturnPath(value);
 }
 
 const LoginPage: React.FC = () => {

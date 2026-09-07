@@ -16,6 +16,22 @@ function errorSnapshot(errorCode: string): AuthSessionSnapshot {
   return { status: 'error', errorCode };
 }
 
+export async function logoutWithAdapter(
+  adapter: Pick<AuthAdapter, 'signOut'>,
+  refreshSession: () => Promise<AuthSessionSnapshot>,
+): Promise<AuthSessionSnapshot> {
+  if (!adapter.signOut) {
+    return refreshSession();
+  }
+
+  try {
+    await adapter.signOut();
+    return { status: 'anonymous' };
+  } catch (_error) {
+    return errorSnapshot(AUTH_PROVIDER_ERROR);
+  }
+}
+
 function platformDisplayName(
   name: readonly { text?: string }[] | undefined,
 ): string | undefined {
@@ -103,10 +119,13 @@ export function createPlatformAuthAdapter(
         sessionClient.redirectToLogin({ returnUrl }),
       );
     },
-    async signOut() {
-      if (!sessionClient.signOut) return;
-      assertSuccessfulPlatformOperation(await sessionClient.signOut());
-    },
+    ...(sessionClient.signOut
+      ? {
+          async signOut() {
+            assertSuccessfulPlatformOperation(await sessionClient.signOut!());
+          },
+        }
+      : {}),
   };
 }
 

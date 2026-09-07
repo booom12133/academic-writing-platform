@@ -5,6 +5,7 @@ import {
   createLocalAuthAdapter,
   createPlatformAuthAdapter,
   createStandaloneAuthAdapter,
+  logoutWithAdapter,
 } from '../../client/src/auth/session-provider';
 
 describe('client auth session adapters', () => {
@@ -30,6 +31,34 @@ describe('client auth session adapters', () => {
       status: 'error',
       errorCode: 'AUTH_PROVIDER_ERROR',
     });
+  });
+
+  it('does not strand a local-fixed session when logout has no provider operation', async () => {
+    const adapter = createLocalAuthAdapter(async () => ({
+      userId: 'local-user',
+      username: 'Local User',
+    }));
+    const refreshSession = jest.fn(() => adapter.getSession());
+
+    await expect(logoutWithAdapter(adapter, refreshSession)).resolves.toEqual({
+      status: 'authenticated',
+      userId: 'local-user',
+      displayName: 'Local User',
+    });
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+  });
+
+  it('sets an anonymous session only after a real provider sign-out', async () => {
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    const adapter = createLocalAuthAdapter(async () => ({ userId: 'local-user' }));
+    const adapterWithSignOut = { ...adapter, signOut };
+    const refreshSession = jest.fn(() => adapter.getSession());
+
+    await expect(
+      logoutWithAdapter(adapterWithSignOut, refreshSession),
+    ).resolves.toEqual({ status: 'anonymous' });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(refreshSession).not.toHaveBeenCalled();
   });
 
   it('maps an authenticated platform cookie session without fabricating a bearer token', async () => {

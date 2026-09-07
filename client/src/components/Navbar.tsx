@@ -126,12 +126,18 @@ const Navbar = () => {
                     充值中心
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => void handleLogout()}
-                    className="text-red-500"
-                  >
-                    退出登录
-                  </DropdownMenuItem>
+                  {session.canSignOut ? (
+                    <DropdownMenuItem
+                      onClick={() => void handleLogout()}
+                      className="text-red-500"
+                    >
+                      退出登录
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      本地开发身份无真实退出登录
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -199,15 +205,21 @@ const Navbar = () => {
                     <span>{balance.toLocaleString()} 积分</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    void handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-left px-6 py-3 text-sm text-red-500 hover:bg-slate-50"
-                >
-                  退出登录
-                </button>
+                {session.canSignOut ? (
+                  <button
+                    onClick={() => {
+                      void handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-left px-6 py-3 text-sm text-red-500 hover:bg-slate-50"
+                  >
+                    退出登录
+                  </button>
+                ) : (
+                  <div className="px-6 py-3 text-sm text-slate-500">
+                    本地开发身份无真实退出登录
+                  </div>
+                )}
               </>
             )}
           </nav>

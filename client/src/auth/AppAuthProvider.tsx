@@ -16,6 +16,7 @@ import {
 } from '../api/http';
 import {
   createRuntimeAuthAdapter,
+  logoutWithAdapter,
   type RuntimeAuthAdapterDependencies,
 } from './session-provider';
 import type {
@@ -26,6 +27,7 @@ import type {
 export interface AppAuthContextValue extends AuthSessionSnapshot {
   refreshSession: () => Promise<AuthSessionSnapshot>;
   logout: () => Promise<void>;
+  canSignOut: boolean;
   beginLogin?: (returnUrl: string) => Promise<void>;
 }
 
@@ -84,13 +86,9 @@ export function AppAuthProvider({
   }, [adapter, refreshSession]);
 
   const logout = useCallback(async () => {
-    try {
-      await adapter.signOut?.();
-      setSession({ status: 'anonymous' });
-    } catch (_error) {
-      setSession({ status: 'error', errorCode: 'AUTH_PROVIDER_ERROR' });
-    }
-  }, [adapter]);
+    const nextSession = await logoutWithAdapter(adapter, refreshSession);
+    setSession(nextSession);
+  }, [adapter, refreshSession]);
 
   const beginLogin = useCallback(
     async (returnUrl: string) => {
@@ -107,9 +105,10 @@ export function AppAuthProvider({
       ...session,
       refreshSession,
       logout,
+      canSignOut: Boolean(adapter.signOut),
       ...(adapter.beginLogin ? { beginLogin } : {}),
     }),
-    [adapter.beginLogin, beginLogin, logout, refreshSession, session],
+    [adapter.beginLogin, adapter.signOut, beginLogin, logout, refreshSession, session],
   );
 
   return <AppAuthContext.Provider value={value}>{children}</AppAuthContext.Provider>;
