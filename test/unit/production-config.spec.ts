@@ -1,3 +1,5 @@
+import { resolve } from 'node:path';
+
 import { loadRuntimeConfig } from '../../server/config/production-config';
 
 const validProductionEnv = {
@@ -5,7 +7,7 @@ const validProductionEnv = {
   RUNTIME_PROFILE: 'standalone',
   DATABASE_URL:
     'postgresql://postgres:postgres@127.0.0.1:5432/academic_writing_test',
-  DOCUMENT_STORAGE_ROOT: 'D:\\academic-writing\\documents',
+  DOCUMENT_STORAGE_ROOT: resolve('academic-writing-documents'),
   OIDC_ISSUER_URL: 'https://issuer.example.com',
   OIDC_AUDIENCE: 'academic-writing-platform',
   OIDC_JWKS_URL: 'https://issuer.example.com/.well-known/jwks.json',
