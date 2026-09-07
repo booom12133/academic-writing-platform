@@ -17,7 +17,8 @@ export class CitationRenderer {
         .filter((number): number is number => number !== undefined)
         .map((number) => `[${number}]`)
         .join('');
-      return `${unit.text}${markers ? ` ${markers}` : ' [unbound]'}`;
+      const statusMarker = unit.bindingStatus === 'bound' ? '' : ` [${unit.bindingStatus}]`;
+      return `${unit.text}${markers ? ` ${markers}` : ''}${statusMarker}`;
     }).join('\n\n');
     return { content, bibliography };
   }

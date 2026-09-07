@@ -27,6 +27,33 @@ describe('parseGroundedModelOutput', () => {
     }))).toThrow();
   });
 
+  it('rejects empty segments and empty units as invalid provider responses', () => {
+    expect(() => parseGroundedModelOutput(JSON.stringify({ segments: [] }))).toThrow(
+      'invalid grounded response',
+    );
+    expect(() => parseGroundedModelOutput(JSON.stringify({
+      segments: [{ segmentId: 'segment-1', units: [] }],
+    }))).toThrow('invalid grounded response');
+  });
+
+  it('rejects duplicate segment and unit ids', () => {
+    expect(() => parseGroundedModelOutput(JSON.stringify({
+      segments: [
+        { segmentId: 'segment-1', units: [{ unitId: 'unit-1', unitType: 'claim', text: 'One.', evidenceRefs: [{ evidenceId: 'chunk:one' }] }] },
+        { segmentId: 'segment-1', units: [{ unitId: 'unit-2', unitType: 'claim', text: 'Two.', evidenceRefs: [{ evidenceId: 'chunk:one' }] }] },
+      ],
+    }))).toThrow('invalid grounded response');
+    expect(() => parseGroundedModelOutput(JSON.stringify({
+      segments: [{
+        segmentId: 'segment-1',
+        units: [
+          { unitId: 'unit-1', unitType: 'claim', text: 'One.', evidenceRefs: [{ evidenceId: 'chunk:one' }] },
+          { unitId: 'unit-1', unitType: 'transition', text: 'Two.', evidenceRefs: [{ evidenceId: 'chunk:one' }] },
+        ],
+      }],
+    }))).toThrow('invalid grounded response');
+  });
+
   it('rejects model-owned locator, provenance, and support type fields', () => {
     expect(() => parseGroundedModelOutput(JSON.stringify({
       segments: [{

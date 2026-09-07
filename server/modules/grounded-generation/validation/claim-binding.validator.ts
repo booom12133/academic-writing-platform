@@ -12,6 +12,14 @@ export interface ClaimBindingValidationResult {
   groundingCoverage: GroundingCoverage;
   diagnostics: GroundingDiagnostic[];
   evidenceTrace: EvidenceTrace[];
+  unitBindings: UnitBindingValidation[];
+}
+
+export interface UnitBindingValidation {
+  unitId: string;
+  bindingStatus: BindingStatus;
+  evidenceIds: string[];
+  diagnostics: GroundingDiagnostic[];
 }
 
 export class ClaimBindingValidator {
@@ -20,6 +28,7 @@ export class ClaimBindingValidator {
     const diagnostics: GroundingDiagnostic[] = [];
     const evidenceTrace: EvidenceTrace[] = [];
     const seenEvidenceIds = new Set<string>();
+    const unitBindings: UnitBindingValidation[] = [];
     const units = output.segments.flatMap((segment) => segment.units);
     let boundUnits = 0;
 
@@ -28,17 +37,28 @@ export class ClaimBindingValidator {
     }
 
     for (const unit of units) {
+      const unitDiagnostics: GroundingDiagnostic[] = [];
       if (!Array.isArray(unit.evidenceRefs) || unit.evidenceRefs.length === 0) {
-        diagnostics.push({ code: 'unbound-unit', unitId: unit.unitId });
+        const diagnostic = { code: 'unbound-unit' as const, unitId: unit.unitId };
+        diagnostics.push(diagnostic);
+        unitDiagnostics.push(diagnostic);
+        unitBindings.push({ unitId: unit.unitId, bindingStatus: 'unbound', evidenceIds: [], diagnostics: unitDiagnostics });
         continue;
       }
       const validRefs = unit.evidenceRefs.filter((ref) => evidenceById.has(ref.evidenceId));
+      const unitBindingStatus: BindingStatus = validRefs.length === unit.evidenceRefs.length
+        ? 'bound'
+        : validRefs.length > 0 ? 'partially-bound' : 'unbound';
       if (validRefs.length === 0) {
-        diagnostics.push({ code: 'unbound-unit', unitId: unit.unitId });
+        const diagnostic = { code: 'unbound-unit' as const, unitId: unit.unitId };
+        diagnostics.push(diagnostic);
+        unitDiagnostics.push(diagnostic);
       } else if (validRefs.length === unit.evidenceRefs.length) {
         boundUnits += 1;
       } else {
-        diagnostics.push({ code: 'unbound-unit', unitId: unit.unitId });
+        const diagnostic = { code: 'unbound-unit' as const, unitId: unit.unitId };
+        diagnostics.push(diagnostic);
+        unitDiagnostics.push(diagnostic);
       }
       for (const ref of validRefs) {
         if (seenEvidenceIds.has(ref.evidenceId)) continue;
@@ -52,8 +72,11 @@ export class ClaimBindingValidator {
         });
       }
       for (const ref of unit.evidenceRefs.filter((candidate) => !evidenceById.has(candidate.evidenceId))) {
-        diagnostics.push({ code: 'unknown-evidence-id', unitId: unit.unitId, evidenceId: ref.evidenceId });
+        const diagnostic = { code: 'unknown-evidence-id' as const, unitId: unit.unitId, evidenceId: ref.evidenceId };
+        diagnostics.push(diagnostic);
+        unitDiagnostics.push(diagnostic);
       }
+      unitBindings.push({ unitId: unit.unitId, bindingStatus: unitBindingStatus, evidenceIds: validRefs.map((ref) => ref.evidenceId), diagnostics: unitDiagnostics });
     }
 
     const groundingCoverage: GroundingCoverage =
@@ -68,6 +91,6 @@ export class ClaimBindingValidator {
         : groundingCoverage === 'partial'
           ? 'partially-bound'
           : 'unbound';
-    return { bindingStatus, groundingCoverage, diagnostics, evidenceTrace };
+    return { bindingStatus, groundingCoverage, diagnostics, evidenceTrace, unitBindings };
   }
 }

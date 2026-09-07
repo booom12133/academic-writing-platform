@@ -9,6 +9,9 @@ jest.mock('@nestjs/common', () => ({
   Req: () => () => undefined,
   UseFilters: () => () => undefined,
   HttpStatus: { OK: 200 },
+  UnauthorizedException: class UnauthorizedException extends Error {
+    status = 401;
+  },
 }));
 jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({ NeedLogin: jest.fn(() => () => undefined) }));
 
@@ -27,5 +30,13 @@ describe('GroundedGenerationController', () => {
 
     expect(response).toBe(result);
     expect(service.generate).toHaveBeenCalledWith('user-1', body);
+  });
+
+  it('keeps the defensive missing-authentication fallback at HTTP 401', async () => {
+    const service = { generate: jest.fn() };
+    const request = {} as Request;
+
+    await expect(new GroundedGenerationController(service as never).generate(request, {} as never)).rejects.toMatchObject({ status: 401 });
+    expect(service.generate).not.toHaveBeenCalled();
   });
 });

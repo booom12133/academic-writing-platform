@@ -1,7 +1,6 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Req, UseFilters } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Post, Req, UnauthorizedException, UseFilters } from '@nestjs/common';
 import type { Request } from 'express';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
-import { GroundedGenerationError } from './grounded-generation.errors';
 import { GroundedGenerationExceptionFilter } from './grounded-generation.exception-filter';
 import { GroundedGenerationService } from './grounded-generation.service';
 import type { GroundedGenerationRequest } from './grounded-generation.types';
@@ -17,7 +16,7 @@ export class GroundedGenerationController {
   async generate(@Req() req: Request, @Body() body: GroundedGenerationRequest) {
     const userId = req.userContext?.userId;
     if (!userId) {
-      throw new GroundedGenerationError('GROUNDED_GENERATION_INVALID_QUERY', 'Authentication is required.', 400);
+      throw new UnauthorizedException('Authentication is required.');
     }
     return this.service.generate(userId, body);
   }

@@ -23,4 +23,23 @@ describe('CitationSemanticsService', () => {
     expect(result.citations).toEqual([{ citationId: 'citation-1', evidenceIds: ['chunk:one'] }]);
     expect(result.evidenceTrace[0].citationLocator).toEqual({ chunkId: 'one', documentVersionId: 'version-1' });
   });
+
+  it('preserves per-unit non-bound status and does not use duplicate-id lookup semantics', () => {
+    const mixedOutput: GroundedModelOutput = {
+      segments: [{
+        segmentId: 'segment-1',
+        units: [
+          { unitId: 'unit-1', unitType: 'claim', text: 'Bound.', evidenceRefs: [{ evidenceId: 'chunk:one' }] },
+          { unitId: 'unit-2', unitType: 'transition', text: 'Unknown.', evidenceRefs: [{ evidenceId: 'chunk:missing' }] },
+        ],
+      }],
+    };
+    const validation = new ClaimBindingValidator().validate(mixedOutput, evidenceSet);
+    const result = new CitationSemanticsService().create(mixedOutput, validation);
+
+    expect(result.units).toEqual([
+      expect.objectContaining({ unitId: 'unit-1', bindingStatus: 'bound', citationIds: ['citation-1'] }),
+      expect.objectContaining({ unitId: 'unit-2', bindingStatus: 'unbound', citationIds: [] }),
+    ]);
+  });
 });

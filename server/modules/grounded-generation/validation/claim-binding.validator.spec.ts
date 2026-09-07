@@ -37,6 +37,10 @@ describe('ClaimBindingValidator', () => {
     expect(result.groundingCoverage).toBe('complete');
     expect(result.evidenceTrace[0].citationLocator).toEqual({ chunkId: 'one', documentVersionId: 'version-1' });
     expect(result.evidenceTrace[0].provenance.documentId).toBe('document-1');
+    expect(result.unitBindings).toEqual([
+      expect.objectContaining({ unitId: 'unit-1', bindingStatus: 'bound', evidenceIds: ['chunk:one'] }),
+      expect.objectContaining({ unitId: 'unit-2', bindingStatus: 'bound', evidenceIds: ['chunk:one'] }),
+    ]);
   });
 
   it('reports an unknown evidence id as unbound without semantic support claims', () => {
@@ -46,6 +50,7 @@ describe('ClaimBindingValidator', () => {
     expect(result.groundingCoverage).toBe('none');
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain('unknown-evidence-id');
     expect(result).not.toHaveProperty('supportStatus');
+    expect(result.unitBindings[0]).toEqual(expect.objectContaining({ unitId: 'unit-1', bindingStatus: 'unbound' }));
   });
 
   it('does not classify incomplete binding as insufficient evidence when evidence exists', () => {
@@ -57,6 +62,7 @@ describe('ClaimBindingValidator', () => {
     expect(result.groundingCoverage).toBe('partial');
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).toContain('unbound-unit');
     expect(result.diagnostics.map((diagnostic) => diagnostic.code)).not.toContain('empty-evidence');
+    expect(result.unitBindings[1].bindingStatus).toBe('unbound');
   });
 
   it('does not treat a unit with any unknown reference as completely bound', () => {
@@ -67,5 +73,6 @@ describe('ClaimBindingValidator', () => {
 
     expect(result.bindingStatus).toBe('partially-bound');
     expect(result.groundingCoverage).toBe('partial');
+    expect(result.unitBindings[0]).toEqual(expect.objectContaining({ bindingStatus: 'partially-bound', evidenceIds: ['chunk:one'] }));
   });
 });

@@ -86,4 +86,38 @@ describe('GroundedGenerationService', () => {
     });
     expect(llm.generate).not.toHaveBeenCalled();
   });
+
+  it('maps D4 sanitized rate-limit and timeout failures to E6 transport errors', async () => {
+    const evidence = { retrieve: jest.fn().mockResolvedValue(evidenceSet()) };
+    const rateLimited = { generate: jest.fn().mockRejectedValue(new Error('DeepSeek rate limit reached')) };
+    await expect(new GroundedGenerationService(evidence, rateLimited).generate('user-1', request)).rejects.toMatchObject({
+      code: 'GROUNDED_GENERATION_RATE_LIMITED', httpStatus: 429,
+    });
+
+    const timedOut = { generate: jest.fn().mockRejectedValue(new Error('DeepSeek request timed out')) };
+    await expect(new GroundedGenerationService(evidence, timedOut).generate('user-1', request)).rejects.toMatchObject({
+      code: 'GROUNDED_GENERATION_TIMEOUT', httpStatus: 504,
+    });
+  });
+
+  it('maps retrieval orchestration deadline expiry to timeout', async () => {
+    const evidence = { retrieve: jest.fn().mockImplementation(() => new Promise(() => undefined)) };
+    const llm = { generate: jest.fn() };
+
+    await expect(new GroundedGenerationService(evidence, llm, 5).generate('user-1', request)).rejects.toMatchObject({
+      code: 'GROUNDED_GENERATION_TIMEOUT', httpStatus: 504,
+    });
+    expect(llm.generate).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid nested runtime request keys before retrieval', async () => {
+    const evidence = { retrieve: jest.fn() };
+    const llm = { generate: jest.fn() };
+
+    await expect(new GroundedGenerationService(evidence, llm).generate('user-1', {
+      ...request,
+      grounding: { onUnbound: 'allow' } as never,
+    })).rejects.toMatchObject({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 });
+    expect(evidence.retrieve).not.toHaveBeenCalled();
+  });
 });

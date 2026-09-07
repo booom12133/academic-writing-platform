@@ -6,11 +6,14 @@ import type {
   GroundingReport,
 } from '../grounded-generation.types';
 import type { ClaimBindingValidationResult } from '../validation/claim-binding.validator';
+import type { BindingStatus, GroundingDiagnostic } from '../grounded-generation.types';
 
 export interface RenderableGroundedUnit {
   unitId: string;
   text: string;
   citationIds: string[];
+  bindingStatus: BindingStatus;
+  diagnostics: GroundingDiagnostic[];
 }
 
 export interface CitationSemanticsResult {
@@ -27,27 +30,28 @@ export class CitationSemanticsService {
     const citationByEvidenceId = new Map(
       evidenceIds.map((evidenceId, index) => [evidenceId, `citation-${index + 1}`]),
     );
-    const units = output.segments.flatMap((segment) => segment.units).map((unit) => ({
-      unitId: unit.unitId,
-      text: unit.text,
-      citationIds: unit.evidenceRefs
-        .map((ref) => citationByEvidenceId.get(ref.evidenceId))
-        .filter((citationId): citationId is string => citationId !== undefined),
-    }));
-    const claims = output.segments.flatMap((segment) => segment.units)
-      .filter((unit) => unit.unitType === 'claim')
-      .map((unit) => {
-        const citationIds = units.find((candidate) => candidate.unitId === unit.unitId)?.citationIds ?? [];
-        const bindingStatus = citationIds.length === unit.evidenceRefs.length
-          ? 'bound' as const
-          : citationIds.length === 0 ? 'unbound' as const : 'partially-bound' as const;
-        return {
+    const claims: GroundedClaim[] = [];
+    const units = output.segments.flatMap((segment) => segment.units).map((unit, index) => {
+      const binding = validation.unitBindings[index];
+      const citationIds = binding.evidenceIds
+        .map((evidenceId) => citationByEvidenceId.get(evidenceId))
+        .filter((citationId): citationId is string => citationId !== undefined);
+      if (unit.unitType === 'claim') {
+        claims.push({
           claimId: unit.unitId,
           text: unit.text,
-          bindingStatus,
+          bindingStatus: binding.bindingStatus,
           evidenceRefs: unit.evidenceRefs.filter((ref) => citationByEvidenceId.has(ref.evidenceId)),
-        };
-      });
+        });
+      }
+      return {
+        unitId: unit.unitId,
+        text: unit.text,
+        citationIds,
+        bindingStatus: binding.bindingStatus,
+        diagnostics: binding.diagnostics,
+      };
+    });
     return {
       claims,
       citations: evidenceIds.map((evidenceId, index) => ({
