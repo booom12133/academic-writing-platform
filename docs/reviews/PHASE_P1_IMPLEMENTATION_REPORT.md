@@ -8,7 +8,7 @@ Status: `P1_FIX_REQUIRED` addressed; Review Candidate for ChatGPT re-review. Thi
 - Branch: `phase-p1`
 - PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14)
 - Previous reviewed HEAD: `261c6e2b2966472dd6181308861868d8cd171918`
-- Fixed implementation candidate HEAD: `46e8141` (`fix(p1): isolate production logging module`)
+- Fixed implementation candidate HEAD: `59744a2` (`fix(p1): retain logger provider for bootstrap compatibility`)
 - Authorization: `IMPLEMENTATION_AUTHORIZED=YES`
 
 ## Complete P1 implementation commit list
@@ -27,11 +27,12 @@ Status: `P1_FIX_REQUIRED` addressed; Review Candidate for ChatGPT re-review. Thi
 - `261c6e2` — fix(p1): mark production build script executable
 - `59c73ab` — fix(p1): address production readiness review findings
 - `46e8141` — fix(p1): isolate production logging module
+- `59744a2` — fix(p1): retain logger provider for bootstrap compatibility
 
 ## Review-fix changed-file summary
 
 - Production runtime config now rejects enabled request/response body logging, parses OIDC issuer/JWKS URLs with strict HTTPS validation, and exposes bounded `TRUST_PROXY_HOPS`.
-- Production AppModule excludes the body-capable third-party logger module; bounded application request logging remains active.
+- The required third-party logger provider remains wired for `configureApp()` compatibility; production body-logging flags fail closed, and bounded application request logging remains active.
 - Express trust proxy is explicitly configured; default is zero trusted hops and configured values are bounded.
 - Filesystem readiness rejects all group/world permission bits and requires directory access; filesystem publication uses owner-only directory/file modes (`0700`/`0600` semantics).
 - `PATCH /api/tasks/:id/status` validates status, progress, resultData shape/size, and errorMessage type/length before the owner-scoped service update.
