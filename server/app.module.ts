@@ -22,6 +22,7 @@ import { DocumentInputModule } from './modules/document-input/document-input.mod
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
+import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
 
 const documentStorageConfig = resolveDocumentStorageConfig();
 const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
@@ -52,6 +53,7 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
     KnowledgeModule,
     ZoteroModule,
     AcademicSearchModule,
+    GroundedGenerationModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last

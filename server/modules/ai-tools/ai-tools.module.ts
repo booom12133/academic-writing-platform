@@ -79,5 +79,6 @@ import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-
     PaperRevisionResultAggregator,
     PaperRevisionSubmissionService,
   ],
+  exports: [LlmService],
 })
 export class AiToolsModule {}
