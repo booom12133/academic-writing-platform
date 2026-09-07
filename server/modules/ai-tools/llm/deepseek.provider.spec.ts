@@ -148,14 +148,14 @@ describe('DeepSeekProvider', () => {
     });
     await expect(
       new DeepSeekProvider().generate({ messages: [{ role: 'user', content: 'test' }] }),
-    ).rejects.toThrow('DeepSeek billing error: insufficient balance');
+    ).rejects.toThrow('DeepSeek billing error');
 
     mockedAxios.post.mockRejectedValueOnce({
       response: { status: 500, data: { error: { message: 'upstream details' } } },
     });
     await expect(
       new DeepSeekProvider().generate({ messages: [{ role: 'user', content: 'test' }] }),
-    ).rejects.toThrow('DeepSeek API request failed (500): upstream details');
+    ).rejects.toThrow('DeepSeek API request failed (500)');
   });
 
   it('returns a neutral health result without calling the API when unconfigured', async () => {

@@ -2,6 +2,7 @@ import { isAbsolute } from 'node:path';
 
 import type { RuntimeConfig } from './production-config';
 import { RuntimeProfileConfigurationError } from './runtime-profile';
+import { validateProductionExternalProviderConfig } from './external-provider-validation';
 
 const SUPPORTED_JWT_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512']);
 
@@ -54,7 +55,10 @@ export function validateRuntimeConfig(
     );
   }
 
-  if (config.profile !== 'standalone') return;
+  if (config.profile !== 'standalone') {
+    validateExternalConfigInProduction(config.nodeEnv, _env);
+    return;
+  }
 
   if (config.nodeEnv !== 'production') {
     throw new RuntimeProfileConfigurationError(
@@ -101,6 +105,21 @@ export function validateRuntimeConfig(
   if (auth.issuer.startsWith('http://') || auth.jwksUrl.startsWith('http://')) {
     throw new RuntimeProfileConfigurationError(
       'OIDC_ISSUER_URL and OIDC_JWKS_URL must use HTTPS for the standalone runtime profile.',
+    );
+  }
+  validateExternalConfigInProduction(config.nodeEnv, _env);
+}
+
+function validateExternalConfigInProduction(
+  nodeEnv: string,
+  env: NodeJS.ProcessEnv,
+): void {
+  if (nodeEnv !== 'production') return;
+  try {
+    validateProductionExternalProviderConfig(env);
+  } catch (error) {
+    throw new RuntimeProfileConfigurationError(
+      error instanceof Error ? error.message : 'Production provider configuration is invalid.',
     );
   }
 }
