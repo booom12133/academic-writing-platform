@@ -14,10 +14,11 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     abortOnError: process.env.NODE_ENV !== 'development',
   });
-  await configureApp(app, { 
+  await configureApp(app, {
     disableSwagger: true,
     bodyLimit: runtimeConfig.security.bodySizeLimit,
   });
+  app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
   app.enableCors({
     origin:
       runtimeConfig.profile === 'local'

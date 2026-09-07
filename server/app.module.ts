@@ -25,6 +25,9 @@ import { AcademicSearchModule } from './modules/academic-search/academic-search.
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
 import { StandaloneAuthModule } from './auth/standalone-auth.module';
 import { ApiSecurityModule } from './common/security/api-security.module';
+import { LifecycleModule } from './common/lifecycle/lifecycle.module';
+import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
+import { HealthModule } from './modules/health/health.module';
 
 const runtimeConfig = loadRuntimeConfig();
 
@@ -47,12 +50,18 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
       ...productionSecurity,
     ];
   }
-  return [...imports, ...createPlatformRuntimeModuleImports(), ...productionSecurity];
+  return [
+    ...imports,
+    ...createPlatformRuntimeModuleImports(),
+    ...productionSecurity,
+  ];
 }
 
 @Module({
   imports: [
     ...createRuntimeModuleImports(runtimeConfig),
+    LifecycleModule,
+    HealthModule.forRoot(runtimeConfig),
     // ====== @route-section: business-modules START ======
     UsersModule,
     TasksModule,
@@ -78,6 +87,7 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
     if (runtimeConfig.auth.mode === 'local-fixed') {
       consumer.apply(LocalDevelopmentAuthMiddleware).forRoutes('*');
     }

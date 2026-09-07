@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  ServiceUnavailableException,
+  Optional,
+} from '@nestjs/common';
 import { TasksService } from '../tasks/tasks.service';
 import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
@@ -6,6 +12,7 @@ import { PolishSubmissionService } from './polish/polish-submission.service';
 import type { PolishSubmissionInputData } from './polish/polish-input.types';
 import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
 import type { PaperRevisionSubmissionInputData } from './paper-revision/paper-revision-input.types';
+import { ApplicationShutdownCoordinator } from '../../common/lifecycle/application-shutdown.coordinator';
 
 import { generate as generateOutline } from './generators/outline.generator';
 import { generate as generateLiterature } from './generators/literature.generator';
@@ -38,6 +45,8 @@ export class AiToolsService {
     private readonly topicGenerationGenerator: TopicGenerationGenerator,
     private readonly polishSubmissionService: PolishSubmissionService,
     private readonly paperRevisionSubmissionService: PaperRevisionSubmissionService,
+    @Optional()
+    private readonly shutdown?: ApplicationShutdownCoordinator,
   ) {}
 
   getToolConfigs(): ToolConfig[] {
@@ -82,6 +91,32 @@ export class AiToolsService {
       });
     }
 
+    if (this.shutdown && !this.shutdown.beginWork()) {
+      throw new ServiceUnavailableException('Server is shutting down.');
+    }
+
+    const tracked = Boolean(this.shutdown);
+    try {
+      return await this.submitGenericTask({
+        userId,
+        taskType,
+        title,
+        inputData,
+      });
+    } catch (error) {
+      if (tracked) this.shutdown?.endWork();
+      throw error;
+    }
+  }
+
+  private async submitGenericTask(params: {
+    userId: string;
+    taskType: TaskType;
+    title: string;
+    inputData: Record<string, any>;
+  }): Promise<Task> {
+    const { userId, taskType, title, inputData } = params;
+
     // 1. 创建任务（扣积分，状态 pending）
     const task = await this.tasksService.createTask({
       userId,
@@ -103,6 +138,7 @@ export class AiToolsService {
     // 3. 异步处理（不阻塞请求）
     this.processTaskAsync(task.id, userId, taskType, inputData).catch((err) => {
       this.logger.error(`任务异步处理异常: ${task.id}`, JSON.stringify(err));
+      this.shutdown?.endWork();
     });
 
     return processingTask;
@@ -119,6 +155,14 @@ export class AiToolsService {
 
     setTimeout(async () => {
       try {
+        if (this.shutdown?.isShuttingDown()) {
+          await this.tasksService.updateTask(taskId, userId, {
+            status: 'failed',
+            errorMessage: 'Task interrupted by server shutdown.',
+          });
+          return;
+        }
+
         await this.tasksService.updateTask(taskId, userId, { progress: 30 });
         await this.tasksService.updateTask(taskId, userId, { progress: 60 });
 
@@ -147,7 +191,8 @@ export class AiToolsService {
             break;
           case 'topic-generation':
             {
-              const generated = await this.topicGenerationGenerator.generate(inputData);
+              const generated =
+                await this.topicGenerationGenerator.generate(inputData);
               resultData = {
                 ...generated.resultData,
                 metadata: generated.metadata,
@@ -155,10 +200,10 @@ export class AiToolsService {
               const usage = generated.metadata.usage;
               this.logger.log(
                 `provider=${generated.metadata.provider} model=${generated.metadata.model} taskType=${taskType} ` +
-                `generationTimeMs=${generated.metadata.generationTimeMs} ` +
-                `promptTokens=${usage?.promptTokens ?? 0} ` +
-                `completionTokens=${usage?.completionTokens ?? 0} ` +
-                `totalTokens=${usage?.totalTokens ?? 0} success=true`,
+                  `generationTimeMs=${generated.metadata.generationTimeMs} ` +
+                  `promptTokens=${usage?.promptTokens ?? 0} ` +
+                  `completionTokens=${usage?.completionTokens ?? 0} ` +
+                  `totalTokens=${usage?.totalTokens ?? 0} success=true`,
               );
             }
             break;
@@ -207,6 +252,14 @@ export class AiToolsService {
 
         await this.tasksService.updateTask(taskId, userId, { progress: 85 });
 
+        if (this.shutdown?.isShuttingDown()) {
+          await this.tasksService.updateTask(taskId, userId, {
+            status: 'failed',
+            errorMessage: 'Task interrupted by server shutdown.',
+          });
+          return;
+        }
+
         // 完成
         await this.tasksService.updateTask(taskId, userId, {
           status: 'completed',
@@ -216,8 +269,11 @@ export class AiToolsService {
 
         this.logger.log(`任务完成: ${taskId}`);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        this.logger.error(`任务失败: ${taskId}, taskType=${taskType}, ${errorMessage}`);
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `任务失败: ${taskId}, taskType=${taskType}, ${errorMessage}`,
+        );
         try {
           await this.tasksService.updateTask(taskId, userId, {
             status: 'failed',
@@ -229,6 +285,8 @@ export class AiToolsService {
             JSON.stringify(updateErr),
           );
         }
+      } finally {
+        this.shutdown?.endWork();
       }
     }, delayMs);
   }

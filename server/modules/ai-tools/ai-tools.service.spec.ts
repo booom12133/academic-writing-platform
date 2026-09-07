@@ -1,13 +1,21 @@
-jest.mock('@shared/api.interface', () => ({
-  TOOL_CONFIGS: [
-    { type: 'polish', name: '语法润色', basePoints: 10 },
-    { type: 'paper-revision', name: 'AI论文修改', basePoints: 30 },
-    { type: 'outline', name: '智能大纲', basePoints: 20 },
-  ],
-}), { virtual: true });
+jest.mock(
+  '@shared/api.interface',
+  () => ({
+    TOOL_CONFIGS: [
+      { type: 'polish', name: '语法润色', basePoints: 10 },
+      { type: 'paper-revision', name: 'AI论文修改', basePoints: 30 },
+      { type: 'outline', name: '智能大纲', basePoints: 20 },
+    ],
+  }),
+  { virtual: true },
+);
 jest.mock('../tasks/tasks.service', () => ({ TasksService: class {} }));
-jest.mock('./generators/topic-generation.generator', () => ({ TopicGenerationGenerator: class {} }));
-jest.mock('./generators/polish.generator', () => ({ PolishGenerator: class {} }));
+jest.mock('./generators/topic-generation.generator', () => ({
+  TopicGenerationGenerator: class {},
+}));
+jest.mock('./generators/polish.generator', () => ({
+  PolishGenerator: class {},
+}));
 
 const generatorModuleNames = [
   'outline',
@@ -37,14 +45,19 @@ for (const moduleName of generatorModuleNames) {
   }));
 }
 
-jest.mock('./polish/polish-submission.service', () => ({ PolishSubmissionService: class {} }));
-jest.mock('./paper-revision/paper-revision-submission.service', () => ({ PaperRevisionSubmissionService: class {} }));
+jest.mock('./polish/polish-submission.service', () => ({
+  PolishSubmissionService: class {},
+}));
+jest.mock('./paper-revision/paper-revision-submission.service', () => ({
+  PaperRevisionSubmissionService: class {},
+}));
 
 import { AiToolsService } from './ai-tools.service';
 import type { PolishSubmissionService } from './polish/polish-submission.service';
 import type { TasksService } from '../tasks/tasks.service';
 import type { TopicGenerationGenerator } from './generators/topic-generation.generator';
 import type { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
+import { ApplicationShutdownCoordinator } from '../../common/lifecycle/application-shutdown.coordinator';
 
 describe('AiToolsService Polish cutover', () => {
   it('delegates Polish before generic Task creation and returns the delegated processing Task', async () => {
@@ -117,7 +130,9 @@ describe('AiToolsService Polish cutover', () => {
       updatedAt: '2026-09-03T00:00:00.000Z',
     };
     const tasks = { createTask: jest.fn(), updateTask: jest.fn() };
-    const paperRevisionSubmission = { submit: jest.fn().mockResolvedValue(processingTask) };
+    const paperRevisionSubmission = {
+      submit: jest.fn().mockResolvedValue(processingTask),
+    };
     const inputData = { text: 'source', requirements: 'revise' };
     const service = new AiToolsService(
       tasks as unknown as TasksService,
@@ -172,5 +187,28 @@ describe('AiToolsService Polish cutover', () => {
       inputData: { topic: 'topic' },
     });
     expect(paperRevisionSubmission.submit).not.toHaveBeenCalled();
+  });
+
+  it('rejects new generic work once shutdown has started', async () => {
+    const tasks = { createTask: jest.fn(), updateTask: jest.fn() };
+    const coordinator = new ApplicationShutdownCoordinator();
+    coordinator.beginShutdown();
+    const service = new AiToolsService(
+      tasks as unknown as TasksService,
+      {} as TopicGenerationGenerator,
+      {} as PolishSubmissionService,
+      {} as PaperRevisionSubmissionService,
+      coordinator,
+    );
+
+    await expect(
+      service.submitTask({
+        userId: 'user-1',
+        taskType: 'outline',
+        title: 'Outline',
+        inputData: { topic: 'topic' },
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(tasks.createTask).not.toHaveBeenCalled();
   });
 });

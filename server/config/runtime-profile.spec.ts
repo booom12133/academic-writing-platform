@@ -7,22 +7,41 @@ type EnvironmentOverrides = Record<string, string | undefined>;
 // Runtime-profile tests exercise AppModule composition only.  Its business
 // modules are outside WP1 and include decorators that are not loaded by the
 // isolated ts-jest module registry used below.
-jest.mock('../modules/view/view.module', () => ({ ViewModule: class ViewModule {} }));
-jest.mock('../modules/users/users.module', () => ({ UsersModule: class UsersModule {} }));
-jest.mock('../modules/tasks/tasks.module', () => ({ TasksModule: class TasksModule {} }));
-jest.mock('../modules/points/points.module', () => ({ PointsModule: class PointsModule {} }));
-jest.mock('../modules/orders/orders.module', () => ({ OrdersModule: class OrdersModule {} }));
-jest.mock('../modules/ai-tools/ai-tools.module', () => ({ AiToolsModule: class AiToolsModule {} }));
+jest.mock('../modules/view/view.module', () => ({
+  ViewModule: class ViewModule {},
+}));
+jest.mock('../modules/users/users.module', () => ({
+  UsersModule: class UsersModule {},
+}));
+jest.mock('../modules/tasks/tasks.module', () => ({
+  TasksModule: class TasksModule {},
+}));
+jest.mock('../modules/points/points.module', () => ({
+  PointsModule: class PointsModule {},
+}));
+jest.mock('../modules/orders/orders.module', () => ({
+  OrdersModule: class OrdersModule {},
+}));
+jest.mock('../modules/ai-tools/ai-tools.module', () => ({
+  AiToolsModule: class AiToolsModule {},
+}));
 jest.mock('../modules/document-input/document-input.module', () => ({
   DocumentInputModule: class DocumentInputModule {},
 }));
-jest.mock('../modules/knowledge/knowledge.module', () => ({ KnowledgeModule: class KnowledgeModule {} }));
-jest.mock('../modules/zotero/zotero.module', () => ({ ZoteroModule: class ZoteroModule {} }));
+jest.mock('../modules/knowledge/knowledge.module', () => ({
+  KnowledgeModule: class KnowledgeModule {},
+}));
+jest.mock('../modules/zotero/zotero.module', () => ({
+  ZoteroModule: class ZoteroModule {},
+}));
 jest.mock('../modules/academic-search/academic-search.module', () => ({
   AcademicSearchModule: class AcademicSearchModule {},
 }));
 jest.mock('../modules/grounded-generation/grounded-generation.module', () => ({
   GroundedGenerationModule: class GroundedGenerationModule {},
+}));
+jest.mock('../modules/health/health.module', () => ({
+  HealthModule: { forRoot: jest.fn(() => class HealthModule {}) },
 }));
 
 const RUNTIME_ENV_KEYS = [
@@ -40,6 +59,14 @@ const RUNTIME_ENV_KEYS = [
   'OIDC_ALLOWED_ALGORITHMS',
   'OIDC_TIMEOUT_MS',
   'CORS_ALLOWED_ORIGINS',
+  'DEEPSEEK_API_KEY',
+  'DEEPSEEK_BASE_URL',
+  'DEEPSEEK_DEFAULT_MODEL',
+  'OPENALEX_API_BASE_URL',
+  'ACADEMIC_SEARCH_CURSOR_SECRET',
+  'ZOTERO_API_BASE_URL',
+  'ZOTERO_CREDENTIAL_ENCRYPTION_KEY',
+  'ZOTERO_CREDENTIAL_ENCRYPTION_KEY_VERSION',
 ] as const;
 
 function withRuntimeEnvironment<T>(
@@ -66,7 +93,9 @@ function withRuntimeEnvironment<T>(
   }
 }
 
-function loadAppModule(overrides: EnvironmentOverrides): typeof import('../app.module').AppModule {
+function loadAppModule(
+  overrides: EnvironmentOverrides,
+): typeof import('../app.module').AppModule {
   return withRuntimeEnvironment(overrides, () => {
     let appModule: typeof import('../app.module').AppModule | undefined;
     jest.isolateModules(() => {
@@ -103,7 +132,9 @@ describe('runtime profile bootstrap boundary', () => {
       scripts?: { test?: string };
     };
 
-    expect(packageJson.scripts?.test || '').not.toMatch(/RUNTIME_PROFILE=local/);
+    expect(packageJson.scripts?.test || '').not.toMatch(
+      /RUNTIME_PROFILE=local/,
+    );
   });
 
   it('fails startup when production omits RUNTIME_PROFILE', () => {
@@ -198,7 +229,8 @@ describe('runtime profile bootstrap boundary', () => {
       jest.dontMock('node:child_process');
       if (previousSandboxId === undefined) delete process.env.SANDBOX_ID;
       else process.env.SANDBOX_ID = previousSandboxId;
-      if (previousRuntimeProfile === undefined) delete process.env.RUNTIME_PROFILE;
+      if (previousRuntimeProfile === undefined)
+        delete process.env.RUNTIME_PROFILE;
       else process.env.RUNTIME_PROFILE = previousRuntimeProfile;
     }
   });
@@ -211,12 +243,20 @@ describe('runtime profile bootstrap boundary', () => {
     const imports = appModuleImportNames(environment);
     const middleware = configureAppModule(environment);
 
-    expect(imports).toEqual(expect.arrayContaining(['LocalDevelopmentDatabaseModule']));
-    expect(imports).not.toEqual(
-      expect.arrayContaining(['PlatformModule', 'StandardPostgresDatabaseModule']),
+    expect(imports).toEqual(
+      expect.arrayContaining(['LocalDevelopmentDatabaseModule']),
     );
-    expect(middleware.apply).toHaveBeenCalledTimes(1);
+    expect(imports).not.toEqual(
+      expect.arrayContaining([
+        'PlatformModule',
+        'StandardPostgresDatabaseModule',
+      ]),
+    );
+    expect(middleware.apply).toHaveBeenCalledTimes(2);
     expect(middleware.apply.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ name: 'RequestLoggingMiddleware' }),
+    );
+    expect(middleware.apply.mock.calls[1]?.[0]).toEqual(
       expect.objectContaining({ name: 'LocalDevelopmentAuthMiddleware' }),
     );
     expect(middleware.forRoutes).toHaveBeenCalledWith('*');
@@ -237,14 +277,16 @@ describe('runtime profile bootstrap boundary', () => {
         'StandardPostgresDatabaseModule',
       ]),
     );
-    expect(
-      configureAppModule({
-        NODE_ENV: 'development',
-        RUNTIME_PROFILE: 'platform',
-        DOCUMENT_STORAGE_DRIVER: 'filesystem',
-        DOCUMENT_STORAGE_ROOT: '/var/lib/academic-writing-platform/documents',
-      }).apply,
-    ).not.toHaveBeenCalled();
+    const middleware = configureAppModule({
+      NODE_ENV: 'development',
+      RUNTIME_PROFILE: 'platform',
+      DOCUMENT_STORAGE_DRIVER: 'filesystem',
+      DOCUMENT_STORAGE_ROOT: '/var/lib/academic-writing-platform/documents',
+    });
+    expect(middleware.apply).toHaveBeenCalledTimes(1);
+    expect(middleware.apply.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ name: 'RequestLoggingMiddleware' }),
+    );
   });
 
   it('fails standalone startup when its PostgreSQL and filesystem boundary is absent', () => {
@@ -276,14 +318,31 @@ describe('runtime profile bootstrap boundary', () => {
       OIDC_AUDIENCE: 'academic-writing-platform',
       OIDC_JWKS_URL: 'https://issuer.example.com/.well-known/jwks.json',
       CORS_ALLOWED_ORIGINS: 'https://app.example.com',
+      DEEPSEEK_API_KEY: 'deepseek-secret',
+      DEEPSEEK_BASE_URL: 'https://api.deepseek.com',
+      DEEPSEEK_DEFAULT_MODEL: 'deepseek-v4-flash',
+      OPENALEX_API_BASE_URL: 'https://api.openalex.org',
+      ACADEMIC_SEARCH_CURSOR_SECRET: 'cursor-secret',
+      ZOTERO_API_BASE_URL: 'https://api.zotero.org',
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY_VERSION: 'v1',
     };
     const imports = appModuleImportNames(environment);
 
-    expect(imports).toEqual(expect.arrayContaining(['StandardPostgresDatabaseModule']));
-    expect(imports).not.toEqual(
-      expect.arrayContaining(['LocalDevelopmentDatabaseModule', 'PlatformModule']),
+    expect(imports).toEqual(
+      expect.arrayContaining(['StandardPostgresDatabaseModule']),
     );
-    expect(configureAppModule(environment).apply).not.toHaveBeenCalled();
+    expect(imports).not.toEqual(
+      expect.arrayContaining([
+        'LocalDevelopmentDatabaseModule',
+        'PlatformModule',
+      ]),
+    );
+    const middleware = configureAppModule(environment);
+    expect(middleware.apply).toHaveBeenCalledTimes(1);
+    expect(middleware.apply.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({ name: 'RequestLoggingMiddleware' }),
+    );
   });
 
   it.each([
@@ -309,7 +368,11 @@ describe('runtime profile bootstrap boundary', () => {
         security: {
           corsAllowedOrigins: [],
           bodySizeLimit: '1mb',
-          rateLimit: { windowMs: 60_000, maxRequests: 120, expensiveMaxRequests: 30 },
+          rateLimit: {
+            windowMs: 60_000,
+            maxRequests: 120,
+            expensiveMaxRequests: 30,
+          },
         },
       };
 
