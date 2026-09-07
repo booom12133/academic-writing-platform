@@ -2,6 +2,7 @@ import type { CitationLocator, KnowledgeChunkProvenance } from '../knowledge/kno
 import type { EvidenceSet } from '../knowledge/retrieval/evidence-assembly';
 import {
   type ClaimUnit,
+  type GroundedGenerationRequest,
   type GroundedGenerationResult,
   type GroundedModelOutput,
   type GroundedEvidenceRef,
@@ -41,5 +42,17 @@ describe('grounded generation contracts', () => {
   it('retains the E3 evidence set as an input contract', () => {
     const input = {} as EvidenceSet;
     expect(input).toBeDefined();
+  });
+
+  it('types optional parent controls with required approved inner fields', () => {
+    const request: GroundedGenerationRequest = {
+      instructions: 'Write.',
+      queryText: 'query',
+      output: { format: 'markdown', citationStyle: 'numeric-inline' },
+      grounding: { onUnbound: 'block' },
+    };
+
+    expect(request.output?.citationStyle).toBe('numeric-inline');
+    expect(request.grounding?.onUnbound).toBe('block');
   });
 });

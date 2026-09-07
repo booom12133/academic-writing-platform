@@ -120,4 +120,15 @@ describe('GroundedGenerationService', () => {
     })).rejects.toMatchObject({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 });
     expect(evidence.retrieve).not.toHaveBeenCalled();
   });
+
+  it('rejects E3-invalid policy before entering the evidence facade', async () => {
+    const evidence = { retrieve: jest.fn() };
+    const llm = { generate: jest.fn() };
+
+    await expect(new GroundedGenerationService(evidence, llm).generate('user-1', {
+      ...request,
+      retrieval: { policy: { topK: 40 } },
+    })).rejects.toMatchObject({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 });
+    expect(evidence.retrieve).not.toHaveBeenCalled();
+  });
 });

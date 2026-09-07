@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { GroundedGenerationError } from './grounded-generation.errors';
 import type { GroundedGenerationRequest } from './grounded-generation.types';
+import { createRetrievalConfig, normalizeRetrievalPolicy } from '../knowledge/retrieval/retrieval.config';
 
 const retrievalSelectionSchema = z.union([
   z.object({ mode: z.literal('active') }).strict(),
@@ -50,6 +51,18 @@ export function parseGroundedGenerationRequest(input: unknown): GroundedGenerati
       'The grounded generation request is invalid.',
       400,
       parsed.error.issues,
+    );
+  }
+  try {
+    if (parsed.data.retrieval?.policy !== undefined) {
+      normalizeRetrievalPolicy(parsed.data.retrieval.policy, createRetrievalConfig());
+    }
+  } catch (error) {
+    throw new GroundedGenerationError(
+      'GROUNDED_GENERATION_INVALID_QUERY',
+      error instanceof Error ? error.message : 'The retrieval policy is invalid.',
+      400,
+      error,
     );
   }
   return parsed.data as GroundedGenerationRequest;

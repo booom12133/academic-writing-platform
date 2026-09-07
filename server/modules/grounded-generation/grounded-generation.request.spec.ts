@@ -11,6 +11,17 @@ describe('parseGroundedGenerationRequest', () => {
     expect(parseGroundedGenerationRequest(valid)).toEqual(valid);
   });
 
+  it('requires all fields inside optional output and grounding objects', () => {
+    expect(() => parseGroundedGenerationRequest({
+      ...valid,
+      output: { format: 'markdown' },
+    })).toThrow();
+    expect(() => parseGroundedGenerationRequest({
+      ...valid,
+      grounding: {},
+    })).toThrow();
+  });
+
   it.each([
     ['unknown root key', { ...valid, extra: true }],
     ['unknown retrieval key', { ...valid, retrieval: { unexpected: true } }],
@@ -30,6 +41,15 @@ describe('parseGroundedGenerationRequest', () => {
   });
 
   it('validates retrieval policy bounds before the request reaches E3', () => {
+    expect(() => parseGroundedGenerationRequest({ ...valid, retrieval: { policy: { topK: 40 } } })).toThrow(
+      expect.objectContaining({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 }),
+    );
+    expect(() => parseGroundedGenerationRequest({ ...valid, retrieval: { policy: { topK: 100, candidateLimit: 100 } } })).toThrow(
+      expect.objectContaining({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 }),
+    );
+    expect(() => parseGroundedGenerationRequest({ ...valid, retrieval: { policy: { candidateLimit: 201 } } })).toThrow(
+      expect.objectContaining({ code: 'GROUNDED_GENERATION_INVALID_QUERY', httpStatus: 400 }),
+    );
     expect(() => parseGroundedGenerationRequest({ ...valid, retrieval: { policy: { topK: 0 } } })).toThrow();
     expect(() => parseGroundedGenerationRequest({ ...valid, retrieval: { policy: { topK: 3, candidateLimit: 2 } } })).toThrow();
   });

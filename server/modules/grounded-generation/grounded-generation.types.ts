@@ -103,10 +103,10 @@ export interface GroundedGenerationRequest {
     policy?: Partial<import('../knowledge/retrieval/retrieval.types').RetrievalPolicy>;
   };
   output?: {
-    format?: 'markdown' | 'plain';
-    citationStyle?: 'numeric-inline';
+    format: 'markdown' | 'plain';
+    citationStyle: 'numeric-inline';
   };
   grounding?: {
-    onUnbound?: 'block' | 'annotate';
+    onUnbound: 'block' | 'annotate';
   };
 }
