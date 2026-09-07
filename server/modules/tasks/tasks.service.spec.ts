@@ -15,6 +15,7 @@ jest.mock('@shared/api.interface', () => ({
 
 import { appUsers, pointRecords, tasks } from '@server/database/schema';
 import type { Task } from '@shared/api.interface';
+import { and, eq } from 'drizzle-orm';
 import { TasksService } from './tasks.service';
 
 const now = new Date('2026-09-02T00:00:00.000Z');
@@ -111,5 +112,26 @@ describe('TasksService prepared Polish seam', () => {
     expect(task.pointsCost).toBe(20);
     const taskValues = tx.insert.mock.results[0].value.values.mock.calls[0][0];
     expect(taskValues.pointsCost).toBe(20);
+  });
+
+  it('keeps status updates scoped to both task id and authenticated owner', async () => {
+    (eq as jest.Mock).mockImplementation((column: unknown, value: unknown) => ({ column, value }));
+    (and as jest.Mock).mockImplementation((...conditions: unknown[]) => conditions);
+    const where = jest.fn().mockReturnValue({
+      returning: jest.fn().mockResolvedValue([]),
+    });
+    const db = {
+      update: jest.fn().mockReturnValue({
+        set: jest.fn().mockReturnValue({ where }),
+      }),
+    };
+    const service = new TasksService(db as never);
+
+    await expect(service.updateTask('task-1', 'user-2', { status: 'failed' })).resolves.toBeNull();
+
+    expect(where).toHaveBeenCalledWith([
+      { column: tasks.id, value: 'task-1' },
+      { column: tasks.userId, value: 'user-2' },
+    ]);
   });
 });

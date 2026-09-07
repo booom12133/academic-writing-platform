@@ -10,6 +10,7 @@ jest.mock('@lark-apaas/fullstack-nestjs-core', () => ({
 
 describe('KnowledgeModule', () => {
   it('resolves E1 services and neutral ingestion dependencies without a controller', async () => {
+    process.env.RUNTIME_PROFILE = 'local';
     process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
     process.env.DOCUMENT_STORAGE_ROOT = join(process.cwd(), 'test-documents');
     // Require after the storage mode is selected because the storage provider is created at module definition time.

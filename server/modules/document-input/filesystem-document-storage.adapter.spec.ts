@@ -32,6 +32,17 @@ describe('SelfHostedFilesystemDocumentStorageAdapter', () => {
     await expect(adapter.download({ bucketId, filePath })).resolves.toEqual(bytes);
   });
 
+  it('publishes owner-only files and directories on Linux', async () => {
+    if (process.platform === 'win32') return;
+
+    await adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('private') });
+
+    const file = await stat(join(root, ...filePath.split('/')));
+    const directory = await stat(join(root, ...filePath.split('/').slice(0, -1)));
+    expect(file.mode & 0o777).toBe(0o600);
+    expect(directory.mode & 0o777).toBe(0o700);
+  });
+
   it('removes only the exact compensated object', async () => {
     const siblingPath = filePath.replace('paper.txt', 'sibling.txt');
     const bytes = Buffer.from('synthetic');
@@ -42,6 +53,19 @@ describe('SelfHostedFilesystemDocumentStorageAdapter', () => {
 
     await expect(stat(join(root, ...filePath.split('/')))).rejects.toMatchObject({ code: 'ENOENT' });
     await expect(readFile(join(root, ...siblingPath.split('/')))).resolves.toEqual(bytes);
+  });
+
+  it('keeps same-key concurrent writes exclusive', async () => {
+    const writes = await Promise.allSettled([
+      adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('first') }),
+      adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('second') }),
+    ]);
+
+    expect(writes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(writes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(adapter.download({ bucketId, filePath })).resolves.toEqual(
+      expect.any(Buffer),
+    );
   });
 
   it.each([

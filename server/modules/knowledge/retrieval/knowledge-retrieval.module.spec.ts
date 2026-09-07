@@ -6,6 +6,7 @@ import { KnowledgeRetrievalService } from './knowledge-retrieval.service';
 
 describe('KnowledgeRetrievalModule', () => {
   it('wires E3 retrieval with the existing E1/E2 modules', async () => {
+    process.env.RUNTIME_PROFILE = 'local';
     process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
     process.env.DOCUMENT_STORAGE_ROOT = join(process.cwd(), 'test-documents');
     // Require after storage configuration is selected because the imported E1 module creates its provider at definition time.

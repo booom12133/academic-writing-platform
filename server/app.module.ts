@@ -5,10 +5,10 @@ import { LoggerModule } from '@lark-apaas/nestjs-logger';
 
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import {
-  createPlatformModuleImports,
-  resolveDocumentStorageConfig,
-} from './modules/document-input/document-storage.config';
-import { isLocalDevelopmentWithoutPlatformDomain } from './config/local-development';
+  loadRuntimeConfig,
+  type RuntimeConfig,
+} from './config/production-config';
+import { createPlatformRuntimeModuleImports } from './modules/document-input/document-storage.config';
 import { LocalDevelopmentDatabaseModule } from './database/local-development.module';
 import { StandardPostgresDatabaseModule } from './database/standard-postgres.module';
 import { LocalDevelopmentAuthMiddleware } from './middleware/local-development-auth.middleware';
@@ -23,26 +23,45 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
+import { StandaloneAuthModule } from './auth/standalone-auth.module';
+import { ApiSecurityModule } from './common/security/api-security.module';
+import { LifecycleModule } from './common/lifecycle/lifecycle.module';
+import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
+import { HealthModule } from './modules/health/health.module';
 
-const documentStorageConfig = resolveDocumentStorageConfig();
-const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
+const runtimeConfig = loadRuntimeConfig();
+
+export function createRuntimeModuleImports(config: RuntimeConfig) {
+  const imports = [ConfigModule.forRoot({ isGlobal: true }), LoggerModule];
+  const productionSecurity =
+    config.nodeEnv === 'production'
+      ? [ApiSecurityModule.forRoot(config.security.rateLimit)]
+      : [];
+  if (config.database.mode === 'local-memory') {
+    return [...imports, LocalDevelopmentDatabaseModule, ...productionSecurity];
+  }
+  if (config.database.mode === 'postgres') {
+    return [
+      ...imports,
+      StandardPostgresDatabaseModule,
+      ...(config.auth.standalone
+        ? [StandaloneAuthModule.forRoot(config.auth.standalone)]
+        : []),
+      ...productionSecurity,
+    ];
+  }
+  return [
+    ...imports,
+    ...createPlatformRuntimeModuleImports(),
+    ...productionSecurity,
+  ];
+}
 
 @Module({
   imports: [
-    ...(documentStorageConfig.driver === 'filesystem' && !useLocalDevelopment
-      ? [
-          ConfigModule.forRoot({ isGlobal: true }),
-          LoggerModule,
-          StandardPostgresDatabaseModule,
-        ]
-      : []),
-    ...(useLocalDevelopment
-      ? [
-          ConfigModule.forRoot({ isGlobal: true }),
-          LoggerModule,
-          LocalDevelopmentDatabaseModule,
-        ]
-      : createPlatformModuleImports(documentStorageConfig)),
+    ...createRuntimeModuleImports(runtimeConfig),
+    LifecycleModule,
+    HealthModule.forRoot(runtimeConfig),
     // ====== @route-section: business-modules START ======
     UsersModule,
     TasksModule,
@@ -68,7 +87,8 @@ const useLocalDevelopment = isLocalDevelopmentWithoutPlatformDomain();
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    if (useLocalDevelopment) {
+    consumer.apply(RequestLoggingMiddleware).forRoutes('*');
+    if (runtimeConfig.auth.mode === 'local-fixed') {
       consumer.apply(LocalDevelopmentAuthMiddleware).forRoutes('*');
     }
   }

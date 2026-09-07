@@ -12,18 +12,12 @@ import {
 import type { Request } from 'express';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import { TasksService } from './tasks.service';
+import { validateTaskStatusPatch } from './tasks-status.validation';
 import type {
   Task,
   TaskListResponse,
   CreateTaskRequest,
 } from '@shared/api.interface';
-
-interface UpdateTaskStatusBody {
-  status?: string;
-  progress?: number;
-  resultData?: Record<string, any>;
-  errorMessage?: string;
-}
 
 @Controller('api/tasks')
 export class TasksController {
@@ -89,15 +83,12 @@ export class TasksController {
   @NeedLogin()
   @Patch(':id/status')
   async updateStatus(
+    @Req() req: Request,
     @Param('id') id: string,
-    @Body() body: UpdateTaskStatusBody,
+    @Body() body: unknown,
   ): Promise<Task> {
-    const updated = await this.tasksService.updateTask(id, {
-      status: body.status as Task['status'] | undefined,
-      progress: body.progress,
-      resultData: body.resultData,
-      errorMessage: body.errorMessage,
-    });
+    const { userId } = req.userContext;
+    const updated = await this.tasksService.updateTask(id, userId, validateTaskStatusPatch(body));
     if (!updated) {
       throw new Error('任务不存在');
     }

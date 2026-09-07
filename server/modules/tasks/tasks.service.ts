@@ -54,6 +54,7 @@ export class TasksService {
    */
   async updateTask(
     taskId: string,
+    userId: string,
     patch: {
       status?: TaskStatus;
       progress?: number;
@@ -68,14 +69,14 @@ export class TasksService {
     if (patch.errorMessage !== undefined) setValues.errorMessage = patch.errorMessage;
 
     if (Object.keys(setValues).length === 0) {
-      const found = await this.getTaskById(taskId);
+      const found = await this.getTaskByIdWithOwner(taskId, userId);
       return found ?? null;
     }
 
     const updated = await this.db
       .update(tasks)
       .set(setValues)
-      .where(eq(tasks.id, taskId))
+      .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
       .returning();
 
     if (updated.length === 0) return null;

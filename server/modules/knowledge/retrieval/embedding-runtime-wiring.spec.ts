@@ -8,6 +8,7 @@ import {
 
 describe('E2 embedding runtime wiring', () => {
   it('exports the existing provider and config without changing indexing behavior', async () => {
+    process.env.RUNTIME_PROFILE = 'local';
     process.env.DOCUMENT_STORAGE_DRIVER = 'filesystem';
     process.env.DOCUMENT_STORAGE_ROOT = join(process.cwd(), 'test-documents');
     // Require after storage configuration is selected because the provider is created at module definition time.

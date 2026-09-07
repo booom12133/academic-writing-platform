@@ -1,4 +1,5 @@
-import { mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { link, mkdir, open, readFile, unlink } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 
 import type { DocumentInputProvider } from '@shared/document-input.interface';
@@ -29,14 +30,21 @@ export class SelfHostedFilesystemDocumentStorageAdapter implements DocumentStora
 
   async upload(input: Parameters<DocumentStoragePort['upload']>[0]): Promise<void> {
     const target = this.resolveStoragePath(input.bucketId, input.filePath, input.fileName);
-    await mkdir(dirname(target), { recursive: true });
+    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
 
-    const handle = await open(target, 'wx');
+    const temporaryTarget = `${target}.${randomUUID()}.tmp`;
     try {
-      await handle.writeFile(input.buffer);
-      await handle.sync();
+      const handle = await open(temporaryTarget, 'wx', 0o600);
+      try {
+        await handle.writeFile(input.buffer);
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      // link() creates the final name without replacing an existing object.
+      await link(temporaryTarget, target);
     } finally {
-      await handle.close();
+      await unlink(temporaryTarget).catch(() => undefined);
     }
   }
 

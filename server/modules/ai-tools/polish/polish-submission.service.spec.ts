@@ -70,7 +70,7 @@ describe('PolishSubmissionService', () => {
         calls.push('create');
         return created;
       }),
-      updateTask: jest.fn(async (_taskId, patch) => {
+      updateTask: jest.fn(async (_taskId, _userId, patch) => {
         calls.push(patch.status ?? 'patch');
         return patch.status === 'processing' ? processing : completed;
       }),
@@ -113,7 +113,7 @@ describe('PolishSubmissionService', () => {
     executionDeferred.resolve(preparedExecution);
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(aggregator.aggregate).toHaveBeenCalledWith(preparedExecution);
-    expect(tasks.updateTask).toHaveBeenLastCalledWith('task-1', {
+    expect(tasks.updateTask).toHaveBeenLastCalledWith('task-1', 'user-1', {
       status: 'completed',
       progress: 100,
       resultData: { revisedContent: 'done' },
@@ -158,7 +158,7 @@ describe('PolishSubmissionService', () => {
     const failed = task({ status: 'failed', progress: 100, errorMessage: 'first chunk failed' });
     const tasks = {
       createPreparedPolishTask: jest.fn().mockResolvedValue(created),
-      updateTask: jest.fn(async (_taskId, patch) =>
+      updateTask: jest.fn(async (_taskId, _userId, patch) =>
         patch.status === 'processing' ? processing : failed),
     };
     const execution = {
@@ -184,12 +184,12 @@ describe('PolishSubmissionService', () => {
 
     expect(execution.execute).toHaveBeenCalledTimes(1);
     expect(aggregator.aggregate).not.toHaveBeenCalled();
-    expect(tasks.updateTask).toHaveBeenLastCalledWith('task-1', {
+    expect(tasks.updateTask).toHaveBeenLastCalledWith('task-1', 'user-1', {
       status: 'failed',
       progress: 100,
       errorMessage: 'first chunk failed',
     });
-    expect(tasks.updateTask.mock.calls.some((call) => call[1].status === 'completed')).toBe(false);
+    expect(tasks.updateTask.mock.calls.some((call) => call[2].status === 'completed')).toBe(false);
   });
 
   it('rejects an empty prepared context before billing, Task creation, or async execution', async () => {

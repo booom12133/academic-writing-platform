@@ -3,12 +3,25 @@ import { KnowledgeModule } from '../knowledge.module';
 import { EMBEDDING_PROVIDER } from './embedding.provider';
 import { DeterministicEmbeddingProvider } from './embedding.fake';
 import { EMBEDDING_CONFIG, createEmbeddingConfig } from './embedding.config';
+import { resolveEmbeddingProductionConfig } from './embedding-production-config';
+import { OpenAiCompatibleEmbeddingProvider } from './openai-compatible-embedding.provider';
+import { loadRuntimeConfig } from '../../../config/production-config';
 import { KnowledgeIndexRepository } from './knowledge-index.repository';
 import { KnowledgeIndexingService } from './knowledge-indexing.service';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../knowledge.repository';
 import type { EmbeddingConfig } from './embedding.types';
 import { type EmbeddingProvider } from './embedding.provider';
 import type { KnowledgeIndexRepositoryPort } from './knowledge-index.repository';
+
+export function createEmbeddingProvider(
+  env: NodeJS.ProcessEnv = process.env,
+): EmbeddingProvider {
+  const runtimeConfig = loadRuntimeConfig(env);
+  if (runtimeConfig.nodeEnv === 'production') {
+    return new OpenAiCompatibleEmbeddingProvider(resolveEmbeddingProductionConfig(env));
+  }
+  return new DeterministicEmbeddingProvider();
+}
 
 @Module({
   imports: [KnowledgeModule],
@@ -19,7 +32,7 @@ import type { KnowledgeIndexRepositoryPort } from './knowledge-index.repository'
     KnowledgeIndexingService,
     {
       provide: EMBEDDING_PROVIDER,
-      useClass: DeterministicEmbeddingProvider,
+      useFactory: () => createEmbeddingProvider(),
     },
     {
       provide: EMBEDDING_CONFIG,

@@ -127,6 +127,10 @@ export class DeepSeekProvider implements TextGenerationProvider {
     const status = candidate?.response?.status;
     const message = candidate?.response?.data?.error?.message || candidate?.message || '';
 
+    if (message === 'DeepSeek returned empty response') {
+      return new Error(message);
+    }
+
     if (status === 401 || status === 403) {
       return new Error('DeepSeek authentication failed');
     }
@@ -141,22 +145,11 @@ export class DeepSeekProvider implements TextGenerationProvider {
       return new Error('DeepSeek request timed out');
     }
     if (status === 402 || /billing|balance|insufficient/i.test(message)) {
-      return new Error(`DeepSeek billing error: ${this.safeSummary(message)}`);
+      return new Error('DeepSeek billing error');
     }
     if (status) {
-      const summary = this.safeSummary(message);
-      return new Error(
-        summary
-          ? `DeepSeek API request failed (${status}): ${summary}`
-          : `DeepSeek API request failed (${status})`,
-      );
+      return new Error(`DeepSeek API request failed (${status})`);
     }
-    return new Error(
-      this.safeSummary(message) || 'DeepSeek request failed',
-    );
-  }
-
-  private safeSummary(message: string): string {
-    return message.replace(/\s+/g, ' ').trim().slice(0, 200);
+    return new Error('DeepSeek request failed');
   }
 }
