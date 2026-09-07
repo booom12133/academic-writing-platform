@@ -74,4 +74,9 @@ jobs:
       - name: Validate standard PostgreSQL migrations
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+        run: npm run db:migrate
+
+      - name: Verify standard PostgreSQL schema and pgvector
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
         run: npm run test:integration:postgres

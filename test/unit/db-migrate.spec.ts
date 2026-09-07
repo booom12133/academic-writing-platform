@@ -1,9 +1,20 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createMigrationPool, runMigrations } = require('../../scripts/db-migrate.js');
+const { createMigrationPool, createMigrationPoolConfig, runMigrations } = require('../../scripts/db-migrate.js');
 
 describe('standard PostgreSQL migration runner', () => {
   it('fails closed when DATABASE_URL is missing', () => {
     expect(() => createMigrationPool({})).toThrow(/DATABASE_URL/);
+  });
+
+  it('supports a separately scoped migration principal while retaining DATABASE_URL fallback', () => {
+    const config = createMigrationPoolConfig({
+      DATABASE_URL: 'postgresql://runtime.example/academic_writing',
+      MIGRATION_DATABASE_URL: 'postgresql://migration.example/academic_writing',
+    });
+
+    expect(config.connectionString).toBe(
+      'postgresql://migration.example/academic_writing',
+    );
   });
 
   it('locks and migrates on one client before releasing it', async () => {

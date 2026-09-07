@@ -17,7 +17,8 @@ function boundedInteger(env, name, fallback, minimum, maximum) {
 }
 
 function createMigrationPoolConfig(env = process.env) {
-  const connectionString = env.DATABASE_URL && env.DATABASE_URL.trim();
+  const connectionString =
+    (env.MIGRATION_DATABASE_URL || env.DATABASE_URL || '').trim();
   if (!connectionString) {
     throw new Error('DATABASE_URL is required to apply standard PostgreSQL migrations.');
   }
