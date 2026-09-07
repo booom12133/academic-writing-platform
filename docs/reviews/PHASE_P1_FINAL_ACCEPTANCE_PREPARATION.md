@@ -10,7 +10,7 @@ Status: `P1_REVIEW_PASS`; Final Acceptance has not been granted. This document i
 - PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14)
 - Accepted baseline: `6a3ee346bcf0b8cbd6ae7c6df58d30871bd74c30`
 - Review-Pass code HEAD: `14558f3f4efabbc8b42a7166bfae3d033ce822c3`
-- Final Acceptance candidate HEAD: `14558f3f4efabbc8b42a7166bfae3d033ce822c3`
+- Final Acceptance candidate HEAD before this final evidence-record update: `25764e8c9db46410cc749b97216992d746999080`
 - Candidate delta after Review-Pass: documentation only — this preparation document.
 - Repository-local Git transport: `origin=https://github.com/booom12133/academic-writing-platform.git`, `http.version=HTTP/1.1`.
 
@@ -49,7 +49,7 @@ The ChatGPT re-review comment explicitly closes the prior Blocking and Important
 
 PR #14 was verified through GitHub immediately before preparation. The current head exactly matches the Review-Pass HEAD supplied by ChatGPT. No head drift, merged state, base drift, or post-review code change was found.
 
-The preparation candidate is the same code as the Review-Pass candidate. The only new commit is `14558f3f4efabbc8b42a7166bfae3d033ce822c3`, which adds this file and does not modify business source, tests, CI, package metadata, migrations, or production configuration.
+The preparation candidate is the same code as the Review-Pass candidate. Commit `25764e8c9db46410cc749b97216992d746999080` adds this file and does not modify business source, tests, CI, package metadata, migrations, or production configuration. This final evidence-record update is documentation-only as well.
 
 ## 5. Complete Commit Audit
 
@@ -74,9 +74,9 @@ The complete linear chain from accepted baseline to the current candidate is:
 17. `59744a2a0e6f54cbad8fd423ab9d0ffae5664071` — `fix(p1): retain logger provider for bootstrap compatibility`
 18. `f49f5d379c27c9e7ce1d5fbdadf77724d05840bf` — `docs(p1): correct bootstrap evidence`
 19. `14558f3f4efabbc8b42a7166bfae3d033ce822c3` — `docs(p1): record CI-backed review evidence`
-20. Preparation commit — the new documentation-only commit containing this file; its exact SHA is recorded in the final handoff after commit and push.
+20. `25764e8c9db46410cc749b97216992d746999080` — `docs(p1): prepare final acceptance evidence`.
 
-The numbered chain above includes every commit from the accepted baseline to the Review-Pass code HEAD. The preparation commit is intentionally represented by its role rather than a self-referential SHA; the final handoff records the resulting full SHA. `git rev-list --count --merges 6a3ee346bcf0b8cbd6ae7c6df58d30871bd74c30..14558f3f4efabbc8b42a7166bfae3d033ce822c3` returned `0`.
+The numbered chain above includes every commit from the accepted baseline to the Review-Pass code HEAD, followed by the documentation-only preparation commit. The final evidence-record commit is documented in the handoff because a commit cannot contain its own SHA. `git rev-list --count --merges 6a3ee346bcf0b8cbd6ae7c6df58d30871bd74c30..25764e8c9db46410cc749b97216992d746999080` returned `0`.
 
 ## 6. Scope Audit
 
@@ -161,7 +161,7 @@ The production build path is checked by `scripts/test-reproducible-build.js`: it
 
 - `scripts/db-backup.js` builds a custom-format `pg_dump` invocation and fails closed on native command failure.
 - `scripts/db-restore-verify.js` invokes `pg_restore` and then `psql` checks for the vector extension, required application tables, migration state, constraints, indexes, and vector-related schema.
-- CI run `34100722153`, job `101674309355` (`postgres-schema`), passed `Create PostgreSQL backup` and `Restore and verify PostgreSQL backup`.
+- CI run `34103061143`, job `101681710677` (`postgres-schema`), passed `Create PostgreSQL backup` and `Restore and verify PostgreSQL backup`.
 - Encryption, remote upload, retention rotation, and disaster-recovery rehearsal are deployment responsibilities outside P1; the operations document explicitly does not claim to replace them.
 
 ## 11. Storage Evidence
@@ -198,13 +198,13 @@ The production build path is checked by `scripts/test-reproducible-build.js`: it
 
 ## 15. CI Evidence
 
-Authoritative final candidate run: [34100722153](https://github.com/booom12133/academic-writing-platform/actions/runs/34100722153), head SHA `14558f3f4efabbc8b42a7166bfae3d033ce822c3`, status `completed`, conclusion `success`.
+Authoritative final candidate run: [34103061143](https://github.com/booom12133/academic-writing-platform/actions/runs/34103061143), head SHA `25764e8c9db46410cc749b97216992d746999080`, status `completed`, conclusion `success`.
 
 | Job | Job ID | Status / conclusion | Important successful steps |
 |---|---:|---|---|
-| `verify` | `101674309165` | `completed / success` | Full tests; Lint; Server type-check; Client type-check; Server build; Client build |
-| `postgres-schema` | `101674309355` | `completed / success` | Standard migration validation; PostgreSQL + pgvector schema verification; upgrade migration; PostgreSQL backup; restore verification |
-| `production-gates` | `101675091385` | `completed / success` | Production configuration and shutdown contracts; reproducible tooling; production artifact build; clean artifact smoke test |
+| `verify` | `101681710900` | `completed / success` | Full tests; Lint; Server type-check; Client type-check; Server build; Client build |
+| `postgres-schema` | `101681710677` | `completed / success` | Standard migration validation; PostgreSQL + pgvector schema verification; upgrade migration; PostgreSQL backup; restore verification |
+| `production-gates` | `101682586598` | `completed / success` | Production configuration and shutdown contracts; reproducible tooling; production artifact build; clean artifact smoke test |
 
 The only annotations were GitHub's existing Node.js 20 action deprecation notices; no step failed or was skipped because of them.
 
