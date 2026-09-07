@@ -9,6 +9,7 @@ Status: `P1_FIX_REQUIRED` addressed; Review Candidate for ChatGPT re-review. Thi
 - PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14)
 - Previous reviewed HEAD: `261c6e2b2966472dd6181308861868d8cd171918`
 - Fixed implementation candidate HEAD: `59744a2` (`fix(p1): retain logger provider for bootstrap compatibility`)
+- Evidence/report HEAD before this CI record: `f49f5d379c27c9e7ce1d5fbdadf77724d05840bf`
 - Authorization: `IMPLEMENTATION_AUTHORIZED=YES`
 
 ## Complete P1 implementation commit list
@@ -46,7 +47,11 @@ Status: `P1_FIX_REQUIRED` addressed; Review Candidate for ChatGPT re-review. Thi
 - `npm run lint`: PASS — ESLint, stylelint, server type-check, and client type-check.
 - `npm run build:server`: PASS.
 - `npm run build:client`: PASS, with existing module-type and chunk-size warnings only.
-- Production artifact gates and GitHub Actions: pending the post-push candidate run; this section is updated with the exact run ID before handoff.
+- GitHub Actions run `34100112256` on evidence/report HEAD `f49f5d379c27c9e7ce1d5fbdadf77724d05840bf`: PASS.
+  - `verify` (`101672368303`): PASS — full tests, lint, server/client type-checks, and server/client builds.
+  - `postgres-schema` (`101672368041`): PASS — PostgreSQL migrations, pgvector schema, upgrade migration, backup, and restore verification.
+  - `production-gates` (`101673213054`): PASS — production configuration/shutdown contracts, reproducible tooling, clean production artifact build, and artifact smoke test.
+- The CI run validates the fixed runtime candidate; the follow-up commit that records this evidence is documentation-only.
 
 ## Security evidence
 
