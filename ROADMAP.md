@@ -1,9 +1,9 @@
 # Project Roadmap
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
-and closed. E4 and E5 are accepted and merged, with their historical closeout
-records retained. E6 is accepted and merged; final main CI and its accepted tag
-are pending post-merge closeout.
+and closed. E4, E5, and E6 are retained as historical accepted phases. P1 is
+accepted and merged; its final main CI and accepted tag are pending post-merge
+closeout.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -23,6 +23,7 @@ are pending post-merge closeout.
 | E4 | Zotero Integration | Server-side personal Zotero connection, bibliographic sync, stored PDF attachment import and independent attachment version sync | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
+| P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -34,6 +35,8 @@ are pending post-merge closeout.
 - NOT_STARTED: a confirmed item has no implementation yet.
 - REVIEW PASS / FINAL ACCEPTANCE PENDING: implementation review passed; formal
   Final Acceptance has not yet been granted.
+- ACCEPTED / CLOSED: Final Acceptance, merge, final `main` CI, and the annotated
+  accepted tag have all been verified.
 
 ## Phase E5 current record
 
@@ -64,3 +67,15 @@ are pending post-merge closeout.
 - Do not create the accepted tag until final main CI is green; do not begin E7 or deployment/P1.
 
 Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance phases from chat context alone.
+
+## Phase P1 current record
+
+- Branch: `phase-p1`.
+- PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14), MERGED with merge commit `03b730454edc1b22add8af527eac8c08e9ef301e`.
+- Accepted baseline: `6a3ee346bcf0b8cbd6ae7c6df58d30871bd74c30`.
+- Review-Pass code HEAD: `14558f3f4efabbc8b42a7166bfae3d033ce822c3`.
+- Final Acceptance candidate HEAD: `a84f1aa64a7424c62ad942f6e819085740816208`.
+- Final Acceptance: `P1_ACCEPTED`, recorded in ChatGPT Final Acceptance comment `5568235876`.
+- Candidate CI: run `34103737247`; `verify`, `postgres-schema`, and `production-gates` all SUCCESS.
+- Status: `PHASE_P1_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and annotated `phase-p1-accepted` tag remain required to establish `P1_ACCEPTED_CLOSED`.
+- Next phase: P2 Product Integration / UX — `NOT_STARTED / NOT AUTHORIZED`.

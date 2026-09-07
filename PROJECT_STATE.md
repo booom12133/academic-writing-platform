@@ -13,17 +13,26 @@ Last Updated: 2026-09-07
 
 ## Stable state
 
-- Current Stable Phase: Phase E6 — Grounded Generation / Citation
-- Stable Status: `PHASE_E6_ACCEPTED / MERGED / TAG PENDING`
+- Current Stable Phase: Phase P1 — Production Readiness
+- Stable Status: `PHASE_P1_ACCEPTED / MERGED / TAG PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: Phase E6 post-merge governance closeout commit / final `main` HEAD pending final CI
-- Latest Final Acceptance Report: [PHASE_E6_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E6_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, and Phase E6 are completed/frozen by project records
+- Stable Main Commit: `03b730454edc1b22add8af527eac8c08e9ef301e` (P1 merge commit; governance closeout commit follows)
+- Latest Final Acceptance Report: [PHASE_P1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P1_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, and Phase P1 are completed/frozen by project records
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase E6 accepted and merged; post-merge governance closeout is in progress on `main`; final main CI and accepted tag are pending. Do not begin E7/P1.
+- Current Development: Phase P1 accepted and merged; post-merge governance closeout is in progress on `main`; final main CI and accepted tag are pending. P2 is not started and not authorized.
+- P1 status: `PHASE_P1_ACCEPTED`; `P1_ACCEPTED_CLOSED=NO` until final `main` CI succeeds and the annotated `phase-p1-accepted` tag is verified.
+- P1 branch: `phase-p1`.
+- P1 PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14), MERGED with merge commit `03b730454edc1b22add8af527eac8c08e9ef301e`.
+- P1 accepted baseline: `6a3ee346bcf0b8cbd6ae7c6df58d30871bd74c30`.
+- P1 Review-Pass code HEAD: `14558f3f4efabbc8b42a7166bfae3d033ce822c3`.
+- P1 Final Acceptance candidate HEAD: `a84f1aa64a7424c62ad942f6e819085740816208`.
+- P1 Final Acceptance: `P1_ACCEPTED`, ChatGPT Final Acceptance comment `5568235876`; candidate CI `34103737247` passed `verify`, `postgres-schema`, and `production-gates`.
+- P1 Final Acceptance Report: [PHASE_P1_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P1_FINAL_ACCEPTANCE_REPORT.md).
+- P1 accepted tag: `phase-p1-accepted` pending final main CI and annotated-tag verification.
 - Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
@@ -327,6 +336,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: E3 — Retrieval
-- Next Phase Status: `PLANNED / NOT AUTHORIZED`; no implementation branch or code is authorized.
-- Next Phase Goal: future retrieval design only; query embedding, similarity search, top-k, RAG, and evidence assembly remain outside the accepted E2 scope.
+- Next Phase: P2 — Product Integration / UX
+- Next Phase Status: `NOT_STARTED / NOT AUTHORIZED`; no implementation branch or code is authorized.
+- Next Phase Goal: product integration and UX design only after separate P2 architecture/design approval and implementation authorization.
