@@ -56,14 +56,14 @@ Last Updated: 2026-09-07
 - E5 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
 - E5 GitHub CI: PASS — review run [34044506843](https://github.com/booom12133/academic-writing-platform/actions/runs/34044506843) at preparation HEAD `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`; both `verify` and `postgres-schema` succeeded. Merge-triggered main run [34044852534](https://github.com/booom12133/academic-writing-platform/actions/runs/34044852534) also passed both jobs at merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
 - E5 implementation was not changed after Final Acceptance; this closeout contains governance documentation only. `PHASE_E5_ACCEPTED` has been granted.
-- E6 status: `PHASE_E6_FIX_CANDIDATE`; PR `#13` remains open on `phase/e6-grounded-generation`; latest implementation HEAD: `50b938ad95ca41e44471af440c78b68ead799d00`.
+- E6 status: `PHASE_E6_FIX_CANDIDATE`; PR `#13` remains open on `phase/e6-grounded-generation`; latest implementation HEAD: `46da4a947ab8abb7d0a2c58c5c676c39887cdb98`.
 - E6 scope: synchronous authenticated grounded generation using the existing `KnowledgeEvidenceService.retrieve() → EvidenceSet` facade, structured `GroundedSegment`/`ClaimUnit` output, structural evidence binding, server-side citation rendering, and `resolutionStatus=resolved` bibliography projection.
 - E6 frozen boundaries: no E3 retrieval/source-resolution/assembly rewrite, no `knowledge-retrieval.module.ts` change, no E1–E5/D4 semantic changes, no `AcademicDiscoverySet → EvidenceSet`, no generated-content indexing, and no TasksModule integration.
-- E6 review-fix coverage: complete HTTP request validation with strict unknown-key rejection; non-empty structured model output and unique IDs; per-unit binding annotation; D4 sanitized rate-limit/timeout mapping; shared orchestration deadline timeout mapping; JSON evidence serialization and prompt-injection isolation; defensive missing-authentication HTTP 401; duplicate evidenceRef rejection.
-- E6 targeted verification: PASS — `npx jest server/modules/grounded-generation --runInBand` → 13 suites / 45 tests passed.
+- E6 review-fix coverage: complete HTTP request validation with strict unknown-key rejection; E3 `createRetrievalConfig()`/`normalizeRetrievalPolicy()` preflight before retrieval; required inner output/grounding fields; non-empty structured model output and unique IDs; per-unit binding annotation; D4 sanitized rate-limit/timeout mapping; shared orchestration deadline timeout mapping; JSON evidence serialization and prompt-injection isolation; defensive missing-authentication HTTP 401; duplicate evidenceRef rejection.
+- E6 targeted verification: PASS — `npx jest server/modules/grounded-generation --runInBand` → 13 suites / 48 tests passed.
 - E6 integration/boundary verification: PASS — `npx jest test/unit/grounded-generation-boundary.spec.ts server/modules/grounded-generation/grounded-generation.integration.spec.ts --runInBand` → 2 suites / 4 tests passed.
 - E6 PostgreSQL integration: PASS — `npm run test:integration:postgres` → 1 suite / 1 test passed; 3 suites / 19 tests skipped by the local PostgreSQL environment guard.
-- E6 full regression: PASS — `npm test -- --runInBand` → 119 suites passed / 620 tests passed / 19 skipped; existing Jest open-handle warning remains.
+- E6 full regression: PASS — `npm test -- --runInBand` → 119 suites passed / 623 tests passed / 19 skipped; existing Jest open-handle warning remains.
 - E6 lint: PASS — `npm run lint`.
 - E6 server type-check: PASS — `npm run type:check:server`.
 - E6 client type-check: PASS — `npm run type:check:client`.
@@ -71,7 +71,7 @@ Last Updated: 2026-09-07
 - E6 client build: PASS — `npm run build:client`, with existing module-type and chunk-size warnings.
 - E6 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
 - E6 implementation uses no database migration, no client source change, no deployment/P1, and no E7 work. A wiring-only `KnowledgeIndexingModule` factory adjustment preserves the pre-existing default sleep behavior required when the existing E3 module is loaded; E2 indexing semantics are unchanged.
-- E6 GitHub CI: PASS — PR `#13`, run [34073627338](https://github.com/booom12133/academic-writing-platform/actions/runs/34073627338), at implementation HEAD `50b938ad95ca41e44471af440c78b68ead799d00`; both `verify` and `postgres-schema` succeeded. CI emitted the existing Node.js 20 action deprecation annotation only.
+- E6 GitHub CI: PASS — PR `#13`, run [34074818290](https://github.com/booom12133/academic-writing-platform/actions/runs/34074818290), at implementation HEAD `46da4a947ab8abb7d0a2c58c5c676c39887cdb98`; both `verify` and `postgres-schema` succeeded. CI emitted the existing Node.js 20 action deprecation annotation only.
 - E6 review-fix scope: no migration, persistence, TasksModule integration, frontend overhaul, deployment/P1, E7 work, E3 retrieval/source-resolution/assembly rewrite, E1–E5/D4 frozen semantic change, or `AcademicDiscoverySet → EvidenceSet` conversion. Do not merge, tag, announce `PHASE_E6_REVIEW_PASS`/`PHASE_E6_ACCEPTED`, or begin E7.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
