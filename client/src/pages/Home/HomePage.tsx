@@ -8,7 +8,6 @@ import {
   BarChart3,
   ArrowRight,
   Upload,
-  Download,
   MousePointerClick,
   GraduationCap,
   Palette,
@@ -81,14 +80,17 @@ const steps = [
   },
   {
     num: 3,
-    title: '下载结果',
-    description: 'AI 快速完成处理，在线预览或下载最终结果文件',
-    icon: Download,
+    title: '查看结果',
+    description: '在线查看 AI 处理结果与任务状态',
+    icon: FileText,
   },
 ];
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const productionCapabilityCount = getProductCapabilities().filter(
+    (capability: ProductToolCapability) => capability.readiness === 'production',
+  ).length;
 
   return (
     <div className="flex flex-col">
@@ -104,8 +106,8 @@ const HomePage: React.FC = () => {
             <span className="text-blue-600">让论文写作更高效</span>
           </h1>
           <p className="text-base md:text-lg text-slate-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            AI 驱动的一站式学术写作辅助平台，从选题到排版全程助力，
-            让您专注于内容创作，告别繁琐的格式调整与文献查找
+            AI 驱动的学术写作辅助平台，提供选题、润色与论文修改等已开放能力，
+            帮助您更高效地完成学术写作
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
@@ -122,21 +124,21 @@ const HomePage: React.FC = () => {
               className="px-8 text-base bg-white"
               onClick={() => navigate('/tools')}
             >
-              查看全部工具
+              查看可用工具
             </Button>
           </div>
           <div className="mt-16 flex flex-wrap justify-center gap-8 text-sm text-slate-500">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span>10万+ 用户信赖</span>
+              <span>当前开放能力持续更新</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span>23+ 核心工具</span>
+              <span>{productionCapabilityCount} 项能力已开放</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-              <span>平均处理 30 秒</span>
+              <span>结果与任务状态可查看</span>
             </div>
           </div>
         </div>
@@ -149,7 +151,7 @@ const HomePage: React.FC = () => {
             当前可用的学术写作工具
           </h2>
           <p className="text-sm text-slate-500">
-            覆盖写作全流程，从选题到排版一站式辅助
+            当前提供选题、润色与论文修改等学术写作辅助能力
           </p>
         </div>
 
@@ -161,10 +163,10 @@ const HomePage: React.FC = () => {
           );
           const catDesc =
             cat.key === 'writing-planning'
-              ? '从选题到成稿，AI 辅助完成写作全流程规划与内容生成'
+              ? '提供选题生成与论文修改等已开放能力'
               : cat.key === 'efficiency-tools'
-                ? '提升写作效率，润色排版查重数据分析一站式解决'
-                : '扩展学术场景，论文倒推与PPT生成等增值工具';
+                ? '提供语法润色等已开放能力'
+                : '当前暂无已开放的扩展工具';
           return (
             <div key={cat.key}>
               <div className="mb-5">
@@ -276,15 +278,15 @@ const HomePage: React.FC = () => {
             开始您的高效学术写作之旅
           </h2>
           <p className="text-blue-100 mb-8 max-w-xl mx-auto">
-            新用户注册即送 50 积分，立即体验 AI 带来的学术写作效率提升
+            查看当前已开放的学术写作辅助能力，选择适合您的工具
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button
               size="lg"
               className="bg-white text-blue-600 hover:bg-blue-50 px-8"
-              onClick={() => navigate('/register')}
+              onClick={() => navigate('/tools')}
             >
-              免费注册
+              查看可用工具
             </Button>
             <Button
               size="lg"
