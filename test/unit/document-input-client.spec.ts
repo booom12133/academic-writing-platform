@@ -1,8 +1,8 @@
-jest.mock('@lark-apaas/client-toolkit/utils/getAxiosForBackend', () => ({
-  axiosForBackend: { post: jest.fn() },
+jest.mock('../../client/src/api/http', () => ({
+  productHttpClient: { post: jest.fn() },
 }));
 
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from '../../client/src/api/http';
 import { uploadDocument } from '../../client/src/api/document-input';
 
 describe('document input client API', () => {
@@ -24,7 +24,7 @@ describe('document input client API', () => {
         warningCount: 0,
       },
     };
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     post.mockResolvedValueOnce({ data: descriptor });
     const file = new File(['note'], 'note.txt', { type: 'text/plain' });
 

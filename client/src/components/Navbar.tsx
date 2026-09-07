@@ -10,8 +10,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { userApi, pointApi } from '@client/src/api/index';
-import type { UserProfile } from '@shared/api.interface';
+import { pointApi } from '@client/src/api/index';
+import { useAppAuth } from '../auth/AppAuthProvider';
 
 const navItems = [
   { path: '/', label: '首页', end: true },
@@ -22,36 +22,28 @@ const navItems = [
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const session = useAppAuth();
   const [balance, setBalance] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const [userProfileData, balanceData] = await Promise.all([
-          userApi.getProfile(),
-          pointApi.getBalance(),
-        ]);
-        setProfile(userProfileData);
-        setBalance(balanceData.points);
-      } catch {
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void loadUser();
-  }, []);
+    if (session.status !== 'authenticated') {
+      setBalance(0);
+      return;
+    }
+    void pointApi
+      .getBalance()
+      .then((balanceData) => setBalance(balanceData.points))
+      .catch(() => setBalance(0));
+  }, [session.status, session.userId]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('aw_user_token');
-    setProfile(null);
+  const handleLogout = async () => {
+    await session.logout();
     navigate('/login');
   };
 
-  const displayName = profile?.username || profile?.userId.slice(0, 8) || '用户';
+  const displayName =
+    session.displayName || session.userId?.slice(0, 8) || '用户';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 h-[60px] bg-white border-b border-slate-200">
@@ -86,7 +78,7 @@ const Navbar = () => {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
-          {!loading && profile ? (
+          {session.status === 'authenticated' ? (
             <>
               {/* Points */}
               <button
@@ -135,7 +127,7 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={handleLogout}
+                    onClick={() => void handleLogout()}
                     className="text-red-500"
                   >
                     退出登录
@@ -144,7 +136,7 @@ const Navbar = () => {
               </DropdownMenu>
             </>
           ) : (
-            !loading && (
+            session.status !== 'loading' && (
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -199,7 +191,7 @@ const Navbar = () => {
                 {item.label}
               </NavLink>
             ))}
-            {profile && (
+            {session.status === 'authenticated' && (
               <>
                 <div className="px-6 py-3 border-t border-slate-100">
                   <div className="flex items-center gap-2 text-sm text-amber-600">
@@ -209,7 +201,7 @@ const Navbar = () => {
                 </div>
                 <button
                   onClick={() => {
-                    handleLogout();
+                    void handleLogout();
                     setMobileMenuOpen(false);
                   }}
                   className="text-left px-6 py-3 text-sm text-red-500 hover:bg-slate-50"

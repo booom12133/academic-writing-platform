@@ -1,8 +1,8 @@
-jest.mock('@lark-apaas/client-toolkit/utils/getAxiosForBackend', () => ({
-  axiosForBackend: { post: jest.fn() },
+jest.mock('../../client/src/api/http', () => ({
+  productHttpClient: { post: jest.fn() },
 }));
 
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from '../../client/src/api/http';
 import type { DocumentInputRef } from '@shared/document-input.interface';
 import {
   canSubmitPaperRevision,
@@ -24,7 +24,7 @@ describe('Paper Revision migration client request', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('submits text with requirements and optional revisionTypes', async () => {
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     const task = { id: 'task-1', pointsCost: 30 };
     post.mockResolvedValueOnce({ data: task });
 
@@ -53,7 +53,7 @@ describe('Paper Revision migration client request', () => {
   });
 
   it('submits only a prepared DocumentInputRef in file mode', async () => {
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     post.mockResolvedValueOnce({ data: { id: 'task-2', pointsCost: 30 } });
 
     await submitPaperRevisionTask({
@@ -77,7 +77,7 @@ describe('Paper Revision migration client request', () => {
   });
 
   it('accepts omitted and empty revisionTypes in the typed direct contract', async () => {
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     post.mockResolvedValue({ data: { id: 'task-3' } });
 
     await submitPaperRevisionTask({ title: 'Omitted', inputMode: 'text', text: 'source' });
