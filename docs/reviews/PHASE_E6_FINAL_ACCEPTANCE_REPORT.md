@@ -1,19 +1,23 @@
 # PHASE_E6_FINAL_ACCEPTANCE_REPORT
 
 Date: 2026-09-07
-Status: `PHASE_E6_REVIEW_PASS / FINAL_ACCEPTANCE_CANDIDATE`
-`PHASE_E6_ACCEPTED`: NO
+Status: `PHASE_E6_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`
+`PHASE_E6_ACCEPTED`: YES
 
-This report records Final Acceptance Preparation for Phase E6. It does not
-authorize merge, tag creation, or the next phase.
+This report records Final Acceptance and post-merge governance closeout for
+Phase E6. Final main CI and the accepted tag remain pending at this closeout
+step; the next phase is not authorized.
 
 ## 1. Candidate identity
 
 - Phase branch: `phase/e6-grounded-generation`.
-- PR #13: [Phase E6 — Grounded Generation / Citation](https://github.com/booom12133/academic-writing-platform/pull/13), OPEN and not merged.
+- PR #13: [Phase E6 — Grounded Generation / Citation](https://github.com/booom12133/academic-writing-platform/pull/13), MERGED with merge commit `0d40bda958794d178244fba3a6aaf852586317b6`.
 - Reviewed HEAD: `ecdcdf6a9b9eb7fb91719eb7c6aa69c0d2f0b78e`.
 - ChatGPT Review ID: `5127480833`.
+- Final Acceptance Review ID: `5127586164`.
+- Final Acceptance Preparation HEAD: `ec3d571e31fbc926ecd7924c14995dc32fdf2855`.
 - Final authoritative CI: [34075066569](https://github.com/booom12133/academic-writing-platform/actions/runs/34075066569).
+- Final Acceptance governance CI: [34076209448](https://github.com/booom12133/academic-writing-platform/actions/runs/34076209448).
 - Final Acceptance Preparation changes are governance/docs-only; E6 business implementation was not modified.
 
 ## 2. Phase goal
@@ -90,7 +94,9 @@ Authoritative final review CI [34075066569](https://github.com/booom12133/academ
 - `postgres-schema`: SUCCESS.
 
 Earlier green review-fix runs remain historical evidence; run `34075066569`
-is the final authoritative CI record for this candidate.
+is the final authoritative review CI record. Governance CI `34076209448` is
+the final preparation evidence before merge. Final post-merge `main` CI is
+pending and must be green before the accepted tag is created.
 
 ## 7. Frozen boundaries and out of scope
 
@@ -124,11 +130,14 @@ is the final authoritative CI record for this candidate.
 - [x] Local targeted, integration, PostgreSQL, regression, lint,
       type-check, build, and bootstrap evidence is recorded.
 - [x] Frozen boundaries and known non-blocking issues are recorded.
-- [ ] Final Acceptance: `PHASE_E6_ACCEPTED`.
-- [ ] Merge and accepted tag.
+- [x] Final Acceptance: `PHASE_E6_ACCEPTED`, Review ID `5127586164`.
+- [x] PR #13 merged with merge commit `0d40bda958794d178244fba3a6aaf852586317b6`.
+- [ ] Final post-merge `main` CI: pending.
+- [ ] Accepted tag `phase-e6-accepted`: pending final `main` CI.
 
 ## 10. Proposed status
 
-`PHASE_E6_REVIEW_PASS / FINAL_ACCEPTANCE_CANDIDATE`
+`PHASE_E6_ACCEPTED / MERGED / TAG PENDING`
 
-Wait for ChatGPT Final Acceptance. Do not merge, tag, or begin E7.
+Do not create the accepted tag until final `main` CI is green. Do not begin
+E7 or deployment/P1.

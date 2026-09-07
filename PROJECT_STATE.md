@@ -13,17 +13,17 @@ Last Updated: 2026-09-07
 
 ## Stable state
 
-- Current Stable Phase: Phase E5 — External Academic Search / Scholarly Discovery
-- Stable Status: `PHASE_E5_ACCEPTED / MERGED / TAG PENDING`
+- Current Stable Phase: Phase E6 — Grounded Generation / Citation
+- Stable Status: `PHASE_E6_ACCEPTED / MERGED / TAG PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: post-merge E5 governance closeout commit / final `main` HEAD
-- Latest Final Acceptance Report: [PHASE_E5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E5_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, and Phase E5 are completed/frozen by project records
+- Stable Main Commit: Phase E6 post-merge governance closeout commit / final `main` HEAD pending final CI
+- Latest Final Acceptance Report: [PHASE_E6_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E6_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, and Phase E6 are completed/frozen by project records
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase E6 — Grounded Generation / Citation code review passed; Final Acceptance Preparation is in progress on `phase/e6-grounded-generation`.
+- Current Development: Phase E6 accepted and merged; post-merge governance closeout is in progress on `main`; final main CI and accepted tag are pending. Do not begin E7/P1.
 - Current E4 status: `PHASE_E4_ACCEPTED`; `PHASE_E4_ACCEPTED_CLOSED` is not yet established because the accepted tag is pending.
 - E4 branch: `phase/e4-zotero-integration`.
 - E4 accepted Phase branch HEAD: `f15a4252766fbc8ff5e401b3adf0457003e29173`; reviewed implementation HEAD: `de46ad07f2df9132fe677e4d3cd2acc9afc0243f`.
@@ -56,8 +56,9 @@ Last Updated: 2026-09-07
 - E5 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
 - E5 GitHub CI: PASS — review run [34044506843](https://github.com/booom12133/academic-writing-platform/actions/runs/34044506843) at preparation HEAD `2dc9fd476ac0b233096fed4d33d33b71d47cc77d`; both `verify` and `postgres-schema` succeeded. Merge-triggered main run [34044852534](https://github.com/booom12133/academic-writing-platform/actions/runs/34044852534) also passed both jobs at merge commit `0ed501ac0592c30987e9e9c6ba8754d934255040`.
 - E5 implementation was not changed after Final Acceptance; this closeout contains governance documentation only. `PHASE_E5_ACCEPTED` has been granted.
-- E6 status: `PHASE_E6_REVIEW_PASS / FINAL_ACCEPTANCE_CANDIDATE`; PR `#13` remains open on `phase/e6-grounded-generation`; reviewed HEAD: `ecdcdf6a9b9eb7fb91719eb7c6aa69c0d2f0b78e`.
-- E6 ChatGPT Review ID: `5127480833`; Final Acceptance: `PHASE_E6_ACCEPTED = NO`.
+- E6 status: `PHASE_E6_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; PR `#13` is MERGED from `phase/e6-grounded-generation` with merge commit `0d40bda958794d178244fba3a6aaf852586317b6`; reviewed implementation HEAD: `ecdcdf6a9b9eb7fb91719eb7c6aa69c0d2f0b78e`.
+- E6 ChatGPT Review ID: `5127480833`; Final Acceptance: `PHASE_E6_ACCEPTED`, Final Acceptance Review ID `5127586164`.
+- E6 Final Acceptance Preparation HEAD: `ec3d571e31fbc926ecd7924c14995dc32fdf2855`.
 - E6 Final Acceptance Report: [PHASE_E6_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E6_FINAL_ACCEPTANCE_REPORT.md).
 - E6 scope: synchronous authenticated grounded generation using the existing `KnowledgeEvidenceService.retrieve() → EvidenceSet` facade, structured `GroundedSegment`/`ClaimUnit` output, structural evidence binding, server-side citation rendering, and `resolutionStatus=resolved` bibliography projection.
 - E6 frozen boundaries: no E3 retrieval/source-resolution/assembly rewrite, no `knowledge-retrieval.module.ts` change, no E1–E5/D4 semantic changes, no `AcademicDiscoverySet → EvidenceSet`, no generated-content indexing, and no TasksModule integration.
@@ -74,7 +75,10 @@ Last Updated: 2026-09-07
 - E6 AppModule bootstrap: PASS — `npm run test:app-bootstrap`.
 - E6 implementation uses no database migration, no client source change, no deployment/P1, and no E7 work. A wiring-only `KnowledgeIndexingModule` factory adjustment preserves the pre-existing default sleep behavior required when the existing E3 module is loaded; E2 indexing semantics are unchanged.
 - E6 GitHub CI: PASS — PR `#13`, final authoritative run [34075066569](https://github.com/booom12133/academic-writing-platform/actions/runs/34075066569), at reviewed HEAD `ecdcdf6a9b9eb7fb91719eb7c6aa69c0d2f0b78e`; both `verify` and `postgres-schema` succeeded. CI emitted the existing Node.js 20 action deprecation annotation only.
-- E6 review-fix scope: no migration, persistence, TasksModule integration, frontend overhaul, deployment/P1, E7 work, E3 retrieval/source-resolution/assembly rewrite, E1–E5/D4 frozen semantic change, or `AcademicDiscoverySet → EvidenceSet` conversion. Do not merge, tag, announce `PHASE_E6_REVIEW_PASS`/`PHASE_E6_ACCEPTED`, or begin E7.
+- E6 Final Acceptance governance CI: PASS — run `34076209448` at Final Acceptance Preparation HEAD `ec3d571e31fbc926ecd7924c14995dc32fdf2855`; `verify` and `postgres-schema` succeeded.
+- E6 merge commit: `0d40bda958794d178244fba3a6aaf852586317b6`.
+- E6 final main CI: PENDING on the post-merge governance HEAD before accepted tag creation.
+- E6 review-fix scope: no migration, persistence, TasksModule integration, frontend overhaul, deployment/P1, E7 work, E3 retrieval/source-resolution/assembly rewrite, E1–E5/D4 frozen semantic change, or `AcademicDiscoverySet → EvidenceSet` conversion. Do not create the accepted tag until final main CI is green; do not begin E7/P1.
 - Current E3 status: `ACCEPTED / FROZEN / CLOSED` (`PHASE_E3_ACCEPTED_CLOSED`).
 - E3 branch: `phase/e3-retrieval`.
 - E3 accepted baseline: `6954425527cdd64b7a7da6a9087ce9d20404219c` (`main`).

@@ -1,9 +1,9 @@
 # Project Roadmap
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
-and closed. E4 is accepted and merged, with post-merge closeout and its
-accepted tag pending. E5 is accepted and merged, with its accepted tag pending;
-E6 has passed implementation review and is awaiting Final Acceptance.
+and closed. E4 and E5 are accepted and merged, with their historical closeout
+records retained. E6 is accepted and merged; final main CI and its accepted tag
+are pending post-merge closeout.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -22,7 +22,7 @@ E6 has passed implementation review and is awaiting Final Acceptance.
 | E3 | Retrieval / Evidence Assembly | Indexed-only retrieval and provenance-preserving evidence assembly | ACCEPTED / CLOSED | Yes |
 | E4 | Zotero Integration | Server-side personal Zotero connection, bibliographic sync, stored PDF attachment import and independent attachment version sync | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
-| E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | REVIEW PASS / FINAL ACCEPTANCE CANDIDATE | No |
+| E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -52,12 +52,15 @@ E6 has passed implementation review and is awaiting Final Acceptance.
 ## Phase E6 current record
 
 - Branch: `phase/e6-grounded-generation`.
-- PR: [#13 Phase E6 — Grounded Generation / Citation](https://github.com/booom12133/academic-writing-platform/pull/13), OPEN.
+- PR: [#13 Phase E6 — Grounded Generation / Citation](https://github.com/booom12133/academic-writing-platform/pull/13), MERGED with merge commit `0d40bda958794d178244fba3a6aaf852586317b6`.
 - Reviewed HEAD: `ecdcdf6a9b9eb7fb91719eb7c6aa69c0d2f0b78e`.
+- Final Acceptance Preparation HEAD: `ec3d571e31fbc926ecd7924c14995dc32fdf2855`.
 - Review: `PHASE_E6_REVIEW_PASS`, Review ID `5127480833`.
+- Final Acceptance: `PHASE_E6_ACCEPTED`, Review ID `5127586164`.
 - Final Acceptance Report: [PHASE_E6_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_E6_FINAL_ACCEPTANCE_REPORT.md).
-- Final authoritative CI: run `34075066569`; `verify` and `postgres-schema` both SUCCESS.
-- Status: `PHASE_E6_REVIEW_PASS / FINAL ACCEPTANCE CANDIDATE`; `PHASE_E6_ACCEPTED = NO`.
-- Do not merge, tag, begin E7, or start deployment/P1 before explicit Final Acceptance.
+- Final authoritative review CI: run `34075066569`; `verify` and `postgres-schema` both SUCCESS.
+- Final Acceptance governance CI: run `34076209448`; `verify` and `postgres-schema` both SUCCESS.
+- Status: `PHASE_E6_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and accepted tag are pending.
+- Do not create the accepted tag until final main CI is green; do not begin E7 or deployment/P1.
 
 Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance phases from chat context alone.
