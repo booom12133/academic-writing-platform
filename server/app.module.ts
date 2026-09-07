@@ -32,7 +32,10 @@ import { HealthModule } from './modules/health/health.module';
 const runtimeConfig = loadRuntimeConfig();
 
 export function createRuntimeModuleImports(config: RuntimeConfig) {
-  const imports = [ConfigModule.forRoot({ isGlobal: true }), LoggerModule];
+  const imports = [
+    ConfigModule.forRoot({ isGlobal: true }),
+    ...(config.nodeEnv === 'production' ? [] : [LoggerModule]),
+  ];
   const productionSecurity =
     config.nodeEnv === 'production'
       ? [ApiSecurityModule.forRoot(config.security.rateLimit)]
