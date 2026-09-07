@@ -44,6 +44,19 @@ describe('SelfHostedFilesystemDocumentStorageAdapter', () => {
     await expect(readFile(join(root, ...siblingPath.split('/')))).resolves.toEqual(bytes);
   });
 
+  it('keeps same-key concurrent writes exclusive', async () => {
+    const writes = await Promise.allSettled([
+      adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('first') }),
+      adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('second') }),
+    ]);
+
+    expect(writes.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    expect(writes.filter((result) => result.status === 'rejected')).toHaveLength(1);
+    await expect(adapter.download({ bucketId, filePath })).resolves.toEqual(
+      expect.any(Buffer),
+    );
+  });
+
   it.each([
     ['traversal', '../../outside.txt'],
     ['forged absolute key', '/tmp/outside.txt'],
