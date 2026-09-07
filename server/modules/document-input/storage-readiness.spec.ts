@@ -36,6 +36,14 @@ describe('filesystem storage readiness', () => {
       minimumFreeBytes: 4096,
     })).resolves.toEqual({ ready: false, reasonCode: 'storage_capacity_low' });
   });
+
+  it.each([0o720, 0o704, 0o670])('rejects group/world-accessible roots: %o', async (mode) => {
+    await expect(checkFilesystemStorageReadiness('/var/lib/documents', {
+      stat: jest.fn().mockResolvedValue({ mode }),
+      access: jest.fn().mockResolvedValue(undefined),
+      statfs: jest.fn().mockResolvedValue({ bavail: 100, bsize: 1024 * 1024 }),
+    })).resolves.toEqual({ ready: false, reasonCode: 'storage_permissions_open' });
+  });
 });
 
 describe('temporary storage cleanup', () => {

@@ -30,11 +30,11 @@ export class SelfHostedFilesystemDocumentStorageAdapter implements DocumentStora
 
   async upload(input: Parameters<DocumentStoragePort['upload']>[0]): Promise<void> {
     const target = this.resolveStoragePath(input.bucketId, input.filePath, input.fileName);
-    await mkdir(dirname(target), { recursive: true });
+    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
 
     const temporaryTarget = `${target}.${randomUUID()}.tmp`;
     try {
-      const handle = await open(temporaryTarget, 'wx');
+      const handle = await open(temporaryTarget, 'wx', 0o600);
       try {
         await handle.writeFile(input.buffer);
         await handle.sync();

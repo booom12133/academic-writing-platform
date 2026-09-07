@@ -5,6 +5,7 @@ import { RuntimeProfileConfigurationError } from './runtime-profile';
 import { validateProductionExternalProviderConfig } from './external-provider-validation';
 
 const SUPPORTED_JWT_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512']);
+const MAX_TRUST_PROXY_HOPS = 10;
 
 function requireConfiguredValue(value: string | undefined, name: string): string {
   if (!value) {
@@ -19,6 +20,24 @@ export function validateRuntimeConfig(
   config: RuntimeConfig,
   _env: NodeJS.ProcessEnv = process.env,
 ): void {
+  if (
+    !Number.isInteger(config.security.trustProxyHops) ||
+    config.security.trustProxyHops < 0 ||
+    config.security.trustProxyHops > MAX_TRUST_PROXY_HOPS
+  ) {
+    throw new RuntimeProfileConfigurationError(
+      'TRUST_PROXY_HOPS must be an integer between 0 and 10.',
+    );
+  }
+
+  for (const name of ['LOG_REQUEST_BODY', 'LOG_RESPONSE_BODY']) {
+    if (config.nodeEnv === 'production' && isEnabled(_env[name])) {
+      throw new RuntimeProfileConfigurationError(
+        `${name} body logging must be disabled in production.`,
+      );
+    }
+  }
+
   if (config.nodeEnv === 'production' && config.profile === 'local') {
     throw new RuntimeProfileConfigurationError(
       'RUNTIME_PROFILE=local cannot be used when NODE_ENV=production.',
@@ -102,12 +121,24 @@ export function validateRuntimeConfig(
       'OIDC_TIMEOUT_MS must be a positive number.',
     );
   }
-  if (auth.issuer.startsWith('http://') || auth.jwksUrl.startsWith('http://')) {
+  requireHttpsUrl(auth.issuer, 'OIDC_ISSUER_URL');
+  requireHttpsUrl(auth.jwksUrl, 'OIDC_JWKS_URL');
+  validateExternalConfigInProduction(config.nodeEnv, _env);
+}
+
+function isEnabled(value: string | undefined): boolean {
+  return ['1', 'true', 'yes', 'on'].includes(value?.trim().toLowerCase() || '');
+}
+
+function requireHttpsUrl(value: string, name: string): void {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') throw new Error('protocol rejected');
+  } catch (_error) {
     throw new RuntimeProfileConfigurationError(
-      'OIDC_ISSUER_URL and OIDC_JWKS_URL must use HTTPS for the standalone runtime profile.',
+      `${name} must be a valid HTTPS URL.`,
     );
   }
-  validateExternalConfigInProduction(config.nodeEnv, _env);
 }
 
 function validateExternalConfigInProduction(

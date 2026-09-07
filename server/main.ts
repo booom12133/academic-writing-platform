@@ -7,6 +7,7 @@ import { __express as hbsExpressEngine } from 'hbs';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { loadRuntimeConfig } from './config/production-config';
+import { applyProxyTrust } from './common/security/proxy-trust';
 
 const runtimeConfig = loadRuntimeConfig();
 
@@ -18,6 +19,7 @@ async function bootstrap() {
     disableSwagger: true,
     bodyLimit: runtimeConfig.security.bodySizeLimit,
   });
+  applyProxyTrust(app, runtimeConfig.security.trustProxyHops);
   app.enableShutdownHooks(['SIGTERM', 'SIGINT']);
   app.enableCors({
     origin:

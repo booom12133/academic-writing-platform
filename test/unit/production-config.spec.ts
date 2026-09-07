@@ -29,7 +29,46 @@ describe('production configuration gate', () => {
     expect(config.database.mode).toBe('postgres');
     expect(config.auth.mode).toBe('standalone-jwt');
     expect(config.storage.mode).toBe('persistent-filesystem');
+    expect(config.security.trustProxyHops).toBe(0);
   });
+
+  it.each(['LOG_REQUEST_BODY', 'LOG_RESPONSE_BODY'])('%s cannot be enabled in production', (key) => {
+    expect(() => loadRuntimeConfig({
+      ...validProductionEnv,
+      [key]: 'true',
+    })).toThrow(/body logging must be disabled in production/i);
+  });
+
+  it('accepts explicit disabled body logging in production', () => {
+    expect(() => loadRuntimeConfig({
+      ...validProductionEnv,
+      LOG_REQUEST_BODY: 'false',
+      LOG_RESPONSE_BODY: 'false',
+    })).not.toThrow();
+  });
+
+  it('parses an explicit bounded proxy trust hop count', () => {
+    const config = loadRuntimeConfig({ ...validProductionEnv, TRUST_PROXY_HOPS: '1' });
+
+    expect(config.security.trustProxyHops).toBe(1);
+  });
+
+  it.each(['-1', '1.5', 'NaN', '11'])('rejects an unsafe proxy trust hop count: %s', (hops) => {
+    expect(() => loadRuntimeConfig({ ...validProductionEnv, TRUST_PROXY_HOPS: hops }))
+      .toThrow(/TRUST_PROXY_HOPS/);
+  });
+
+  it.each(['http://issuer.example.com', 'HTTP://issuer.example.com', 'ftp://issuer.example.com', 'not a url', '/relative'])
+    ('rejects an invalid OIDC issuer URL: %s', (issuer) => {
+      expect(() => loadRuntimeConfig({ ...validProductionEnv, OIDC_ISSUER_URL: issuer }))
+        .toThrow(/OIDC_ISSUER_URL must be a valid HTTPS URL/i);
+    });
+
+  it.each(['http://issuer.example.com/jwks', 'HTTP://issuer.example.com/jwks', 'ftp://issuer.example.com/jwks', 'not a url', '/relative'])
+    ('rejects an invalid OIDC JWKS URL: %s', (jwksUrl) => {
+      expect(() => loadRuntimeConfig({ ...validProductionEnv, OIDC_JWKS_URL: jwksUrl }))
+        .toThrow(/OIDC_JWKS_URL must be a valid HTTPS URL/i);
+    });
 
   it.each([
     [

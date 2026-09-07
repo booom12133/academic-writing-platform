@@ -20,6 +20,7 @@ export interface RuntimeRateLimitConfig {
 export interface RuntimeSecurityConfig {
   corsAllowedOrigins: readonly string[];
   bodySizeLimit: string;
+  trustProxyHops: number;
   rateLimit: RuntimeRateLimitConfig;
 }
 
@@ -68,6 +69,7 @@ export function loadRuntimeConfig(
   const security: RuntimeSecurityConfig = {
     corsAllowedOrigins: configuredList(env, 'CORS_ALLOWED_ORIGINS', []),
     bodySizeLimit: configuredText(env, 'BODY_SIZE_LIMIT', '1mb'),
+    trustProxyHops: configuredNumber(env, 'TRUST_PROXY_HOPS', 0),
     rateLimit: {
       windowMs: configuredNumber(env, 'RATE_LIMIT_WINDOW_MS', 60_000),
       maxRequests: configuredNumber(env, 'RATE_LIMIT_MAX_REQUESTS', 120),

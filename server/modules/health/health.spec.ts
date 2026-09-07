@@ -12,6 +12,7 @@ const config = {
   security: {
     corsAllowedOrigins: ['https://app.example.com'],
     bodySizeLimit: '1mb',
+    trustProxyHops: 0,
     rateLimit: { windowMs: 60_000, maxRequests: 120, expensiveMaxRequests: 30 },
   },
 };

@@ -13,6 +13,7 @@ export type StorageReadinessReasonCode =
   | 'storage_root_missing'
   | 'storage_root_unreadable'
   | 'storage_permissions_open'
+  | 'storage_permissions_unavailable'
   | 'storage_capacity_low'
   | 'storage_capacity_unavailable';
 
@@ -59,11 +60,14 @@ export async function checkFilesystemStorageReadiness(
   }
 
   try {
-    await access(root, fsConstants.R_OK | fsConstants.W_OK);
+    await access(root, fsConstants.R_OK | fsConstants.W_OK | fsConstants.X_OK);
   } catch (_error) {
     return { ready: false, reasonCode: 'storage_root_unreadable' };
   }
-  if (typeof rootStat.mode === 'number' && (rootStat.mode & 0o002) !== 0) {
+  if (typeof rootStat.mode !== 'number' || !Number.isInteger(rootStat.mode)) {
+    return { ready: false, reasonCode: 'storage_permissions_unavailable' };
+  }
+  if ((rootStat.mode & 0o077) !== 0) {
     return { ready: false, reasonCode: 'storage_permissions_open' };
   }
 

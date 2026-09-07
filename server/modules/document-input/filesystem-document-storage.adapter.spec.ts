@@ -32,6 +32,17 @@ describe('SelfHostedFilesystemDocumentStorageAdapter', () => {
     await expect(adapter.download({ bucketId, filePath })).resolves.toEqual(bytes);
   });
 
+  it('publishes owner-only files and directories on Linux', async () => {
+    if (process.platform === 'win32') return;
+
+    await adapter.upload({ bucketId, filePath, fileName, buffer: Buffer.from('private') });
+
+    const file = await stat(join(root, ...filePath.split('/')));
+    const directory = await stat(join(root, ...filePath.split('/').slice(0, -1)));
+    expect(file.mode & 0o777).toBe(0o600);
+    expect(directory.mode & 0o777).toBe(0o700);
+  });
+
   it('removes only the exact compensated object', async () => {
     const siblingPath = filePath.replace('paper.txt', 'sibling.txt');
     const bytes = Buffer.from('synthetic');

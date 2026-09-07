@@ -59,6 +59,9 @@ const RUNTIME_ENV_KEYS = [
   'OIDC_ALLOWED_ALGORITHMS',
   'OIDC_TIMEOUT_MS',
   'CORS_ALLOWED_ORIGINS',
+  'TRUST_PROXY_HOPS',
+  'LOG_REQUEST_BODY',
+  'LOG_RESPONSE_BODY',
   'DEEPSEEK_API_KEY',
   'DEEPSEEK_BASE_URL',
   'DEEPSEEK_DEFAULT_MODEL',
@@ -336,6 +339,7 @@ describe('runtime profile bootstrap boundary', () => {
       expect.arrayContaining([
         'LocalDevelopmentDatabaseModule',
         'PlatformModule',
+        'LoggerModule',
       ]),
     );
     const middleware = configureAppModule(environment);
@@ -368,6 +372,7 @@ describe('runtime profile bootstrap boundary', () => {
         security: {
           corsAllowedOrigins: [],
           bodySizeLimit: '1mb',
+          trustProxyHops: 0,
           rateLimit: {
             windowMs: 60_000,
             maxRequests: 120,
