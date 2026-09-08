@@ -25,10 +25,10 @@ import {
 import { Button } from '@client/src/components/ui/button';
 import { Badge } from '@client/src/components/ui/badge';
 import { Sparkles, CheckCircle, ArrowRight, Upload, FileText } from 'lucide-react';
-import { aiToolsApi, documentInputApi } from '@client/src/api/index';
+import { aiToolsApi } from '@client/src/api/index';
+import { DocumentWorkspacePicker } from '@client/src/components/documents/DocumentWorkspacePicker';
 import type { Task } from '@shared/api.interface';
-import type { DocumentInputDescriptor, DocumentInputRef } from '@shared/document-input.interface';
-import { DocumentInputUploadAction, FileUploadZone } from './ToolCommon';
+import type { WorkspaceDocumentSelection } from '@shared/knowledge-product.interface';
 
 const POLISH_TYPES = [
   { value: 'grammar', label: '语法纠错' },
@@ -42,11 +42,7 @@ const PolishTool: React.FC = () => {
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
   const [text, setText] = useState('');
   const [polishType, setPolishType] = useState('grammar');
-  const [files, setFiles] = useState<File[]>([]);
-  const [documentDescriptor, setDocumentDescriptor] = useState<DocumentInputDescriptor | null>(null);
-  const [documentRef, setDocumentRef] = useState<DocumentInputRef | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [workspaceSelection, setWorkspaceSelection] = useState<WorkspaceDocumentSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
 
@@ -55,7 +51,7 @@ const PolishTool: React.FC = () => {
 
   const canSubmit =
     (inputMode === 'text' && text.trim().length > 0) ||
-    (inputMode === 'file' && documentRef !== null && documentDescriptor !== null);
+    (inputMode === 'file' && workspaceSelection !== null);
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -65,9 +61,9 @@ const PolishTool: React.FC = () => {
         inputMode,
         title: inputMode === 'text'
           ? text.slice(0, 30) + (text.length > 30 ? '...' : '')
-          : documentRef?.fileName || '文档润色',
+          : workspaceSelection?.displayName || '文档润色',
         text: inputMode === 'text' ? text : undefined,
-        documentRef: inputMode === 'file' ? documentRef ?? undefined : undefined,
+        documentRef: inputMode === 'file' ? workspaceSelection?.documentRef : undefined,
         polishType,
         wordCount: inputMode === 'text' ? wordCount : undefined,
       });
@@ -76,30 +72,6 @@ const PolishTool: React.FC = () => {
       logger.error('submit polish task failed', JSON.stringify(err));
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleFileSelect = (nextFiles: File[]) => {
-    setFiles(nextFiles.slice(0, 1));
-    setDocumentDescriptor(null);
-    setDocumentRef(null);
-    setUploadError(null);
-  };
-
-  const handleDocumentUpload = async () => {
-    const file = files[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const descriptor = await documentInputApi.uploadDocument(file);
-      setDocumentDescriptor(descriptor);
-      setDocumentRef(descriptor.document);
-    } catch (error) {
-      logger.error('upload polish document failed', JSON.stringify(error));
-      setUploadError(error instanceof Error ? error.message : '文档上传失败，请重试');
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -179,13 +151,9 @@ const PolishTool: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="file" className="mt-4">
-            <FileUploadZone
-              files={files}
-              onChange={handleFileSelect}
-              accept=".docx,.pdf,.txt,.md,.markdown"
-              multiple={false}
-              label="上传润色文档"
-              hint="支持 .docx、.pdf、.txt、.md、.markdown 格式"
+            <DocumentWorkspacePicker
+              value={workspaceSelection}
+              onChange={setWorkspaceSelection}
             />
           </TabsContent>
         </Tabs>
@@ -209,19 +177,11 @@ const PolishTool: React.FC = () => {
       <CardFooter className="flex-col gap-3 border-t border-slate-100 pt-5">
         {inputMode === 'file' ? (
           <>
-            <DocumentInputUploadAction
-              file={files[0] ?? null}
-              ready={documentRef !== null && documentDescriptor !== null}
-              uploading={uploading}
-              error={uploadError}
-              onUpload={handleDocumentUpload}
-            />
-            {documentRef && documentDescriptor && (
             <>
               <Button
                 className="w-full"
                 onClick={handleSubmit}
-                disabled={loading}
+                disabled={!canSubmit || loading}
               >
                 <Sparkles className="h-4 w-4" />
                 {loading ? '提交中...' : '开始润色'}
@@ -230,7 +190,6 @@ const PolishTool: React.FC = () => {
                 页面仅显示文本估算，最终积分以服务器准备后的内容计费为准
               </p>
             </>
-            )}
           </>
         ) : (
           <>

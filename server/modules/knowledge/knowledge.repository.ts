@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import {
   knowledgeChunks,
@@ -54,6 +54,7 @@ export interface KnowledgeRepositoryPort {
   createImportMarker(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<string>;
   claimImportMarker?(input: { userId: string; idempotencyKey: string; requestFingerprint: string }): Promise<{ id: string; created: boolean }>;
   getDocument?(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
+  listDocuments?(userId: string): Promise<KnowledgeDocument[]>;
   lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null>;
   findDocumentByExternalIdentity?(userId: string, externalIdentity: string): Promise<KnowledgeDocument | null>;
   updateExternalSyncState?(userId: string, documentId: string, state: { externalVersion: string; externalChecksumAlgorithm: 'md5'; externalChecksum: string }): Promise<void>;
@@ -405,6 +406,18 @@ export class KnowledgeRepository {
   async getDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {
     const [row] = await this.db.select().from(knowledgeDocuments).where(and(eq(knowledgeDocuments.id, documentId), eq(knowledgeDocuments.userId, userId), eq(knowledgeDocuments.lifecycleStatus, 'active'))).limit(1);
     return row ? toDocument(row) : null;
+  }
+
+  async listDocuments(userId: string): Promise<KnowledgeDocument[]> {
+    const rows = await this.db
+      .select()
+      .from(knowledgeDocuments)
+      .where(and(
+        eq(knowledgeDocuments.userId, userId),
+        eq(knowledgeDocuments.lifecycleStatus, 'active'),
+      ))
+      .orderBy(desc(knowledgeDocuments.updatedAt), desc(knowledgeDocuments.createdAt));
+    return rows.map(toDocument);
   }
 
   async lockDocument(userId: string, documentId: string): Promise<KnowledgeDocument | null> {

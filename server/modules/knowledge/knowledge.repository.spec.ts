@@ -159,4 +159,21 @@ describe('KnowledgeRepository', () => {
     })).rejects.toMatchObject({ code: 'KNOWLEDGE_NOT_FOUND' });
   });
 
+  it('lists only active documents owned by the requested user', async () => {
+    const first = await repository.createDocument({
+      userId: 'user-1', originKind: 'user-upload', displayName: 'first', sourceType: 'txt',
+    });
+    const tombstoned = await repository.createDocument({
+      userId: 'user-1', originKind: 'user-upload', displayName: 'old', sourceType: 'txt',
+    });
+    await repository.createDocument({
+      userId: 'user-2', originKind: 'user-upload', displayName: 'private', sourceType: 'txt',
+    });
+    await repository.tombstoneDocument('user-1', tombstoned.id);
+
+    await expect(repository.listDocuments('user-1')).resolves.toEqual([
+      expect.objectContaining({ id: first.id, userId: 'user-1', displayName: 'first' }),
+    ]);
+  });
+
 });

@@ -20,6 +20,7 @@ import { OrdersModule } from './modules/orders/orders.module';
 import { AiToolsModule } from './modules/ai-tools/ai-tools.module';
 import { DocumentInputModule } from './modules/document-input/document-input.module';
 import { KnowledgeModule } from './modules/knowledge/knowledge.module';
+import { KnowledgeProductModule } from './modules/knowledge-product/knowledge-product.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
@@ -70,6 +71,7 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
     AiToolsModule,
     DocumentInputModule,
     KnowledgeModule,
+    KnowledgeProductModule,
     ZoteroModule,
     AcademicSearchModule,
     GroundedGenerationModule,

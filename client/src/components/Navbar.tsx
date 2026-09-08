@@ -17,6 +17,7 @@ const navItems = [
   { path: '/', label: '首页', end: true },
   { path: '/tools', label: '工具中心' },
   { path: '/tasks', label: '我的任务' },
+  { path: '/knowledge', label: '文档工作区' },
   { path: '/profile', label: '个人中心' },
 ];
 

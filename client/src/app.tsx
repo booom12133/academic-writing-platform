@@ -11,6 +11,7 @@ import ProfilePage from './pages/Profile/ProfilePage';
 import RechargePage from './pages/Recharge/RechargePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
+import KnowledgePage from './pages/Knowledge/KnowledgePage';
 import { AppAuthProvider } from './auth/AppAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 
@@ -49,6 +50,14 @@ const RoutesComponent = () => {
             element={
               <RequireAuth>
                 <TaskDetailPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="knowledge"
+            element={
+              <RequireAuth>
+                <KnowledgePage />
               </RequireAuth>
             }
           />
