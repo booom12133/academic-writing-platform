@@ -8,7 +8,7 @@ import ToolsPage from './pages/Tools/ToolsPage';
 import TasksPage from './pages/Tasks/TasksPage';
 import TaskDetailPage from './pages/TaskDetail/TaskDetailPage';
 import ProfilePage from './pages/Profile/ProfilePage';
-import RechargePage from './pages/Recharge/RechargePage';
+import RechargeUnavailablePage from './pages/Recharge/RechargeUnavailablePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import KnowledgePage from './pages/Knowledge/KnowledgePage';
@@ -100,7 +100,7 @@ const RoutesComponent = () => {
             path="recharge"
             element={
               <RequireAuth>
-                <RechargePage />
+                <RechargeUnavailablePage />
               </RequireAuth>
             }
           />

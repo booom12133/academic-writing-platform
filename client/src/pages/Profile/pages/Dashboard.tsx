@@ -2,11 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Coins,
-  Wallet,
   FileText,
   Clock,
-  Crown,
-  PlusCircle,
   ArrowRight,
   ListTodo,
   Sparkles,
@@ -16,27 +13,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { userApi } from '@client/src/api/index';
 import { taskApi } from '@client/src/api/index';
-import type { UserProfile, Task, MemberLevel } from '@shared/api.interface';
-import { MEMBER_LEVELS } from '@shared/api.interface';
+import type { UserProfile, Task } from '@shared/api.interface';
+import { getProductCapabilities } from '@shared/product-capability.catalog';
 import type { ProfileTab } from '../ProfileSidebar';
 
 interface DashboardProps {
   onNavigate: (tab: ProfileTab) => void;
 }
-
-const memberColors: Record<MemberLevel, string> = {
-  normal: 'bg-slate-500',
-  silver: 'bg-slate-400',
-  gold: 'bg-amber-500',
-  diamond: 'bg-blue-500',
-};
-
-const memberBadgeVariants: Record<MemberLevel, string> = {
-  normal: 'bg-slate-100 text-slate-700 border-slate-200',
-  silver: 'bg-slate-100 text-slate-600 border-slate-300',
-  gold: 'bg-amber-50 text-amber-700 border-amber-200',
-  diamond: 'bg-blue-50 text-blue-700 border-blue-200',
-};
 
 const taskTypeLabels: Record<string, string> = {
   outline: '智能大纲生成',
@@ -85,21 +68,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     loadData();
   }, []);
 
-  const getNextLevelInfo = (totalRecharge: number, level: MemberLevel) => {
-    const currentIdx = MEMBER_LEVELS.findIndex((l) => l.level === level);
-    if (currentIdx >= MEMBER_LEVELS.length - 1) {
-      return { nextName: '已达最高等级', needed: 0, progress: 100 };
-    }
-    const next = MEMBER_LEVELS[currentIdx + 1];
-    const current = MEMBER_LEVELS[currentIdx];
-    const needed = next.threshold - totalRecharge;
-    const range = next.threshold - current.threshold;
-    const progress = range > 0
-      ? Math.min(100, ((totalRecharge - current.threshold) / range) * 100)
-      : 100;
-    return { nextName: next.name, needed, progress };
-  };
-
   if (loading || !profile) {
     return (
       <div className="flex items-center justify-center h-64 text-slate-500 text-sm">
@@ -108,10 +76,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     );
   }
 
-  const nextInfo = getNextLevelInfo(profile.totalRecharge, profile.memberLevel);
-  const memberInfo = MEMBER_LEVELS.find((m) => m.level === profile.memberLevel);
   const processingCount = recentTasks.filter(
     (t) => t.status === 'processing' || t.status === 'pending',
+  ).length;
+  const productionCapabilityCount = getProductCapabilities().filter(
+    (capability) => capability.readiness === 'production',
   ).length;
 
   const statCards = [
@@ -122,22 +91,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: Coins,
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
-      action: (
-        <Button size="sm" variant="default" asChild>
-          <Link to="/recharge">
-            <PlusCircle className="w-3.5 h-3.5" />
-            充值
-          </Link>
-        </Button>
-      ),
-    },
-    {
-      label: '累计充值',
-      value: `¥${profile.totalRecharge.toLocaleString()}`,
-      unit: '',
-      icon: Wallet,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-50',
+      hint: '当前余额（只读）',
     },
     {
       label: '任务总数',
@@ -155,6 +109,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       icon: Clock,
       color: 'text-purple-600',
       bgColor: 'bg-purple-50',
+    },
+    {
+      label: '已开放能力',
+      value: productionCapabilityCount.toLocaleString(),
+      unit: '项',
+      icon: Sparkles,
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-50',
+      hint: '依据产品能力目录',
     },
   ];
 
@@ -178,7 +141,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         <span className="text-xs text-slate-500">{card.unit}</span>
                       )}
                     </div>
-                    {card.action && <div className="pt-1">{card.action}</div>}
                     {card.hint && (
                       <div className="text-xs text-slate-400">{card.hint}</div>
                     )}
@@ -194,81 +156,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           );
         })}
 
-        {/* 会员档位卡片 */}
-        <Card className="border-slate-200">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className="text-sm text-slate-500">会员档位</div>
-              <div
-                className={`w-10 h-10 rounded-lg ${memberColors[profile.memberLevel]} bg-opacity-20 flex items-center justify-center`}
-                style={{
-                  backgroundColor:
-                    profile.memberLevel === 'normal'
-                      ? '#f1f5f9'
-                      : profile.memberLevel === 'silver'
-                        ? '#e2e8f0'
-                        : profile.memberLevel === 'gold'
-                          ? '#fef3c7'
-                          : '#dbeafe',
-                }}
-              >
-                <Crown
-                  className={`w-5 h-5 ${
-                    profile.memberLevel === 'gold'
-                      ? 'text-amber-500'
-                      : profile.memberLevel === 'diamond'
-                        ? 'text-blue-500'
-                        : 'text-slate-500'
-                  }`}
-                />
-              </div>
-            </div>
-            <Badge
-              className={`${memberBadgeVariants[profile.memberLevel]} border mb-2`}
-              variant="outline"
-            >
-              {memberInfo?.name}
-            </Badge>
-            <div className="text-xs text-slate-500 mb-2">
-              {nextInfo.needed > 0
-                ? `再充 ¥${nextInfo.needed} 升级 ${nextInfo.nextName}`
-                : nextInfo.nextName}
-            </div>
-            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-500 rounded-full transition-all"
-                style={{ width: `${nextInfo.progress}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* 快捷入口 */}
-      <div data-ai-section-type="card-menu" className="grid grid-cols-3 gap-4">
-        <Card className="border-slate-200 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all">
-          <CardContent className="p-5">
-            <Link to="/recharge" className="block">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center">
-                    <Coins className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <div className="text-base font-semibold text-slate-800">
-                      充值积分
-                    </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      多种档位，即充即用
-                    </div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400" />
-              </div>
-            </Link>
-          </CardContent>
-        </Card>
-
+      <div data-ai-section-type="card-menu" className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="border-slate-200 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all">
           <CardContent className="p-5">
             <Link to="/tools" className="block">
@@ -276,14 +167,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 <div className="flex items-center gap-3">
                   <div className="w-11 h-11 rounded-xl bg-emerald-50 flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <div className="text-base font-semibold text-slate-800">
-                      发起新任务
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      六大AI工具随心使用
-                    </div>
+                    <div>
+                      <div className="text-base font-semibold text-slate-800">
+                        发起新任务
+                      </div>
+                      <div className="text-xs text-slate-500 mt-0.5">
+                      使用已开放的 AI 工具
+                      </div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400" />

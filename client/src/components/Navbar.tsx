@@ -85,25 +85,12 @@ const Navbar = () => {
           {session.status === 'authenticated' ? (
             <>
               {/* Points */}
-              <button
-                onClick={() => navigate('/recharge')}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors"
-              >
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-100">
                 <Coins className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-medium text-amber-700">
                   {balance.toLocaleString()}
                 </span>
-              </button>
-
-              {/* Recharge Button */}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate('/recharge')}
-                className="hidden sm:inline-flex"
-              >
-                充值
-              </Button>
+              </div>
 
               {/* User Dropdown */}
               <DropdownMenu>
@@ -125,9 +112,6 @@ const Navbar = () => {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/tasks')}>
                     我的任务
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/recharge')}>
-                    充值中心
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   {session.canSignOut ? (

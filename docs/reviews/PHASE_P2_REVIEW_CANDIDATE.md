@@ -3,13 +3,14 @@
 ## Candidate identity
 
 - Accepted `main`: `862b0548943fb09913c524b5d0178151524bf946`
-- P2 implementation head: `8ba7a57cb00d42435c8dbbc9b20e471f6707f660`
+- P2 implementation head before this payment truth fix: `c633fc33022650a2f59cd5b435a94a5e233a4d46`
 - Source branch: `phase-p2-product-integration`
 - Review candidate final branch head: the final branch HEAD after evidence documentation; the authoritative SHA is recorded in the PR preparation result and verified with `git rev-parse HEAD` after commit.
 - P2 implementation commits after accepted `main` (before evidence): 14
 - P2 implementation diff: 111 files changed, `+10548/-701`
-- Candidate commits after accepted `main` including this evidence: 15
-- Candidate diff including this evidence: 112 files changed, `+10699/-701`
+- Candidate commits after accepted `main` before this payment truth fix: 16
+- Candidate diff before this payment truth fix: 112 files changed, `+10701/-701`
+- Payment truth fix commit: the commit updating this evidence and the production UI; its authoritative SHA is reported with the final branch HEAD.
 
 This is review evidence, not a Final Acceptance Report. The evidence is based on code and automated tests; it does not claim a real production browser deployment.
 
@@ -88,9 +89,13 @@ P2 proves these integrated code paths. P3 proves real deployed production topolo
 - Only active Knowledge versions with `index.status = indexed` feed Grounded Writing.
 - Grounded Writing output is not automatically written back to Knowledge.
 - `mock_token` appears only in an auth test fixture; the client production login path does not use it.
-- P2 does not enable a mock or real payment provider; payment remains outside the P2 production capability surface.
+- The legacy mock order/payment backend remains retained but is not exposed as an executable production product flow.
+- Production UI does not offer recharge/payment in P2; `/recharge` is an unavailable page and does not create orders, pay orders, or display a fake QR.
+- A real payment provider remains outside P2.
 
 The product-truth, production-capability, input-contract, and tool-gate regression command passed with 4 suites and 11 tests.
+
+The payment product-truth regression additionally verifies that Navbar and Dashboard expose no recharge action, Profile order history is read-only, and `/recharge` mounts no executable mock payment UI.
 
 ## Frozen boundaries and retained limitations
 
