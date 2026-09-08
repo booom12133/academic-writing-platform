@@ -59,6 +59,13 @@ export interface GroundedBibliographyEntry {
   fields: Record<string, unknown>;
 }
 
+export interface GroundedGenerationDiagnostic {
+  code: string;
+  unitId?: string;
+  evidenceId?: string;
+  detail?: string;
+}
+
 export interface GroundedEvidenceTrace {
   evidenceId: string;
   citationLocator: Record<string, unknown>;
@@ -76,12 +83,7 @@ export interface GroundedGenerationResult {
   evidenceTrace: GroundedEvidenceTrace[];
   grounding: {
     groundingCoverage: 'complete' | 'partial' | 'none';
-    diagnostics: Array<{
-      code: string;
-      unitId?: string;
-      evidenceId?: string;
-      detail?: string;
-    }>;
+    diagnostics: GroundedGenerationDiagnostic[];
   };
   provenance: {
     selectedVersionIds: string[];
@@ -118,6 +120,8 @@ export class GroundedGenerationApiError extends Error {
     message: string,
     public readonly status?: number,
     public readonly retryable = false,
+    public readonly uiState: 'error' | 'blocked' = 'error',
+    public readonly diagnostics: GroundedGenerationDiagnostic[] = [],
   ) {
     super(message);
     this.name = 'GroundedGenerationApiError';
@@ -203,12 +207,30 @@ function normalizeGroundedGenerationError(error: unknown): GroundedGenerationApi
   const message = code === 'GROUNDED_GENERATION_REQUEST_FAILED'
     ? '有据写作请求失败，请稍后重试。'
     : SAFE_MESSAGES[code];
+  const isBlocked = code === 'GROUNDED_GENERATION_CITATION_INVALID';
   return new GroundedGenerationApiError(
     code,
     message,
     status,
     code !== 'GROUNDED_GENERATION_REQUEST_FAILED' && RETRYABLE_CODES.has(code),
+    isBlocked ? 'blocked' : 'error',
+    isBlocked ? parseSafeGroundingDiagnostics(payload?.details) : [],
   );
+}
+
+function parseSafeGroundingDiagnostics(value: unknown): GroundedGenerationDiagnostic[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((item) => {
+    if (!isRecord(item) || !isNonEmptyString(item.code)) return [];
+    const optionalKeys = ['unitId', 'evidenceId', 'detail'] as const;
+    if (optionalKeys.some((key) => item[key] !== undefined && typeof item[key] !== 'string')) return [];
+    return [{
+      code: item.code.trim(),
+      ...(typeof item.unitId === 'string' ? { unitId: item.unitId } : {}),
+      ...(typeof item.evidenceId === 'string' ? { evidenceId: item.evidenceId } : {}),
+      ...(typeof item.detail === 'string' ? { detail: item.detail } : {}),
+    }];
+  });
 }
 
 function isGroundedGenerationErrorCode(value: unknown): value is GroundedGenerationErrorCode {
@@ -217,6 +239,10 @@ function isGroundedGenerationErrorCode(value: unknown): value is GroundedGenerat
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 export { SAFE_MESSAGES as GROUNDED_GENERATION_SAFE_MESSAGES };

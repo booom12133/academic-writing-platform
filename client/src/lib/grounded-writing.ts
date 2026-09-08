@@ -1,6 +1,7 @@
 import type { KnowledgeWorkspaceDocument } from '@shared/knowledge-product.interface';
 import type {
   GroundedBibliographyEntry,
+  GroundedGenerationDiagnostic,
   GroundedGenerationResult,
 } from '../api/grounded-generation';
 
@@ -30,9 +31,11 @@ export function mapGroundedGenerationResult(
   if (!Array.isArray(value.citations) || !value.citations.every(isCitation)) return null;
   if (!Array.isArray(value.bibliography) || !value.bibliography.every(isBibliographyEntry)) return null;
   if (!Array.isArray(value.evidenceTrace) || !value.evidenceTrace.every(isEvidenceTrace)) return null;
-  if (!isRecord(value.grounding) || !isGroundingCoverage(value.grounding.groundingCoverage) || !Array.isArray(value.grounding.diagnostics)) return null;
+  if (!isRecord(value.grounding) || !isGroundingCoverage(value.grounding.groundingCoverage) || !Array.isArray(value.grounding.diagnostics) || !value.grounding.diagnostics.every(isGroundingDiagnostic)) return null;
   if (!isRecord(value.provenance) || !Array.isArray(value.provenance.selectedVersionIds) || !value.provenance.selectedVersionIds.every(isNonEmptyString)) return null;
-  if (!isRecord(value.generation) || typeof value.generation.provider !== 'string' || typeof value.generation.model !== 'string') return null;
+  if (value.provenance.retrievalProfile !== undefined && !isRecord(value.provenance.retrievalProfile)) return null;
+  if (!isRecord(value.generation) || !isNonEmptyString(value.generation.provider) || !isNonEmptyString(value.generation.model)) return null;
+  if (value.generation.usage !== undefined && !isRecord(value.generation.usage)) return null;
   return value as unknown as GroundedGenerationResult;
 }
 
@@ -83,9 +86,11 @@ export function buildGroundedWritingLocationState(
 export function getGroundedWritingViewState(input: {
   loading: boolean;
   error: string | null;
+  blocked?: boolean;
   result: GroundedGenerationResult | null;
 }): GroundedWritingViewState {
   if (input.loading) return 'loading';
+  if (input.blocked) return 'blocked';
   if (input.error) return 'error';
   if (!input.result) return 'idle';
   return input.result.status;
@@ -150,6 +155,11 @@ function isBindingStatus(value: unknown): boolean {
 
 function isGroundingCoverage(value: unknown): boolean {
   return value === 'complete' || value === 'partial' || value === 'none';
+}
+
+function isGroundingDiagnostic(value: unknown): value is GroundedGenerationDiagnostic {
+  if (!isRecord(value) || !isNonEmptyString(value.code)) return false;
+  return ['unitId', 'evidenceId', 'detail'].every((key) => value[key] === undefined || typeof value[key] === 'string');
 }
 
 function isNonEmptyString(value: unknown): value is string {

@@ -103,6 +103,7 @@ describe('grounded writing client helpers', () => {
     ['idle', { loading: false, error: null, result: null }],
     ['loading', { loading: true, error: null, result: null }],
     ['error', { loading: false, error: 'failed', result: null }],
+    ['blocked', { loading: false, error: 'blocked', blocked: true, result: null }],
     ['grounded', { loading: false, error: null, result }],
     ['partial', { loading: false, error: null, result: { ...result, status: 'partial' as const } }],
     ['blocked', { loading: false, error: null, result: { ...result, status: 'blocked' as const } }],

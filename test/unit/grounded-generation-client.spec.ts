@@ -7,6 +7,7 @@ jest.mock('../../client/src/api/http', () => ({
 import { productHttpClient } from '../../client/src/api/http';
 import {
   generate,
+  GroundedGenerationApiError,
   type GroundedGenerationResult,
 } from '../../client/src/api/grounded-generation';
 import { mapGroundedGenerationResult } from '../../client/src/lib/grounded-writing';
@@ -139,6 +140,64 @@ describe('grounded generation client', () => {
     );
     expect(mapGroundedGenerationResult({ ...groundedResult, status: 'unexpected' })).toBeNull();
     expect(mapGroundedGenerationResult({ ...groundedResult, content: 42 })).toBeNull();
+  });
+
+  it.each([null, 42, { code: 42 }])('rejects malformed grounding diagnostic %p', (diagnostic) => {
+    expect(mapGroundedGenerationResult({
+      ...groundedResult,
+      grounding: { ...groundedResult.grounding, diagnostics: [diagnostic] },
+    })).toBeNull();
+  });
+
+  it.each([
+    { provenance: { ...groundedResult.provenance, retrievalProfile: null } },
+    { generation: { ...groundedResult.generation, usage: null } },
+  ])('rejects malformed optional nested metadata', (override) => {
+    expect(mapGroundedGenerationResult({ ...groundedResult, ...override })).toBeNull();
+  });
+
+  it('maps the accepted citation-invalid transport to blocked with safe diagnostics', async () => {
+    (productHttpClient.post as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: {
+          error: {
+            code: 'GROUNDED_GENERATION_CITATION_INVALID',
+            message: 'raw provider or server detail',
+            details: [{ code: 'unbound-unit', unitId: 'unit-1' }],
+          },
+        },
+      },
+    });
+
+    try {
+      await generate({ instructions: 'Write', queryText: 'Explain' });
+      fail('generate should reject');
+    } catch (error) {
+      expect(error).toBeInstanceOf(GroundedGenerationApiError);
+      expect(error).toMatchObject({
+        code: 'GROUNDED_GENERATION_CITATION_INVALID',
+        status: 422,
+        uiState: 'blocked',
+        diagnostics: [{ code: 'unbound-unit', unitId: 'unit-1' }],
+      });
+      expect((error as Error).message).not.toContain('raw provider or server detail');
+    }
+  });
+
+  it.each([null, [{ code: 42 }]])('fails closed for malformed blocked details %p', async (details) => {
+    (productHttpClient.post as jest.Mock).mockRejectedValueOnce({
+      response: {
+        status: 422,
+        data: { error: { code: 'GROUNDED_GENERATION_CITATION_INVALID', details } },
+      },
+    });
+
+    await expect(generate({ instructions: 'Write', queryText: 'Explain' })).rejects.toMatchObject({
+      code: 'GROUNDED_GENERATION_CITATION_INVALID',
+      uiState: 'blocked',
+      diagnostics: [],
+    });
   });
 
   it('maps stable server failures without exposing raw provider details', async () => {

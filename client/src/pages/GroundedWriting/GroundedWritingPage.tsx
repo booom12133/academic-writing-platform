@@ -2,7 +2,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { PenLine } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
-import { generate, GroundedGenerationApiError, type GroundedGenerationResult } from '@client/src/api/grounded-generation';
+import {
+  generate,
+  GroundedGenerationApiError,
+  type GroundedGenerationDiagnostic,
+  type GroundedGenerationResult,
+} from '@client/src/api/grounded-generation';
 import { knowledgeApi } from '@client/src/api/index';
 import { EvidenceSelectionPanel, type GroundedWritingSelection } from '@client/src/components/grounded-writing/EvidenceSelectionPanel';
 import { GroundedResultPanel } from '@client/src/components/grounded-writing/GroundedResultPanel';
@@ -36,6 +41,8 @@ export default function GroundedWritingPage() {
   const [onUnbound, setOnUnbound] = useState<'block' | 'annotate'>('block');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
+  const [blockedDiagnostics, setBlockedDiagnostics] = useState<GroundedGenerationDiagnostic[]>([]);
   const [result, setResult] = useState<GroundedGenerationResult | null>(null);
 
   const loadWorkspace = useCallback(async () => {
@@ -66,7 +73,7 @@ export default function GroundedWritingPage() {
   }, [documents, location.state, workspaceLoading]);
 
   const selectableSources = useMemo(() => getSelectableKnowledgeSources(documents), [documents]);
-  const viewState = getGroundedWritingViewState({ loading, error, result });
+  const viewState = getGroundedWritingViewState({ loading, error, blocked, result });
 
   const handleSelectionChange = (next: GroundedWritingSelection) => {
     setSelection(next);
@@ -91,6 +98,8 @@ export default function GroundedWritingPage() {
     }
     setLoading(true);
     setError(null);
+    setBlocked(false);
+    setBlockedDiagnostics([]);
     setResult(null);
     try {
       setResult(await generate({
@@ -101,6 +110,9 @@ export default function GroundedWritingPage() {
         grounding: { onUnbound },
       }));
     } catch (generationError) {
+      const isBlocked = generationError instanceof GroundedGenerationApiError && generationError.uiState === 'blocked';
+      setBlocked(isBlocked);
+      setBlockedDiagnostics(isBlocked ? generationError.diagnostics : []);
       setError(safeErrorMessage(generationError));
     } finally {
       setLoading(false);
@@ -165,6 +177,29 @@ export default function GroundedWritingPage() {
       </Card>
 
       {viewState === 'loading' && <Card><CardContent className="py-8 text-center text-sm text-slate-500">正在检索证据并生成内容…</CardContent></Card>}
+      {viewState === 'blocked' && !result && (
+        <Card>
+          <CardContent className="space-y-3 py-8">
+            <h2 className="text-lg font-semibold text-red-700">生成已被阻止</h2>
+            <p className="text-sm text-slate-700">安全说明：部分内容无法绑定有效证据。</p>
+            {blockedDiagnostics.length > 0 && (
+              <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                <p className="font-medium">Grounding diagnostics</p>
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {blockedDiagnostics.map((diagnostic, index) => (
+                    <li key={`${diagnostic.code}:${diagnostic.unitId ?? diagnostic.evidenceId ?? index}`}>
+                      {diagnostic.code}
+                      {diagnostic.unitId ? ` · unit ${diagnostic.unitId}` : ''}
+                      {diagnostic.evidenceId ? ` · evidence ${diagnostic.evidenceId}` : ''}
+                      {diagnostic.detail ? `：${diagnostic.detail}` : ''}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
       {viewState === 'error' && <Card><CardContent className="space-y-3 py-8 text-center"><p className="text-sm text-red-600">{error}</p><Button variant="outline" onClick={() => void submit()}>重试</Button></CardContent></Card>}
       {result && viewState !== 'loading' && <GroundedResultPanel result={result} />}
     </div>
