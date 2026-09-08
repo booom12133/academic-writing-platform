@@ -28,11 +28,11 @@ import {
   Presentation,
 } from 'lucide-react';
 import {
-  TOOL_CONFIGS,
   TOOL_CATEGORIES,
   type TaskType,
   type ToolCategory,
 } from '@shared/api.interface';
+import { getProductCapabilities } from '@shared/product-capability.catalog';
 
 interface ToolSidebarProps {
   activeType: TaskType;
@@ -85,7 +85,10 @@ const ToolSidebar: React.FC<ToolSidebarProps> = ({ activeType, onSelect }) => {
       </div>
       <nav className="flex-1 space-y-2 overflow-y-auto px-2">
         {TOOL_CATEGORIES.map((cat) => {
-          const tools = TOOL_CONFIGS.filter((t) => t.category === cat.key);
+          const tools = getProductCapabilities().filter(
+            (tool) =>
+              tool.readiness === 'production' && tool.category === cat.key,
+          );
           const isCollapsed = collapsed[cat.key];
           return (
             <div key={cat.key} className="space-y-1">

@@ -1,8 +1,8 @@
-jest.mock('@lark-apaas/client-toolkit/utils/getAxiosForBackend', () => ({
-  axiosForBackend: { post: jest.fn() },
+jest.mock('../../client/src/api/http', () => ({
+  productHttpClient: { post: jest.fn() },
 }));
 
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from '../../client/src/api/http';
 import type { DocumentInputRef } from '@shared/document-input.interface';
 import { submitPolishTask } from '../../client/src/api/ai-tools';
 
@@ -21,7 +21,7 @@ describe('Polish migration client request', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('sends text through the existing Task endpoint', async () => {
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     const task = { id: 'task-1', pointsCost: 10 };
     post.mockResolvedValueOnce({ data: task });
 
@@ -46,7 +46,7 @@ describe('Polish migration client request', () => {
   });
 
   it('sends only the structured DocumentInputRef for file mode', async () => {
-    const post = axiosForBackend.post as jest.Mock;
+    const post = productHttpClient.post as jest.Mock;
     post.mockResolvedValueOnce({ data: { id: 'task-2', pointsCost: 20 } });
 
     await submitPolishTask({

@@ -3,7 +3,8 @@ import type { Request } from 'express';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import { AiToolsService } from './ai-tools.service';
 import { LlmService } from './llm/llm.service';
-import type { Task, ToolConfig, CreateTaskRequest } from '@shared/api.interface';
+import type { Task, CreateTaskRequest } from '@shared/api.interface';
+import type { ProductToolCapability } from '../../../shared/product-capability.interface';
 
 @Controller('api/ai-tools')
 export class AiToolsController {
@@ -25,7 +26,7 @@ export class AiToolsController {
   }
 
   @Get('tools')
-  async getTools(): Promise<ToolConfig[]> {
+  async getTools(): Promise<ProductToolCapability[]> {
     return this.aiToolsService.getToolConfigs();
   }
 

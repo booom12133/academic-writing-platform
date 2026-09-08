@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import {
   DRIZZLE_DATABASE,
   type AppDatabase,
@@ -41,6 +41,10 @@ export interface KnowledgeIndexRepositoryPort {
   getIndex(
     userId: string,
     indexId: string,
+  ): Promise<KnowledgeEmbeddingIndex | null>;
+  getLatestIndexForVersion(
+    userId: string,
+    documentVersionId: string,
   ): Promise<KnowledgeEmbeddingIndex | null>;
   claimNextBatch(
     userId: string,
@@ -207,6 +211,24 @@ export class KnowledgeIndexRepository implements KnowledgeIndexRepositoryPort {
           eq(knowledgeEmbeddingIndexes.userId, userId),
         ),
       )
+      .limit(1);
+    return rows[0] ? toIndex(rows[0]) : null;
+  }
+
+  async getLatestIndexForVersion(
+    userId: string,
+    documentVersionId: string,
+  ): Promise<KnowledgeEmbeddingIndex | null> {
+    const rows = await this.db
+      .select()
+      .from(knowledgeEmbeddingIndexes)
+      .where(
+        and(
+          eq(knowledgeEmbeddingIndexes.userId, userId),
+          eq(knowledgeEmbeddingIndexes.documentVersionId, documentVersionId),
+        ),
+      )
+      .orderBy(desc(knowledgeEmbeddingIndexes.updatedAt))
       .limit(1);
     return rows[0] ? toIndex(rows[0]) : null;
   }

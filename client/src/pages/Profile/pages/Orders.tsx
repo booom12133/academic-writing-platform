@@ -79,29 +79,12 @@ export default function Orders() {
     setPage(1);
   };
 
-  const handlePay = async (id: string) => {
-    try {
-      await orderApi.payOrder(id);
-      loadOrders();
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleCancel = async (id: string) => {
-    try {
-      await orderApi.cancelOrder(id);
-      loadOrders();
-    } catch {
-      // ignore
-    }
-  };
-
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-slate-800">充值订单</h2>
+        <h2 className="text-xl font-semibold text-slate-800">订单记录</h2>
       </div>
+      <p className="text-sm text-slate-500">历史订单仅供查看，当前版本未接入真实支付渠道。</p>
 
       <Card className="border-slate-200">
         <CardContent className="p-5">
@@ -137,7 +120,6 @@ export default function Orders() {
                       <TableHead className="px-4">支付方式</TableHead>
                       <TableHead className="px-4">状态</TableHead>
                       <TableHead className="px-4">创建时间</TableHead>
-                      <TableHead className="px-4 text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -165,26 +147,6 @@ export default function Orders() {
                         </TableCell>
                         <TableCell className="px-4 text-sm text-slate-500">
                           {new Date(order.createdAt).toLocaleString('zh-CN')}
-                        </TableCell>
-                        <TableCell className="px-4 text-right">
-                          {order.status === 'pending' && (
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                size="sm"
-                                variant="default"
-                                onClick={() => handlePay(order.id)}
-                              >
-                                支付
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCancel(order.id)}
-                              >
-                                取消
-                              </Button>
-                            </div>
-                          )}
                         </TableCell>
                       </TableRow>
                     ))}

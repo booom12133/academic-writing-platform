@@ -1,8 +1,8 @@
 import type { UserProfile } from '@shared/api.interface';
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from './http';
 
 export async function getProfile(): Promise<UserProfile> {
-  const response = await axiosForBackend.get<UserProfile>('/api/users/profile');
+  const response = await productHttpClient.get<UserProfile>('/api/users/profile');
   return response.data;
 }
 
@@ -13,11 +13,11 @@ export interface UpdateProfileData {
 }
 
 export async function updateProfile(data: UpdateProfileData): Promise<UserProfile> {
-  const response = await axiosForBackend.patch<UserProfile>('/api/users/profile', data);
+  const response = await productHttpClient.patch<UserProfile>('/api/users/profile', data);
   return response.data;
 }
 
 export async function ensureUser(): Promise<UserProfile> {
-  const response = await axiosForBackend.post<UserProfile>('/api/users/ensure');
+  const response = await productHttpClient.post<UserProfile>('/api/users/ensure');
   return response.data;
 }

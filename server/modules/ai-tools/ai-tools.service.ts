@@ -6,8 +6,10 @@ import {
   Optional,
 } from '@nestjs/common';
 import { TasksService } from '../tasks/tasks.service';
-import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
-import { TOOL_CONFIGS } from '@shared/api.interface';
+import type { Task, TaskType } from '@shared/api.interface';
+import type { ProductToolCapability } from '../../../shared/product-capability.interface';
+import { getProductCapabilities } from '../../../shared/product-capability.catalog';
+import { assertToolSubmissionAllowed } from './product-capability.policy';
 import { PolishSubmissionService } from './polish/polish-submission.service';
 import type { PolishSubmissionInputData } from './polish/polish-input.types';
 import { PaperRevisionSubmissionService } from './paper-revision/paper-revision-submission.service';
@@ -49,8 +51,8 @@ export class AiToolsService {
     private readonly shutdown?: ApplicationShutdownCoordinator,
   ) {}
 
-  getToolConfigs(): ToolConfig[] {
-    return TOOL_CONFIGS;
+  getToolConfigs(): ProductToolCapability[] {
+    return getProductCapabilities();
   }
 
   /**
@@ -70,10 +72,7 @@ export class AiToolsService {
   }): Promise<Task> {
     const { userId, taskType, title, inputData } = params;
 
-    const toolConfig = TOOL_CONFIGS.find((t) => t.type === taskType);
-    if (!toolConfig) {
-      throw new BadRequestException(`不支持的工具类型: ${taskType}`);
-    }
+    assertToolSubmissionAllowed(taskType, inputData);
 
     if (taskType === 'polish') {
       return this.polishSubmissionService.submit({

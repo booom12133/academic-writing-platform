@@ -10,48 +10,44 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { userApi, pointApi } from '@client/src/api/index';
-import type { UserProfile } from '@shared/api.interface';
+import { pointApi } from '@client/src/api/index';
+import { useAppAuth } from '../auth/AppAuthProvider';
 
 const navItems = [
   { path: '/', label: '首页', end: true },
   { path: '/tools', label: '工具中心' },
   { path: '/tasks', label: '我的任务' },
+  { path: '/knowledge', label: '文档工作区' },
+  { path: '/academic-search', label: 'Academic Search' },
+  { path: '/zotero', label: 'Zotero' },
+  { path: '/grounded-writing', label: '有据写作' },
   { path: '/profile', label: '个人中心' },
 ];
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const session = useAppAuth();
   const [balance, setBalance] = useState<number>(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const [userProfileData, balanceData] = await Promise.all([
-          userApi.getProfile(),
-          pointApi.getBalance(),
-        ]);
-        setProfile(userProfileData);
-        setBalance(balanceData.points);
-      } catch {
-        setProfile(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void loadUser();
-  }, []);
+    if (session.status !== 'authenticated') {
+      setBalance(0);
+      return;
+    }
+    void pointApi
+      .getBalance()
+      .then((balanceData) => setBalance(balanceData.points))
+      .catch(() => setBalance(0));
+  }, [session.status, session.userId]);
 
-  const handleLogout = () => {
-    localStorage.removeItem('aw_user_token');
-    setProfile(null);
+  const handleLogout = async () => {
+    await session.logout();
     navigate('/login');
   };
 
-  const displayName = profile?.username || profile?.userId.slice(0, 8) || '用户';
+  const displayName =
+    session.displayName || session.userId?.slice(0, 8) || '用户';
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 h-[60px] bg-white border-b border-slate-200">
@@ -86,28 +82,15 @@ const Navbar = () => {
 
         {/* Right Section */}
         <div className="flex items-center gap-3">
-          {!loading && profile ? (
+          {session.status === 'authenticated' ? (
             <>
               {/* Points */}
-              <button
-                onClick={() => navigate('/recharge')}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors"
-              >
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-50 border border-amber-100">
                 <Coins className="w-4 h-4 text-amber-500" />
                 <span className="text-sm font-medium text-amber-700">
                   {balance.toLocaleString()}
                 </span>
-              </button>
-
-              {/* Recharge Button */}
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => navigate('/recharge')}
-                className="hidden sm:inline-flex"
-              >
-                充值
-              </Button>
+              </div>
 
               {/* User Dropdown */}
               <DropdownMenu>
@@ -130,21 +113,24 @@ const Navbar = () => {
                   <DropdownMenuItem onClick={() => navigate('/tasks')}>
                     我的任务
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/recharge')}>
-                    充值中心
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="text-red-500"
-                  >
-                    退出登录
-                  </DropdownMenuItem>
+                  {session.canSignOut ? (
+                    <DropdownMenuItem
+                      onClick={() => void handleLogout()}
+                      className="text-red-500"
+                    >
+                      退出登录
+                    </DropdownMenuItem>
+                  ) : (
+                    <DropdownMenuItem disabled>
+                      本地开发身份无真实退出登录
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
           ) : (
-            !loading && (
+            session.status !== 'loading' && (
               <div className="flex items-center gap-2">
                 <Button
                   variant="ghost"
@@ -199,7 +185,7 @@ const Navbar = () => {
                 {item.label}
               </NavLink>
             ))}
-            {profile && (
+            {session.status === 'authenticated' && (
               <>
                 <div className="px-6 py-3 border-t border-slate-100">
                   <div className="flex items-center gap-2 text-sm text-amber-600">
@@ -207,15 +193,21 @@ const Navbar = () => {
                     <span>{balance.toLocaleString()} 积分</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="text-left px-6 py-3 text-sm text-red-500 hover:bg-slate-50"
-                >
-                  退出登录
-                </button>
+                {session.canSignOut ? (
+                  <button
+                    onClick={() => {
+                      void handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-left px-6 py-3 text-sm text-red-500 hover:bg-slate-50"
+                  >
+                    退出登录
+                  </button>
+                ) : (
+                  <div className="px-6 py-3 text-sm text-slate-500">
+                    本地开发身份无真实退出登录
+                  </div>
+                )}
               </>
             )}
           </nav>

@@ -224,6 +224,17 @@ describe('DocumentInputService', () => {
     expect(storage.remove).toHaveBeenCalledWith({ bucketId: 'bucket-1', filePath: owned.filePath });
   });
 
+  it('validates and canonicalizes an owned ref without downloading the artifact', async () => {
+    const storage = makeStorage();
+    const { service } = makeService(storage);
+    const owned = ref({
+      filePath: 'academic-writing/users/' + sha256(Buffer.from('user-1')) + '/550e8400-e29b-41d4-a716-446655440000/paper.md',
+    });
+
+    await expect(service.validateOwnedRef('user-1', owned)).resolves.toEqual(owned);
+    expect(storage.download).not.toHaveBeenCalled();
+  });
+
   it('rejects another user or noncanonical document refs without deleting storage', async () => {
     const storage = makeStorage();
     const { service } = makeService(storage);

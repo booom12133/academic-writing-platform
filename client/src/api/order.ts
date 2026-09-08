@@ -3,7 +3,7 @@ import type {
   OrderListResponse,
   OrderStatus,
 } from '@shared/api.interface';
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from './http';
 
 export interface CreateOrderData {
   amount: number;
@@ -22,28 +22,28 @@ export interface GetOrderListParams {
 }
 
 export async function createOrder(data: CreateOrderData): Promise<CreateOrderResponse> {
-  const response = await axiosForBackend.post<CreateOrderResponse>('/api/orders', data);
+  const response = await productHttpClient.post<CreateOrderResponse>('/api/orders', data);
   return response.data;
 }
 
 export async function getOrderList(
   params: GetOrderListParams,
 ): Promise<OrderListResponse> {
-  const response = await axiosForBackend.get<OrderListResponse>('/api/orders', { params });
+  const response = await productHttpClient.get<OrderListResponse>('/api/orders', { params });
   return response.data;
 }
 
 export async function getOrder(id: string): Promise<RechargeOrder> {
-  const response = await axiosForBackend.get<RechargeOrder>(`/api/orders/${id}`);
+  const response = await productHttpClient.get<RechargeOrder>(`/api/orders/${id}`);
   return response.data;
 }
 
 export async function payOrder(id: string): Promise<RechargeOrder> {
-  const response = await axiosForBackend.post<RechargeOrder>(`/api/orders/${id}/pay`);
+  const response = await productHttpClient.post<RechargeOrder>(`/api/orders/${id}/pay`);
   return response.data;
 }
 
 export async function cancelOrder(id: string): Promise<RechargeOrder> {
-  const response = await axiosForBackend.post<RechargeOrder>(`/api/orders/${id}/cancel`);
+  const response = await productHttpClient.post<RechargeOrder>(`/api/orders/${id}/cancel`);
   return response.data;
 }

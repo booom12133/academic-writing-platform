@@ -214,6 +214,13 @@ export class DocumentInputService {
     return { version: 1, document: { ...trusted }, buffer };
   }
 
+  async validateOwnedRef(
+    userId: string,
+    documentRef: DocumentInputRef,
+  ): Promise<DocumentInputRef> {
+    return this.validateRef(userId, documentRef);
+  }
+
   async removeOwned(userId: string, documentRef: DocumentInputRef): Promise<void> {
     const trusted = await this.validateRef(userId, documentRef);
     try {

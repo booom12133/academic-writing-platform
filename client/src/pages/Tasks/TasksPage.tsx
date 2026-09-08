@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -63,6 +63,7 @@ import type {
   TaskStatus,
   TaskType,
 } from '@shared/api.interface';
+import { TaskStatePanel } from '@client/src/components/tasks/TaskStatePanel';
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: '等待中',
@@ -148,6 +149,8 @@ function formatDateTime(iso: string): string {
 const TasksPage = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
   const [data, setData] = useState<TaskListResponse | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
@@ -157,8 +160,12 @@ const TasksPage = () => {
   const pageSize = 10;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const fetchTasks = useCallback(async () => {
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setError(null);
     try {
       const result: TaskListResponse = await taskApi.getTaskList({
         page,
@@ -170,8 +177,10 @@ const TasksPage = () => {
       setData(result);
     } catch (err) {
       logger.error('获取任务列表失败', JSON.stringify(err));
+      setError('任务列表加载失败，请重试。');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [page, pageSize, statusFilter, typeFilter, searchKeyword]);
 
@@ -215,7 +224,8 @@ const TasksPage = () => {
   };
 
   const handleConfirmDelete = async () => {
-    if (!taskToDelete) return;
+    if (!taskToDelete || deleting) return;
+    setDeleting(true);
     try {
       await taskApi.deleteTask(taskToDelete.id);
       setDeleteDialogOpen(false);
@@ -223,6 +233,8 @@ const TasksPage = () => {
       fetchTasks();
     } catch (err) {
       logger.error('删除任务失败', JSON.stringify(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -365,9 +377,12 @@ const TasksPage = () => {
         <Card>
           <CardContent className="p-0">
             {loading && !data ? (
-              <div className="py-20 text-center text-slate-500">
-                加载中...
-              </div>
+              <TaskStatePanel state="loading" />
+            ) : error && !data ? (
+              <TaskStatePanel state="error" errorMessage={error} onRetry={() => {
+                setLoading(true);
+                fetchTasks();
+              }} />
             ) : !data || data.items.length === 0 ? (
               <div className="py-20 flex flex-col items-center justify-center">
                 <FileText className="h-16 w-16 text-slate-300 mb-4" />
@@ -382,6 +397,17 @@ const TasksPage = () => {
               </div>
             ) : (
               <>
+                {error && (
+                  <div className="flex items-center justify-between gap-3 border-b border-red-100 bg-red-50 px-5 py-3 text-sm text-red-700">
+                    <span>{error}</span>
+                    <Button variant="secondary" size="sm" onClick={() => {
+                      setLoading(true);
+                      fetchTasks();
+                    }}>
+                      重试
+                    </Button>
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -570,7 +596,7 @@ const TasksPage = () => {
             >
               取消
             </Button>
-            <Button variant="destructive" onClick={handleConfirmDelete}>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleting}>
               确认删除
             </Button>
           </DialogFooter>

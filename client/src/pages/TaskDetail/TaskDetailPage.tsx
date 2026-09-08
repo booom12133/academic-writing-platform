@@ -1,11 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   CheckCircle2,
   Circle,
   Loader2,
-  Download,
   Trash2,
   RefreshCw,
   AlertCircle,
@@ -70,9 +69,13 @@ import {
   TabsTrigger,
 } from '@client/src/components/ui/tabs';
 
-import { taskApi } from '@client/src/api/index';
+import { aiToolsApi, taskApi } from '@client/src/api/index';
 import type { Task, TaskStatus, TaskType } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
+import { TaskResultActions } from '@client/src/components/tasks/TaskResultActions';
+import { TaskStatePanel } from '@client/src/components/tasks/TaskStatePanel';
+import { buildContinueState, buildRerunPayload } from '@client/src/lib/task-actions';
+import { adaptTaskResult } from '@client/src/lib/task-result';
 
 const STATUS_LABELS: Record<TaskStatus, string> = {
   pending: '等待中',
@@ -2449,18 +2452,27 @@ const TaskDetailPage = () => {
   const navigate = useNavigate();
   const [task, setTask] = useState<Task | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const fetchingRef = useRef(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
+  const [deleting, setDeleting] = useState(false);
+  const [rerunning, setRerunning] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('result');
 
   const fetchTask = useCallback(async () => {
     if (!taskId) return;
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
+    setError(null);
     try {
       const result: Task = await taskApi.getTask(taskId);
       setTask(result);
     } catch (err) {
       logger.error('获取任务详情失败', JSON.stringify(err));
+      setError('任务详情加载失败，请重试。');
     } finally {
       setLoading(false);
+      fetchingRef.current = false;
     }
   }, [taskId]);
 
@@ -2481,26 +2493,63 @@ const TaskDetailPage = () => {
   }, [isActive, fetchTask]);
 
   const handleDelete = async () => {
-    if (!task) return;
+    if (!task || deleting) return;
+    setDeleting(true);
     try {
       await taskApi.deleteTask(task.id);
       navigate('/tasks');
     } catch (err) {
       logger.error('删除任务失败', JSON.stringify(err));
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const handleResubmit = () => {
+  const handleContinue = () => {
     if (!task) return;
+    const continueState = buildContinueState(task);
+    if (!continueState) return;
     navigate(`/tools/${task.taskType}`, {
-      state: { inputData: task.inputData, title: task.title },
+      state: continueState,
     });
+  };
+
+  const handleRerun = async () => {
+    if (!task || rerunning) return;
+    const payload = buildRerunPayload(task);
+    if (!payload) return;
+    setRerunning(true);
+    try {
+      const rerunTask = await aiToolsApi.submitTask(payload);
+      navigate(`/tasks/${rerunTask.id}`);
+    } catch (err) {
+      logger.error('重新运行任务失败', JSON.stringify(err));
+    } finally {
+      setRerunning(false);
+    }
   };
 
   if (loading) {
     return (
       <div className="px-6 py-6 min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-slate-500">加载中...</div>
+      </div>
+    );
+  }
+
+  if (error && !task) {
+    return (
+      <div className="px-6 py-6 min-h-screen bg-slate-50">
+        <div className="max-w-[1200px] mx-auto">
+          <Button variant="ghost" onClick={() => navigate('/tasks')}>
+            <ArrowLeft className="h-4 w-4" />
+            返回任务列表
+          </Button>
+          <TaskStatePanel state="error" errorMessage={error} onRetry={() => {
+            setLoading(true);
+            fetchTask();
+          }} />
+        </div>
       </div>
     );
   }
@@ -2551,8 +2600,11 @@ const TaskDetailPage = () => {
     },
   ];
 
-  // Download files
-  const downloadFiles = task.resultData?.files || [];
+  const taskResult = isCompleted && (
+    taskType === 'topic-generation' || taskType === 'polish' || taskType === 'paper-revision'
+  )
+    ? adaptTaskResult(taskType, task.resultData || {})
+    : null;
 
   return (
     <div className="px-6 py-6 min-h-screen bg-slate-50">
@@ -2605,10 +2657,11 @@ const TaskDetailPage = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <Button variant="secondary" onClick={handleResubmit}>
-                <RefreshCw className="h-4 w-4" />
-                修改重提
-              </Button>
+              {buildContinueState(task) && (
+                <Button variant="secondary" onClick={handleContinue}>
+                  继续编辑
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 onClick={() => setDeleteDialogOpen(true)}
@@ -2742,38 +2795,6 @@ const TaskDetailPage = () => {
               </CardContent>
             </Card>
 
-            {/* Download Files */}
-            {downloadFiles.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">文件下载</CardTitle>
-                </CardHeader>
-                <CardContent className="pt-0 space-y-3">
-                  {downloadFiles.map((file: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg"
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                        <div className="min-w-0">
-                          <div className="text-sm text-slate-700 truncate">
-                            {file.name || file.fileName || `文件 ${idx + 1}`}
-                          </div>
-                          <div className="text-xs text-slate-400">
-                            {file.size || file.fileSize || ''}
-                          </div>
-                        </div>
-                      </div>
-                      <Button size="sm" variant="secondary">
-                        <Download className="h-4 w-4" />
-                        下载
-                      </Button>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           {/* Right column: result preview */}
@@ -2801,6 +2822,20 @@ const TaskDetailPage = () => {
                   </div>
                 ) : (
                   <>
+                    {taskResult?.valid && (
+                      <TaskResultActions
+                        task={task}
+                        envelope={taskResult.envelope}
+                        onRerun={handleRerun}
+                        onContinue={handleContinue}
+                      />
+                    )}
+                    {taskResult && !taskResult.valid && (
+                      <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                        任务已完成，但结果数据不完整，暂时无法复制或导出。
+                      </div>
+                    )}
+                    {(!taskResult || taskResult.valid) && <>
                     {taskType === 'outline' && (
                       <OutlineResult resultData={task.resultData || {}} />
                     )}
@@ -2870,6 +2905,7 @@ const TaskDetailPage = () => {
                     {taskType === 'ai-ppt' && (
                       <AiPptResult resultData={task.resultData || {}} />
                     )}
+                    </>}
                   </>
                 )}
               </CardContent>
@@ -2884,7 +2920,7 @@ const TaskDetailPage = () => {
           <DialogHeader>
             <DialogTitle>确认删除任务</DialogTitle>
             <DialogDescription>
-              确定要删除任务「{task.title}」吗？此操作不可撤销，任务数据将被永久删除。
+              确定要删除任务「{task.title}」吗？此操作只删除任务记录，不会取消正在执行的任务。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -2894,7 +2930,7 @@ const TaskDetailPage = () => {
             >
               取消
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
               确认删除
             </Button>
           </DialogFooter>

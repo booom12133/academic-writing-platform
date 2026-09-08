@@ -1,6 +1,8 @@
-import type { Task, TaskType, ToolConfig } from '@shared/api.interface';
+import type { Task, TaskType } from '@shared/api.interface';
+import type { ProductToolCapability } from '@shared/product-capability.interface';
 import type { DocumentInputRef } from '@shared/document-input.interface';
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from './http';
+import { validateToolInputContract } from '../pages/Tools/tool-input-contract';
 
 export interface SubmitTaskData {
   taskType: TaskType;
@@ -9,7 +11,9 @@ export interface SubmitTaskData {
 }
 
 export async function submitTask(data: SubmitTaskData): Promise<Task> {
-  const response = await axiosForBackend.post<Task>('/api/ai-tools/submit', data);
+  const inputContract = validateToolInputContract(data.taskType, data.inputData);
+  if ('message' in inputContract) throw new Error(inputContract.message);
+  const response = await productHttpClient.post<Task>('/api/ai-tools/submit', data);
   return response.data;
 }
 
@@ -93,7 +97,7 @@ export function submitPaperRevisionTask(data: PaperRevisionSubmitTaskData): Prom
   });
 }
 
-export async function getTools(): Promise<ToolConfig[]> {
-  const response = await axiosForBackend.get<ToolConfig[]>('/api/ai-tools/tools');
+export async function getTools(): Promise<ProductToolCapability[]> {
+  const response = await productHttpClient.get<ProductToolCapability[]>('/api/ai-tools/tools');
   return response.data;
 }

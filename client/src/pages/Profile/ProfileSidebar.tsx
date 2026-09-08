@@ -25,7 +25,7 @@ const menuItems: {
 }[] = [
   { key: 'dashboard', label: '数据概览', icon: LayoutDashboard },
   { key: 'tasks', label: '我的任务', icon: FileText },
-  { key: 'orders', label: '充值订单', icon: Receipt },
+  { key: 'orders', label: '订单记录', icon: Receipt },
   { key: 'records', label: '积分流水', icon: History },
   { key: 'settings', label: '账号设置', icon: Settings },
 ];

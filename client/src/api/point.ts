@@ -3,7 +3,7 @@ import type {
   PointRecordType,
   MemberLevel,
 } from '@shared/api.interface';
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from './http';
 
 export interface GetPointRecordsParams {
   page?: number;
@@ -14,7 +14,7 @@ export interface GetPointRecordsParams {
 export async function getPointRecords(
   params: GetPointRecordsParams,
 ): Promise<PointRecordListResponse> {
-  const response = await axiosForBackend.get<PointRecordListResponse>(
+  const response = await productHttpClient.get<PointRecordListResponse>(
     '/api/points/records',
     { params },
   );
@@ -27,6 +27,6 @@ export interface BalanceResponse {
 }
 
 export async function getBalance(): Promise<BalanceResponse> {
-  const response = await axiosForBackend.get<BalanceResponse>('/api/points/balance');
+  const response = await productHttpClient.get<BalanceResponse>('/api/points/balance');
   return response.data;
 }

@@ -4,7 +4,7 @@ import type {
   CreateTaskRequest,
   TaskStatus,
 } from '@shared/api.interface';
-import { axiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
+import { productHttpClient } from './http';
 
 export interface GetTaskListParams {
   page?: number;
@@ -15,22 +15,22 @@ export interface GetTaskListParams {
 }
 
 export async function createTask(data: CreateTaskRequest): Promise<Task> {
-  const response = await axiosForBackend.post<Task>('/api/tasks', data);
+  const response = await productHttpClient.post<Task>('/api/tasks', data);
   return response.data;
 }
 
 export async function getTaskList(params: GetTaskListParams): Promise<TaskListResponse> {
-  const response = await axiosForBackend.get<TaskListResponse>('/api/tasks', { params });
+  const response = await productHttpClient.get<TaskListResponse>('/api/tasks', { params });
   return response.data;
 }
 
 export async function getTask(id: string): Promise<Task> {
-  const response = await axiosForBackend.get<Task>(`/api/tasks/${id}`);
+  const response = await productHttpClient.get<Task>(`/api/tasks/${id}`);
   return response.data;
 }
 
 export async function deleteTask(id: string): Promise<{ success: boolean }> {
-  const response = await axiosForBackend.delete<{ success: boolean }>(`/api/tasks/${id}`);
+  const response = await productHttpClient.delete<{ success: boolean }>(`/api/tasks/${id}`);
   return response.data;
 }
 
@@ -43,6 +43,6 @@ export interface TaskStats {
 }
 
 export async function getTaskStats(): Promise<TaskStats> {
-  const response = await axiosForBackend.get<TaskStats>('/api/tasks/stats/count');
+  const response = await productHttpClient.get<TaskStats>('/api/tasks/stats/count');
   return response.data;
 }

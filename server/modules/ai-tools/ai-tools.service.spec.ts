@@ -60,6 +60,60 @@ import type { PaperRevisionSubmissionService } from './paper-revision/paper-revi
 import { ApplicationShutdownCoordinator } from '../../common/lifecycle/application-shutdown.coordinator';
 
 describe('AiToolsService Polish cutover', () => {
+  it('rejects preview and disabled capabilities before creating a task', async () => {
+    const tasks = {
+      createTask: jest.fn(),
+      updateTask: jest.fn(),
+    };
+    const service = new AiToolsService(
+      tasks as unknown as TasksService,
+      {} as TopicGenerationGenerator,
+      {} as PolishSubmissionService,
+      {} as PaperRevisionSubmissionService,
+    );
+
+    await expect(
+      service.submitTask({
+        userId: 'user-1',
+        taskType: 'outline',
+        title: 'Outline',
+        inputData: { topic: 'topic' },
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'AI_TOOL_NOT_PRODUCTION_READY' },
+    });
+    await expect(
+      service.submitTask({
+        userId: 'user-1',
+        taskType: 'literature',
+        title: 'Literature',
+        inputData: { topic: 'topic' },
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'AI_TOOL_NOT_PRODUCTION_READY' },
+    });
+    expect(tasks.createTask).not.toHaveBeenCalled();
+  });
+
+  it('returns the shared production capability catalog for tool discovery', () => {
+    const service = new AiToolsService(
+      {} as TasksService,
+      {} as TopicGenerationGenerator,
+      {} as PolishSubmissionService,
+      {} as PaperRevisionSubmissionService,
+    );
+
+    expect(service.getToolConfigs()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'topic-generation',
+          readiness: 'production',
+        }),
+        expect.objectContaining({ type: 'literature', readiness: 'disabled' }),
+      ]),
+    );
+  });
+
   it('delegates Polish before generic Task creation and returns the delegated processing Task', async () => {
     const processingTask = {
       id: 'task-1',
@@ -157,12 +211,10 @@ describe('AiToolsService Polish cutover', () => {
     expect(tasks.createTask).not.toHaveBeenCalled();
   });
 
-  it('keeps outline submissions on the generic path', async () => {
-    const created = { id: 'outline-task' };
-    const processing = { id: 'outline-task', status: 'processing' };
+  it('does not submit preview outline work to the generic path', async () => {
     const tasks = {
-      createTask: jest.fn().mockResolvedValue(created),
-      updateTask: jest.fn().mockResolvedValue(processing),
+      createTask: jest.fn(),
+      updateTask: jest.fn(),
     };
     const paperRevisionSubmission = { submit: jest.fn() };
     const service = new AiToolsService(
@@ -172,20 +224,17 @@ describe('AiToolsService Polish cutover', () => {
       paperRevisionSubmission as unknown as PaperRevisionSubmissionService,
     );
 
-    const result = await service.submitTask({
-      userId: 'user-1',
-      taskType: 'outline',
-      title: 'Outline',
-      inputData: { topic: 'topic' },
+    await expect(
+      service.submitTask({
+        userId: 'user-1',
+        taskType: 'outline',
+        title: 'Outline',
+        inputData: { topic: 'topic' },
+      }),
+    ).rejects.toMatchObject({
+      response: { code: 'AI_TOOL_NOT_PRODUCTION_READY' },
     });
-
-    expect(result).toBe(processing);
-    expect(tasks.createTask).toHaveBeenCalledWith({
-      userId: 'user-1',
-      taskType: 'outline',
-      title: 'Outline',
-      inputData: { topic: 'topic' },
-    });
+    expect(tasks.createTask).not.toHaveBeenCalled();
     expect(paperRevisionSubmission.submit).not.toHaveBeenCalled();
   });
 
@@ -204,7 +253,7 @@ describe('AiToolsService Polish cutover', () => {
     await expect(
       service.submitTask({
         userId: 'user-1',
-        taskType: 'outline',
+        taskType: 'topic-generation',
         title: 'Outline',
         inputData: { topic: 'topic' },
       }),

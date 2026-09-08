@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  HttpStatus,
   Post,
   Body,
   Param,
@@ -10,6 +11,8 @@ import {
 import type { Request } from 'express';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import { OrdersService } from './orders.service';
+import { BusinessException } from '../../common/interfaces/exception.interface';
+import { ResponseCode } from '../../common/constants/api_response_code';
 import type {
   RechargeOrder,
   OrderListResponse,
@@ -26,8 +29,9 @@ export class OrdersController {
     @Req() req: Request,
     @Body() dto: CreateOrderRequest,
   ): Promise<{ order: RechargeOrder; qrCodeUrl: string }> {
-    const { userId } = req.userContext;
-    return this.ordersService.createOrder(userId, dto.amount, dto.payMethod);
+    void req;
+    void dto;
+    throw this.paymentUnavailable();
   }
 
   @NeedLogin()
@@ -60,8 +64,9 @@ export class OrdersController {
     @Req() req: Request,
     @Param('id') id: string,
   ): Promise<RechargeOrder> {
-    const { userId } = req.userContext;
-    return this.ordersService.payOrder(userId, id);
+    void req;
+    void id;
+    throw this.paymentUnavailable();
   }
 
   @NeedLogin()
@@ -70,7 +75,16 @@ export class OrdersController {
     @Req() req: Request,
     @Param('id') id: string,
   ): Promise<RechargeOrder> {
-    const { userId } = req.userContext;
-    return this.ordersService.cancelOrder(userId, id);
+    void req;
+    void id;
+    throw this.paymentUnavailable();
+  }
+
+  private paymentUnavailable(): BusinessException {
+    return new BusinessException(
+      ResponseCode.PAYMENT_NOT_AVAILABLE,
+      '当前版本未接入真实支付渠道。',
+      HttpStatus.SERVICE_UNAVAILABLE,
+    );
   }
 }

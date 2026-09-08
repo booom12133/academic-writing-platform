@@ -31,6 +31,9 @@ jest.mock('../modules/document-input/document-input.module', () => ({
 jest.mock('../modules/knowledge/knowledge.module', () => ({
   KnowledgeModule: class KnowledgeModule {},
 }));
+jest.mock('../modules/knowledge-product/knowledge-product.module', () => ({
+  KnowledgeProductModule: class KnowledgeProductModule {},
+}));
 jest.mock('../modules/zotero/zotero.module', () => ({
   ZoteroModule: class ZoteroModule {},
 }));

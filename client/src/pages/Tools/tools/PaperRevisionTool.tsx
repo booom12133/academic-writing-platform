@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/src/components/ui/card';
 import { Textarea } from '@client/src/components/ui/textarea';
@@ -10,12 +10,12 @@ import {
   Tabs, TabsContent, TabsList, TabsTrigger,
 } from '@client/src/components/ui/tabs';
 import { Edit3, Upload, FileText } from 'lucide-react';
-import { aiToolsApi, documentInputApi } from '@client/src/api/index';
+import { aiToolsApi } from '@client/src/api/index';
+import { DocumentWorkspacePicker } from '@client/src/components/documents/DocumentWorkspacePicker';
 import type { Task } from '@shared/api.interface';
-import type { DocumentInputDescriptor, DocumentInputRef } from '@shared/document-input.interface';
+import type { WorkspaceDocumentSelection } from '@shared/knowledge-product.interface';
+import { readContinueState } from '@client/src/lib/task-actions';
 import {
-  DocumentInputUploadAction,
-  FileUploadZone,
   SuccessCard,
   FormField,
   SubmitFooter,
@@ -32,22 +32,44 @@ const BASE_POINTS = 30;
 
 const PaperRevisionTool: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const continueConsumed = useRef(false);
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
   const [text, setText] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
-  const [documentDescriptor, setDocumentDescriptor] = useState<DocumentInputDescriptor | null>(null);
-  const [documentRef, setDocumentRef] = useState<DocumentInputRef | null>(null);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const [workspaceSelection, setWorkspaceSelection] = useState<WorkspaceDocumentSelection | null>(null);
   const [revisionTypes, setRevisionTypes] = useState<string[]>([]);
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
 
+  useEffect(() => {
+    if (continueConsumed.current) return;
+    continueConsumed.current = true;
+    const state = readContinueState('paper-revision', location.state);
+    if (!state) return;
+    const inputData = state.inputData;
+    const mode = inputData.inputMode === 'file' ? 'file' : 'text';
+    setInputMode(mode);
+    if (typeof inputData.text === 'string') setText(inputData.text);
+    if (Array.isArray(inputData.revisionTypes)) {
+      setRevisionTypes(inputData.revisionTypes.filter((item): item is string => typeof item === 'string'));
+    }
+    if (typeof inputData.requirements === 'string') setRequirements(inputData.requirements);
+    if (mode === 'file' && inputData.documentRef) {
+      setWorkspaceSelection({
+        documentRef: inputData.documentRef as WorkspaceDocumentSelection['documentRef'],
+        documentId: '',
+        documentVersionId: '',
+        displayName: state.title,
+      });
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
+
   const canSubmit = aiToolsApi.canSubmitPaperRevision(
     inputMode,
     text,
-    documentRef,
+    workspaceSelection?.documentRef ?? null,
     revisionTypes,
   );
 
@@ -64,10 +86,10 @@ const PaperRevisionTool: React.FC = () => {
       const task: Task = await aiToolsApi.submitPaperRevisionTask({
         title: inputMode === 'text'
           ? text.slice(0, 30) + (text.length > 30 ? '...' : '')
-          : documentRef?.fileName || '论文修改',
+          : workspaceSelection?.displayName || '论文修改',
         inputMode,
         text: inputMode === 'text' ? text : undefined,
-        documentRef: inputMode === 'file' ? documentRef ?? undefined : undefined,
+        documentRef: inputMode === 'file' ? workspaceSelection?.documentRef : undefined,
         revisionTypes,
         requirements,
         wordCount: inputMode === 'text' ? text.length : undefined,
@@ -75,30 +97,6 @@ const PaperRevisionTool: React.FC = () => {
       setResult(task);
     } catch (err) { logger.error('submit pr task failed', JSON.stringify(err)); }
     finally { setLoading(false); }
-  };
-
-  const handleFileSelect = (nextFiles: File[]) => {
-    setFiles(nextFiles.slice(0, 1));
-    setDocumentDescriptor(null);
-    setDocumentRef(null);
-    setUploadError(null);
-  };
-
-  const handleDocumentUpload = async () => {
-    const file = files[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    try {
-      const descriptor = await documentInputApi.uploadDocument(file);
-      setDocumentDescriptor(descriptor);
-      setDocumentRef(descriptor.document);
-    } catch (error) {
-      logger.error('upload paper revision document failed', JSON.stringify(error));
-      setUploadError(error instanceof Error ? error.message : '文档上传失败，请重试');
-    } finally {
-      setUploading(false);
-    }
   };
 
   if (result) return (
@@ -133,9 +131,10 @@ const PaperRevisionTool: React.FC = () => {
             </div>
           </TabsContent>
           <TabsContent value="file" className="mt-4">
-            <FileUploadZone files={files} onChange={handleFileSelect}
-              accept=".docx,.pdf,.txt,.md,.markdown" multiple={false}
-              label="上传论文文档" hint="支持 .docx、.pdf、.txt、.md、.markdown 格式" />
+            <DocumentWorkspacePicker
+              value={workspaceSelection}
+              onChange={setWorkspaceSelection}
+            />
           </TabsContent>
         </Tabs>
 
@@ -162,17 +161,8 @@ const PaperRevisionTool: React.FC = () => {
       </CardContent>
       {inputMode === 'file' ? (
       <div className="border-t border-slate-100 pt-5">
-        <DocumentInputUploadAction
-            file={files[0] ?? null}
-            ready={documentRef !== null && documentDescriptor !== null}
-            uploading={uploading}
-            error={uploadError}
-          onUpload={handleDocumentUpload}
-        />
-        {documentRef && documentDescriptor && (
-          <SubmitFooter loading={loading} disabled={!canSubmit}
-            points={BASE_POINTS} onClick={handleSubmit} label="开始修改" />
-        )}
+        <SubmitFooter loading={loading} disabled={!canSubmit}
+          points={BASE_POINTS} onClick={handleSubmit} label="开始修改" />
       </div>
       ) : (
         <SubmitFooter loading={loading} disabled={!canSubmit}
