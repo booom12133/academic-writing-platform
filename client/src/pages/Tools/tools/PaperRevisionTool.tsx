@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/src/components/ui/card';
 import { Textarea } from '@client/src/components/ui/textarea';
@@ -14,6 +14,7 @@ import { aiToolsApi } from '@client/src/api/index';
 import { DocumentWorkspacePicker } from '@client/src/components/documents/DocumentWorkspacePicker';
 import type { Task } from '@shared/api.interface';
 import type { WorkspaceDocumentSelection } from '@shared/knowledge-product.interface';
+import { readContinueState } from '@client/src/lib/task-actions';
 import {
   SuccessCard,
   FormField,
@@ -31,6 +32,8 @@ const BASE_POINTS = 30;
 
 const PaperRevisionTool: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const continueConsumed = useRef(false);
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
   const [text, setText] = useState('');
   const [workspaceSelection, setWorkspaceSelection] = useState<WorkspaceDocumentSelection | null>(null);
@@ -38,6 +41,30 @@ const PaperRevisionTool: React.FC = () => {
   const [requirements, setRequirements] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (continueConsumed.current) return;
+    continueConsumed.current = true;
+    const state = readContinueState('paper-revision', location.state);
+    if (!state) return;
+    const inputData = state.inputData;
+    const mode = inputData.inputMode === 'file' ? 'file' : 'text';
+    setInputMode(mode);
+    if (typeof inputData.text === 'string') setText(inputData.text);
+    if (Array.isArray(inputData.revisionTypes)) {
+      setRevisionTypes(inputData.revisionTypes.filter((item): item is string => typeof item === 'string'));
+    }
+    if (typeof inputData.requirements === 'string') setRequirements(inputData.requirements);
+    if (mode === 'file' && inputData.documentRef) {
+      setWorkspaceSelection({
+        documentRef: inputData.documentRef as WorkspaceDocumentSelection['documentRef'],
+        documentId: '',
+        documentVersionId: '',
+        displayName: state.title,
+      });
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   const canSubmit = aiToolsApi.canSubmitPaperRevision(
     inputMode,

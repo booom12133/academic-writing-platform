@@ -46,6 +46,7 @@ export class TasksController {
     @Query('pageSize') pageSize?: string,
     @Query('status') status?: string,
     @Query('taskType') taskType?: string,
+    @Query('keyword') keyword?: string,
   ): Promise<TaskListResponse> {
     const { userId } = req.userContext;
     const pageNum = page ? parseInt(page, 10) : 1;
@@ -56,6 +57,7 @@ export class TasksController {
       pageSize: pageSizeNum,
       taskType: taskType as Task['taskType'] | undefined,
       status: status as Task['status'] | undefined,
+      keyword,
     });
     return { ...result, page: pageNum, pageSize: pageSizeNum };
   }

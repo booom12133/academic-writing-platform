@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import {
   Card,
@@ -29,6 +29,7 @@ import { aiToolsApi } from '@client/src/api/index';
 import { DocumentWorkspacePicker } from '@client/src/components/documents/DocumentWorkspacePicker';
 import type { Task } from '@shared/api.interface';
 import type { WorkspaceDocumentSelection } from '@shared/knowledge-product.interface';
+import { readContinueState } from '@client/src/lib/task-actions';
 
 const POLISH_TYPES = [
   { value: 'grammar', label: '语法纠错' },
@@ -39,12 +40,35 @@ const POLISH_TYPES = [
 
 const PolishTool: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const continueConsumed = useRef(false);
   const [inputMode, setInputMode] = useState<'text' | 'file'>('text');
   const [text, setText] = useState('');
   const [polishType, setPolishType] = useState('grammar');
   const [workspaceSelection, setWorkspaceSelection] = useState<WorkspaceDocumentSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (continueConsumed.current) return;
+    continueConsumed.current = true;
+    const state = readContinueState('polish', location.state);
+    if (!state) return;
+    const inputData = state.inputData;
+    const mode = inputData.inputMode === 'file' ? 'file' : 'text';
+    setInputMode(mode);
+    if (typeof inputData.text === 'string') setText(inputData.text);
+    if (typeof inputData.polishType === 'string') setPolishType(inputData.polishType);
+    if (mode === 'file' && inputData.documentRef) {
+      setWorkspaceSelection({
+        documentRef: inputData.documentRef as WorkspaceDocumentSelection['documentRef'],
+        documentId: '',
+        documentVersionId: '',
+        displayName: state.title,
+      });
+    }
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   const wordCount = text.length;
   const pointsCost = Math.max(10, Math.ceil(wordCount / 1000) * 10);

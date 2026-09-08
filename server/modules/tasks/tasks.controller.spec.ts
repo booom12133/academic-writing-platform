@@ -18,6 +18,29 @@ import { TasksController } from './tasks.controller';
 import { BadRequestException } from '@nestjs/common';
 
 describe('TasksController ownership boundary', () => {
+  it('forwards keyword to the owner-scoped task list', async () => {
+    const listUserTasks = jest.fn().mockResolvedValue({ items: [], total: 0 });
+    const controller = new TasksController({ listUserTasks } as never);
+
+    await controller.list(
+      { userContext: { userId: 'user-1' } } as never,
+      '2',
+      '20',
+      undefined,
+      undefined,
+      ' draft ',
+    );
+
+    expect(listUserTasks).toHaveBeenCalledWith({
+      userId: 'user-1',
+      page: 2,
+      pageSize: 20,
+      taskType: undefined,
+      status: undefined,
+      keyword: ' draft ',
+    });
+  });
+
   it('passes the authenticated user id to status updates', async () => {
     const updateTask = jest.fn().mockResolvedValue({ id: 'task-1' });
     const controller = new TasksController({ updateTask } as never);

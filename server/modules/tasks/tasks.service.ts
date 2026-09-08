@@ -1,9 +1,11 @@
 import { Injectable, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { tasks, pointRecords, appUsers } from '@server/database/schema';
-import { eq, and, desc, count } from 'drizzle-orm';
+import { eq, and, desc, count, ilike, or } from 'drizzle-orm';
 import type { Task, TaskType, TaskStatus } from '@shared/api.interface';
 import { TOOL_CONFIGS } from '@shared/api.interface';
+
+const MAX_TASK_KEYWORD_LENGTH = 100;
 
 @Injectable()
 export class TasksService {
@@ -95,11 +97,20 @@ export class TasksService {
     pageSize: number;
     taskType?: TaskType;
     status?: TaskStatus;
+    keyword?: string;
   }): Promise<{ items: Task[]; total: number }> {
-    const { userId, page, pageSize, taskType, status } = params;
+    const { userId, page, pageSize, taskType, status, keyword } = params;
     const conditions = [eq(tasks.userId, userId)];
     if (taskType) conditions.push(eq(tasks.taskType, taskType));
     if (status) conditions.push(eq(tasks.status, status));
+
+    const normalizedKeyword = normalizeTaskKeyword(keyword);
+    if (normalizedKeyword) {
+      const titleMatch = ilike(tasks.title, `%${escapeLikePattern(normalizedKeyword)}%`);
+      conditions.push(isUuid(normalizedKeyword)
+        ? or(titleMatch, eq(tasks.id, normalizedKeyword))
+        : titleMatch);
+    }
 
     const where = and(...conditions);
 
@@ -254,4 +265,17 @@ export class TasksService {
       updatedAt: row.updatedAt.toISOString(),
     };
   }
+}
+
+function normalizeTaskKeyword(keyword: string | undefined): string | undefined {
+  const normalized = keyword?.trim();
+  return normalized ? normalized.slice(0, MAX_TASK_KEYWORD_LENGTH) : undefined;
+}
+
+function escapeLikePattern(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
+function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

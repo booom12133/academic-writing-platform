@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { logger } from '@lark-apaas/client-toolkit/logger';
 import { Card, CardContent, CardHeader } from '@client/src/components/ui/card';
 import { Textarea } from '@client/src/components/ui/textarea';
@@ -9,16 +9,31 @@ import { PROFESSIONAL_FIELDS, EDUCATION_LEVELS } from '@shared/api.interface';
 import { aiToolsApi } from '@client/src/api/index';
 import type { Task } from '@shared/api.interface';
 import { FormField, SubmitFooter, SuccessCard } from './ToolCommon';
+import { readContinueState } from '@client/src/lib/task-actions';
 
 const BASE_POINTS = 15;
 
 const TopicGenerationTool: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const continueConsumed = useRef(false);
   const [major, setMajor] = useState('');
   const [education, setEducation] = useState('');
   const [requirement, setRequirement] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (continueConsumed.current) return;
+    continueConsumed.current = true;
+    const state = readContinueState('topic-generation', location.state);
+    if (!state) return;
+    const inputData = state.inputData;
+    if (typeof inputData.field === 'string') setMajor(inputData.field);
+    if (typeof inputData.educationLevel === 'string') setEducation(inputData.educationLevel);
+    if (typeof inputData.researchDirection === 'string') setRequirement(inputData.researchDirection);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location, navigate]);
 
   const canSubmit = Boolean(major && education);
 

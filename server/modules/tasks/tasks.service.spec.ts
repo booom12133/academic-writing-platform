@@ -8,6 +8,8 @@ jest.mock('drizzle-orm', () => ({
   count: jest.fn(),
   desc: jest.fn(),
   eq: jest.fn(),
+  ilike: jest.fn(),
+  or: jest.fn(),
 }));
 jest.mock('@shared/api.interface', () => ({
   TOOL_CONFIGS: [{ type: 'polish', name: '语法润色', basePoints: 10 }],
@@ -15,7 +17,7 @@ jest.mock('@shared/api.interface', () => ({
 
 import { appUsers, pointRecords, tasks } from '@server/database/schema';
 import type { Task } from '@shared/api.interface';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, ilike, or } from 'drizzle-orm';
 import { TasksService } from './tasks.service';
 
 const now = new Date('2026-09-02T00:00:00.000Z');
@@ -133,5 +135,79 @@ describe('TasksService prepared Polish seam', () => {
       { column: tasks.id, value: 'task-1' },
       { column: tasks.userId, value: 'user-2' },
     ]);
+  });
+
+  function createListDb() {
+    const row = {
+      id: '123e4567-e89b-12d3-a456-426614174000',
+      userId: 'user-1',
+      taskType: 'polish',
+      title: 'Draft polish',
+      status: 'completed',
+      progress: 100,
+      pointsCost: 10,
+      inputData: { inputMode: 'text', text: 'source' },
+      resultData: { revisedContent: 'result' },
+      errorMessage: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    const countWhere = jest.fn().mockResolvedValue([{ count: 1 }]);
+    const offset = jest.fn().mockResolvedValue([row]);
+    const limit = jest.fn().mockReturnValue({ offset });
+    const orderBy = jest.fn().mockReturnValue({ limit });
+    const rowWhere = jest.fn().mockReturnValue({ orderBy });
+    const db = {
+      select: jest.fn()
+        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: countWhere }) })
+        .mockReturnValueOnce({ from: jest.fn().mockReturnValue({ where: rowWhere }) }),
+    };
+    return { db, countWhere, rowWhere };
+  }
+
+  it('matches a trimmed title keyword while preserving the owner condition', async () => {
+    jest.clearAllMocks();
+    const { db, countWhere, rowWhere } = createListDb();
+    const service = new TasksService(db as never);
+
+    await expect(service.listUserTasks({
+      userId: 'user-1', page: 1, pageSize: 10, keyword: '  Draft  ',
+    })).resolves.toMatchObject({ total: 1 });
+
+    expect(ilike).toHaveBeenCalledWith(tasks.title, '%Draft%');
+    expect(or).not.toHaveBeenCalled();
+    expect(countWhere).toHaveBeenCalled();
+    expect(rowWhere).toHaveBeenCalled();
+  });
+
+  it('uses an exact UUID equality branch for UUID keywords', async () => {
+    jest.clearAllMocks();
+    const { db } = createListDb();
+    const service = new TasksService(db as never);
+    const taskId = '123e4567-e89b-12d3-a456-426614174000';
+
+    await service.listUserTasks({
+      userId: 'user-1', page: 1, pageSize: 10, keyword: ` ${taskId} `,
+    });
+
+    expect(eq).toHaveBeenCalledWith(tasks.id, taskId);
+    expect(or).toHaveBeenCalled();
+  });
+
+  it('ignores empty keywords and bounds long keywords before building the query', async () => {
+    jest.clearAllMocks();
+    const { db } = createListDb();
+    const service = new TasksService(db as never);
+
+    await service.listUserTasks({ userId: 'user-1', page: 1, pageSize: 10, keyword: '   ' });
+    expect(ilike).not.toHaveBeenCalled();
+    expect(or).not.toHaveBeenCalled();
+
+    jest.clearAllMocks();
+    const { db: boundedDb } = createListDb();
+    await new TasksService(boundedDb as never).listUserTasks({
+      userId: 'user-1', page: 1, pageSize: 10, keyword: ` ${'x'.repeat(200)} `,
+    });
+    expect(ilike).toHaveBeenCalledWith(tasks.title, `%${'x'.repeat(100)}%`);
   });
 });
