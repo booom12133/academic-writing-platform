@@ -144,7 +144,7 @@ Result: 3 guarded HTTP tests passed and 1 PostgreSQL product integration case sk
 
 ## CI and governance
 
-The latest completed CI for PR #15 before this server-boundary push was run `34224107013`; `verify`, `postgres-schema`, and `production-gates` all passed. A new run for the final fix HEAD must be reported after push.
+PR #15 CI for the server payment-boundary fix HEAD `7666c25e37f8a3f38d428beb1dfe393de6f92fb7` was run as `34234489150`; `verify`, `postgres-schema`, and `production-gates` all passed. The run emitted only the existing GitHub Actions Node.js 20 deprecation annotation.
 
 At candidate preparation time:
 
