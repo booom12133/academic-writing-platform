@@ -14,6 +14,7 @@ import RegisterPage from './pages/Register/RegisterPage';
 import KnowledgePage from './pages/Knowledge/KnowledgePage';
 import AcademicSearchPage from './pages/AcademicSearch/AcademicSearchPage';
 import ZoteroPage from './pages/Zotero/ZoteroPage';
+import GroundedWritingPage from './pages/GroundedWriting/GroundedWritingPage';
 import { AppAuthProvider } from './auth/AppAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 
@@ -76,6 +77,14 @@ const RoutesComponent = () => {
             element={
               <RequireAuth>
                 <ZoteroPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="grounded-writing"
+            element={
+              <RequireAuth>
+                <GroundedWritingPage />
               </RequireAuth>
             }
           />

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BookOpen, FileText, RefreshCw, Trash2 } from 'lucide-react';
+import { BookOpen, FileText, PenLine, RefreshCw, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { knowledgeApi } from '@client/src/api/index';
 import { ProductApiError } from '@client/src/api/knowledge';
@@ -8,6 +9,7 @@ import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/src/components/ui/card';
 import type { KnowledgeWorkspaceDocument } from '@shared/knowledge-product.interface';
+import { buildGroundedWritingLocationState } from '@client/src/lib/grounded-writing';
 
 const originLabels: Record<KnowledgeWorkspaceDocument['document']['originKind'], string> = {
   'user-upload': '用户上传',
@@ -29,6 +31,7 @@ function safeErrorMessage(error: unknown): string {
 }
 
 export default function KnowledgePage() {
+  const navigate = useNavigate();
   const [documents, setDocuments] = useState<KnowledgeWorkspaceDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,6 +164,19 @@ export default function KnowledgePage() {
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
+                    {item.index?.status === 'indexed' && item.activeVersion ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          const state = buildGroundedWritingLocationState([item.activeVersion!.id]);
+                          if (state) navigate('/grounded-writing', { state });
+                        }}
+                      >
+                        <PenLine className="h-4 w-4" />用于有据写作
+                      </Button>
+                    ) : null}
                     {!item.index && item.activeVersion ? (
                       <Button
                         type="button"

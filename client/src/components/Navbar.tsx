@@ -20,6 +20,7 @@ const navItems = [
   { path: '/knowledge', label: '文档工作区' },
   { path: '/academic-search', label: 'Academic Search' },
   { path: '/zotero', label: 'Zotero' },
+  { path: '/grounded-writing', label: '有据写作' },
   { path: '/profile', label: '个人中心' },
 ];
 
