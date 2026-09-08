@@ -2,8 +2,8 @@
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
 and closed. E4, E5, and E6 are retained as historical accepted phases. P1 is
-accepted and merged; its final main CI and accepted tag are pending post-merge
-closeout.
+accepted and merged. P2 is accepted and merged; its final main CI and accepted
+tag are pending post-merge closeout.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -24,6 +24,7 @@ closeout.
 | E5 | Academic Search | OpenAlex external scholarly discovery with stateless authenticated search | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
+| P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -79,3 +80,15 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 - Candidate CI: run `34103737247`; `verify`, `postgres-schema`, and `production-gates` all SUCCESS.
 - Status: `PHASE_P1_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and annotated `phase-p1-accepted` tag remain required to establish `P1_ACCEPTED_CLOSED`.
 - Next phase: P2 Product Integration / UX — `NOT_STARTED / NOT AUTHORIZED`.
+
+## Phase P2 current record
+
+- Branch: `phase-p2-product-integration`.
+- PR: [#15 Phase P2: complete product integration and MVP UX flows](https://github.com/booom12133/academic-writing-platform/pull/15), MERGED with merge commit `171dcac876cf097c010b00ebf39aa7abc9231caf`.
+- Accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
+- Review: `P2_REVIEW_PASS`, followed by Final Acceptance `PHASE_P2_ACCEPTED`.
+- Final Acceptance Report: `docs/reviews/PHASE_P2_FINAL_ACCEPTANCE_REPORT.md`.
+- Final Acceptance Preparation: `f19af1434300113acb096f141b843ce2e0cf1127`.
+- Candidate CI run `34236991699`: `verify`, `postgres-schema`, and `production-gates` all SUCCESS.
+- Status: `PHASE_P2_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required for `P2_ACCEPTED_CLOSED`.
+- P3: `NOT_STARTED / NOT AUTHORIZED`.
