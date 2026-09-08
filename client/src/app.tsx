@@ -12,6 +12,8 @@ import RechargePage from './pages/Recharge/RechargePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
 import KnowledgePage from './pages/Knowledge/KnowledgePage';
+import AcademicSearchPage from './pages/AcademicSearch/AcademicSearchPage';
+import ZoteroPage from './pages/Zotero/ZoteroPage';
 import { AppAuthProvider } from './auth/AppAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 
@@ -58,6 +60,22 @@ const RoutesComponent = () => {
             element={
               <RequireAuth>
                 <KnowledgePage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="academic-search"
+            element={
+              <RequireAuth>
+                <AcademicSearchPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="zotero"
+            element={
+              <RequireAuth>
+                <ZoteroPage />
               </RequireAuth>
             }
           />

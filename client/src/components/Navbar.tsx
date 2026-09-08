@@ -18,6 +18,8 @@ const navItems = [
   { path: '/tools', label: '工具中心' },
   { path: '/tasks', label: '我的任务' },
   { path: '/knowledge', label: '文档工作区' },
+  { path: '/academic-search', label: 'Academic Search' },
+  { path: '/zotero', label: 'Zotero' },
   { path: '/profile', label: '个人中心' },
 ];
 
