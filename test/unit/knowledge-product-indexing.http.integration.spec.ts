@@ -1,4 +1,4 @@
-import { Controller, Get, Inject, Param, Post, Req, UnauthorizedException, UseFilters, type INestApplication } from '@nestjs/common';
+import { type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
@@ -15,57 +15,16 @@ import { KnowledgeIndexingService } from '../../server/modules/knowledge/indexin
 import { createEmbeddingConfig } from '../../server/modules/knowledge/indexing/embedding.config';
 import type { EmbeddingProvider } from '../../server/modules/knowledge/indexing/embedding.provider';
 import type { EmbeddingHealth, EmbeddingModelIdentity, EmbeddingRequest, EmbeddingResult } from '../../server/modules/knowledge/indexing/embedding.types';
-import { KnowledgeProductExceptionFilter } from '../../server/modules/knowledge-product/knowledge-product.exception-filter';
+import {
+  KnowledgeProductController,
+  KnowledgeProductIndexController,
+} from '../../server/modules/knowledge-product/knowledge-product.controller';
+import { KnowledgeProductError } from '../../server/modules/knowledge-product/knowledge-product.errors';
 import { KnowledgeProductIndexingService } from '../../server/modules/knowledge-product/knowledge-product.indexing';
 import { KnowledgeProductService } from '../../server/modules/knowledge-product/knowledge-product.service';
 
-const SERVICE_TOKEN = Symbol('KNOWLEDGE_PRODUCT_INDEXING_HTTP_SERVICE');
 const databaseUrl = process.env.DATABASE_URL;
 const describeIfDatabase = databaseUrl ? describe : describe.skip;
-
-type AuthenticatedRequest = { userContext?: { userId: string } };
-
-function requireUser(request: AuthenticatedRequest): string {
-  const userId = request.userContext?.userId;
-  if (!userId) throw new UnauthorizedException('Authentication is required.');
-  return userId;
-}
-
-class KnowledgeProductIndexHttpController {
-  constructor(@Inject(SERVICE_TOKEN) private readonly service: KnowledgeProductService) {}
-
-  indexDocument(req: AuthenticatedRequest, documentId: string) {
-    return this.service.indexActiveVersion(requireUser(req), documentId);
-  }
-
-  getIndexStatus(req: AuthenticatedRequest, documentId: string) {
-    return this.service.getIndexStatus(requireUser(req), documentId);
-  }
-}
-
-class KnowledgeProductRetryHttpController {
-  constructor(@Inject(SERVICE_TOKEN) private readonly service: KnowledgeProductService) {}
-
-  retryIndex(req: AuthenticatedRequest, indexId: string) {
-    return this.service.retryIndex(requireUser(req), indexId);
-  }
-}
-
-Controller('api/knowledge/documents')(KnowledgeProductIndexHttpController);
-UseFilters(KnowledgeProductExceptionFilter)(KnowledgeProductIndexHttpController);
-Post(':documentId/index')(KnowledgeProductIndexHttpController.prototype, 'indexDocument', Object.getOwnPropertyDescriptor(KnowledgeProductIndexHttpController.prototype, 'indexDocument')!);
-Get(':documentId/index')(KnowledgeProductIndexHttpController.prototype, 'getIndexStatus', Object.getOwnPropertyDescriptor(KnowledgeProductIndexHttpController.prototype, 'getIndexStatus')!);
-Req()(KnowledgeProductIndexHttpController.prototype, 'indexDocument', 0);
-Param('documentId')(KnowledgeProductIndexHttpController.prototype, 'indexDocument', 1);
-Req()(KnowledgeProductIndexHttpController.prototype, 'getIndexStatus', 0);
-Param('documentId')(KnowledgeProductIndexHttpController.prototype, 'getIndexStatus', 1);
-Inject(SERVICE_TOKEN)(KnowledgeProductIndexHttpController, undefined, 0);
-
-Controller('api/knowledge/indexes')(KnowledgeProductRetryHttpController);
-UseFilters(KnowledgeProductExceptionFilter)(KnowledgeProductRetryHttpController);
-Post(':indexId/retry')(KnowledgeProductRetryHttpController.prototype, 'retryIndex', Object.getOwnPropertyDescriptor(KnowledgeProductRetryHttpController.prototype, 'retryIndex')!);
-Req()(KnowledgeProductRetryHttpController.prototype, 'retryIndex', 0);
-Param('indexId')(KnowledgeProductRetryHttpController.prototype, 'retryIndex', 1);
 
 class FixedEmbeddingProvider implements EmbeddingProvider {
   private readonly identity: EmbeddingModelIdentity = {
@@ -90,8 +49,6 @@ class FixedEmbeddingProvider implements EmbeddingProvider {
     return { configured: true, provider: this.identity.provider, reachable: true, model: this.identity.model, dimensions: 2 };
   }
 }
-Inject(SERVICE_TOKEN)(KnowledgeProductRetryHttpController, undefined, 0);
-
 const documentId = '00000000-0000-4000-8000-000000000010';
 const versionId = '00000000-0000-4000-8000-000000000020';
 const indexId = '00000000-0000-4000-8000-000000000030';
@@ -163,8 +120,8 @@ describe('Knowledge product indexing HTTP boundary', () => {
       indexing as never,
     );
     const moduleRef = await Test.createTestingModule({
-      controllers: [KnowledgeProductIndexHttpController, KnowledgeProductRetryHttpController],
-      providers: [{ provide: SERVICE_TOKEN, useValue: service }],
+      controllers: [KnowledgeProductController, KnowledgeProductIndexController],
+      providers: [{ provide: KnowledgeProductService, useValue: service }],
     }).compile();
     app = moduleRef.createNestApplication();
     app.use((req: { headers: Record<string, unknown>; userContext?: { userId: string } }, _res: unknown, next: () => void) => {
@@ -226,6 +183,33 @@ describe('Knowledge product indexing HTTP boundary', () => {
     });
     expect(crossOwner.status).toBe(404);
   });
+
+  it('returns a stable sanitized error when indexing is unavailable', async () => {
+    indexing.indexActiveVersion.mockRejectedValueOnce(
+      new KnowledgeProductError(
+        'KNOWLEDGE_PRODUCT_UNAVAILABLE',
+        'Knowledge indexing is unavailable or failed.',
+        503,
+      ),
+    );
+
+    const response = await fetch(`${baseUrl}/api/knowledge/documents/${documentId}/index`, {
+      method: 'POST',
+      headers: { 'x-test-user': 'owner-1' },
+    });
+
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toEqual({
+      error: {
+        code: 'KNOWLEDGE_PRODUCT_UNAVAILABLE',
+        message: 'Knowledge indexing is unavailable or failed.',
+        timestamp: expect.any(Number),
+      },
+    });
+    expect(JSON.stringify(body)).not.toContain('stack');
+    expect(JSON.stringify(body)).not.toContain('cause');
+  });
 });
 
 describeIfDatabase('WP7 PostgreSQL product indexing HTTP integration', () => {
@@ -258,11 +242,11 @@ describeIfDatabase('WP7 PostgreSQL product indexing HTTP integration', () => {
     );
 
     const moduleRef = await Test.createTestingModule({
-      controllers: [KnowledgeProductIndexHttpController, KnowledgeProductRetryHttpController],
-      providers: [{ provide: SERVICE_TOKEN, useValue: product }],
+      controllers: [KnowledgeProductController, KnowledgeProductIndexController],
+      providers: [{ provide: KnowledgeProductService, useValue: product }],
     }).compile();
     app = moduleRef.createNestApplication();
-    app.use((req: AuthenticatedRequest & { headers: Record<string, unknown> }, _res: unknown, next: () => void) => {
+    app.use((req: { headers: Record<string, unknown>; userContext?: { userId: string } }, _res: unknown, next: () => void) => {
       const userId = req.headers['x-test-user'];
       if (typeof userId === 'string') req.userContext = { userId };
       next();

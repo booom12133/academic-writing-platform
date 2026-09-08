@@ -115,24 +115,29 @@ describe('KnowledgeProductIndexingService', () => {
     expect(indexing.indexVersion).not.toHaveBeenCalled();
   });
 
-  it('returns an already indexed active version without re-running embeddings', async () => {
+  it('delegates current index validity to E2 even when a historical index exists', async () => {
     const { service, indexRepository, indexing } = fixture();
-    const existing = makeIndex('indexed');
-    indexRepository.getLatestIndexForVersion.mockResolvedValueOnce(existing);
+    const historical = makeIndex('stale');
+    const current = makeIndex('indexed');
+    indexRepository.getLatestIndexForVersion.mockResolvedValueOnce(historical);
+    indexing.indexVersion.mockResolvedValueOnce(current);
 
-    await expect(service.indexActiveVersion(ownerId, documentId)).resolves.toBe(existing);
-    expect(indexing.indexVersion).not.toHaveBeenCalled();
+    await expect(service.indexActiveVersion(ownerId, documentId)).resolves.toBe(current);
+    expect(indexing.indexVersion).toHaveBeenCalledTimes(1);
+    expect(indexing.indexVersion).toHaveBeenCalledWith({
+      userId: ownerId,
+      documentVersionId: versionId,
+    });
   });
 
-  it('returns indexing, failed, and stale states without implicit retry', async () => {
-    for (const status of ['indexing', 'failed', 'stale'] as const) {
-      const { service, indexRepository, indexing } = fixture();
-      const existing = makeIndex(status);
-      indexRepository.getLatestIndexForVersion.mockResolvedValueOnce(existing);
+  it('returns the indexed materialization returned by E2 without product-level idempotency checks', async () => {
+    const { service, indexRepository, indexing } = fixture();
+    const existing = makeIndex('indexed');
+    indexing.indexVersion.mockResolvedValueOnce(existing);
 
-      await expect(service.indexActiveVersion(ownerId, documentId)).resolves.toBe(existing);
-      expect(indexing.indexVersion).not.toHaveBeenCalled();
-    }
+    await expect(service.indexActiveVersion(ownerId, documentId)).resolves.toBe(existing);
+    expect(indexing.indexVersion).toHaveBeenCalledTimes(1);
+    expect(indexRepository.getLatestIndexForVersion).not.toHaveBeenCalled();
   });
 
   it.each(['failed', 'stale'] as const)('delegates %s retry to the accepted E2 retry contract', async (status) => {

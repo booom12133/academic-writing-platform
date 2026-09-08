@@ -40,8 +40,6 @@ export class KnowledgeProductIndexingService {
     documentId: string,
   ): Promise<KnowledgeEmbeddingIndex> {
     const version = await this.requireIndexableVersion(userId, documentId);
-    const existing = await this.indexes.getLatestIndexForVersion(userId, version.id);
-    if (existing) return existing;
 
     try {
       return await this.indexing.indexVersion({
