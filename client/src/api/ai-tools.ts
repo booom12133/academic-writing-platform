@@ -2,6 +2,7 @@ import type { Task, TaskType } from '@shared/api.interface';
 import type { ProductToolCapability } from '@shared/product-capability.interface';
 import type { DocumentInputRef } from '@shared/document-input.interface';
 import { productHttpClient } from './http';
+import { validateToolInputContract } from '../pages/Tools/tool-input-contract';
 
 export interface SubmitTaskData {
   taskType: TaskType;
@@ -10,6 +11,8 @@ export interface SubmitTaskData {
 }
 
 export async function submitTask(data: SubmitTaskData): Promise<Task> {
+  const inputContract = validateToolInputContract(data.taskType, data.inputData);
+  if ('message' in inputContract) throw new Error(inputContract.message);
   const response = await productHttpClient.post<Task>('/api/ai-tools/submit', data);
   return response.data;
 }

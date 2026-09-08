@@ -28,9 +28,12 @@ describe('product capability submission policy', () => {
     expect(() =>
       assertToolSubmissionAllowed('topic-generation', { requirements: 'scope' }),
     ).not.toThrow();
-    expect(() => assertToolSubmissionAllowed('polish', { text: 'text' })).not.toThrow();
+    expect(() => assertToolSubmissionAllowed('polish', {
+      inputMode: 'text',
+      text: 'text',
+    })).not.toThrow();
     expect(() =>
-      assertToolSubmissionAllowed('paper-revision', { text: 'text' }),
+      assertToolSubmissionAllowed('paper-revision', { inputMode: 'text', text: 'text' }),
     ).not.toThrow();
   });
 });
