@@ -5,9 +5,11 @@
 - Accepted `main`: `862b0548943fb09913c524b5d0178151524bf946`
 - P2 implementation head: `8ba7a57cb00d42435c8dbbc9b20e471f6707f660`
 - Source branch: `phase-p2-product-integration`
-- Review candidate final branch head: the documentation commit that adds this file; the authoritative SHA is recorded in the PR preparation result and verified with `git rev-parse HEAD` after commit.
-- P2 commits after accepted `main`: 14
-- P2 diff: 111 files changed, `+10548/-701`
+- Review candidate final branch head: the final branch HEAD after evidence documentation; the authoritative SHA is recorded in the PR preparation result and verified with `git rev-parse HEAD` after commit.
+- P2 implementation commits after accepted `main` (before evidence): 14
+- P2 implementation diff: 111 files changed, `+10548/-701`
+- Candidate commits after accepted `main` including this evidence: 15
+- Candidate diff including this evidence: 112 files changed, `+10699/-701`
 
 This is review evidence, not a Final Acceptance Report. The evidence is based on code and automated tests; it does not claim a real production browser deployment.
 
