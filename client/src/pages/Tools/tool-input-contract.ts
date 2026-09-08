@@ -1,5 +1,5 @@
 import type { TaskType } from '@shared/api.interface';
-import type { DocumentInputRef } from '@shared/document-input.interface';
+import { isValidDocumentInputRef } from '../../lib/document-input-ref';
 
 export const AI_TOOL_INPUT_INVALID = 'AI_TOOL_INPUT_INVALID';
 
@@ -36,14 +36,14 @@ function validatePolish(input: Record<string, unknown>): ToolInputContractResult
       ? { valid: true }
       : invalid('润色文本模式需要有效文本。');
   }
-  return input.inputMode === 'file' && isDocumentInputRef(input.documentRef)
+  return input.inputMode === 'file' && isValidDocumentInputRef(input.documentRef)
     ? { valid: true }
     : invalid('润色文件模式必须使用真实 DocumentInputRef。');
 }
 
 function validatePaperRevision(input: Record<string, unknown>): ToolInputContractResult {
   const hasText = typeof input.text === 'string' && input.text.trim().length > 0;
-  const hasRef = input.documentRef !== undefined && isDocumentInputRef(input.documentRef);
+  const hasRef = input.documentRef !== undefined && isValidDocumentInputRef(input.documentRef);
   if (input.inputMode === 'text') return hasText && input.documentRef === undefined
     ? { valid: true }
     : invalid('论文修改文本模式需要有效文本。');
@@ -61,31 +61,8 @@ function validateTopicGeneration(input: Record<string, unknown>): ToolInputContr
   return hasText && keywordsValid ? { valid: true } : invalid('选题生成至少需要一项有效文本输入。');
 }
 
-function isDocumentInputRef(value: unknown): value is DocumentInputRef {
-  if (!isRecord(value)) return false;
-  return value.version === 1
-    && (value.provider === 'platform-file' || value.provider === 'self-hosted-filesystem')
-    && nonEmptyString(value.bucketId)
-    && nonEmptyString(value.filePath)
-    && nonEmptyString(value.fileName)
-    && (value.sourceType === 'docx'
-      || value.sourceType === 'pdf'
-      || value.sourceType === 'txt'
-      || value.sourceType === 'markdown')
-    && (value.mimeType === undefined || typeof value.mimeType === 'string')
-    && typeof value.sizeBytes === 'number'
-    && Number.isSafeInteger(value.sizeBytes)
-    && value.sizeBytes >= 0
-    && typeof value.sha256 === 'string'
-    && /^[a-f0-9]{64}$/i.test(value.sha256);
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function nonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function invalid(message: string): ToolInputContractResult {

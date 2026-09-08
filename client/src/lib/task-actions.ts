@@ -1,7 +1,7 @@
 import type { Task, TaskType } from '@shared/api.interface';
-import type { DocumentInputRef } from '@shared/document-input.interface';
 import type { TaskResultEnvelope, ProductionResultTaskType } from '@shared/task-result.interface';
 import { normalizeTaskResultText } from './task-result';
+import { isValidDocumentInputRef } from './document-input-ref';
 
 export interface TaskActionPayload {
   taskType: ProductionResultTaskType;
@@ -30,10 +30,13 @@ const APPROVED_INPUT_FIELDS: Record<ProductionResultTaskType, string[]> = {
 export function buildRerunPayload(task: Task): TaskActionPayload | null {
   const taskType = asProductionTaskType(task.taskType);
   if (!taskType) return null;
+  if (!isRecord(task.inputData)) return null;
+  const inputData = pickApprovedInput(taskType, task.inputData);
+  if (!isInputContractUsable(taskType, inputData)) return null;
   return {
     taskType,
     title: task.title,
-    inputData: pickApprovedInput(taskType, task.inputData),
+    inputData,
   };
 }
 
@@ -86,7 +89,7 @@ function pickApprovedInput(
   for (const field of APPROVED_INPUT_FIELDS[taskType]) {
     if (inputData[field] !== undefined) result[field] = inputData[field];
   }
-  if (result.documentRef !== undefined && !isDocumentInputRef(result.documentRef)) {
+  if (result.documentRef !== undefined && !isValidDocumentInputRef(result.documentRef)) {
     delete result.documentRef;
   }
   return result;
@@ -98,19 +101,7 @@ function isInputContractUsable(taskType: ProductionResultTaskType, inputData: Re
       && typeof inputData.educationLevel === 'string' && inputData.educationLevel.trim().length > 0;
   }
   if (inputData.inputMode === 'text') return typeof inputData.text === 'string' && inputData.text.trim().length > 0;
-  return inputData.inputMode === 'file' && isDocumentInputRef(inputData.documentRef);
-}
-
-function isDocumentInputRef(value: unknown): value is DocumentInputRef {
-  if (!isRecord(value)) return false;
-  return value.version === 1
-    && (value.provider === 'platform-file' || value.provider === 'self-hosted-filesystem')
-    && typeof value.bucketId === 'string'
-    && typeof value.filePath === 'string'
-    && typeof value.fileName === 'string'
-    && ['docx', 'pdf', 'txt', 'markdown'].includes(value.sourceType as string)
-    && typeof value.sizeBytes === 'number'
-    && typeof value.sha256 === 'string';
+  return inputData.inputMode === 'file' && isValidDocumentInputRef(inputData.documentRef);
 }
 
 function isRecord(value: unknown): value is Record<string, any> {

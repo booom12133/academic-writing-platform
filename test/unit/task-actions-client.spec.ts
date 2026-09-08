@@ -110,4 +110,35 @@ describe('task actions', () => {
     expect(exported.mimeType).toBe('text/plain;charset=utf-8');
     expect(await exported.blob.text()).toBe('修改后\n文本');
   });
+
+  it.each([
+    ['empty bucketId', { bucketId: ' ' }],
+    ['empty filePath', { filePath: '' }],
+    ['empty fileName', { fileName: '  ' }],
+    ['negative sizeBytes', { sizeBytes: -1 }],
+    ['non-integer sizeBytes', { sizeBytes: 1.5 }],
+    ['invalid sha256', { sha256: 'x' }],
+    ['unsupported provider', { provider: 'external' }],
+    ['unsupported sourceType', { sourceType: 'html' }],
+  ])('fails closed for %s DocumentInputRef', (_label, change) => {
+    const malformedRef = { ...documentRef, ...change };
+    const malformedTask = task({ inputData: { inputMode: 'file', documentRef: malformedRef } });
+
+    expect(buildRerunPayload(malformedTask)).toBeNull();
+    expect(buildContinueState(malformedTask)).toBeNull();
+    expect(readContinueState('polish', {
+      taskType: 'polish',
+      title: '继续编辑',
+      inputData: { inputMode: 'file', documentRef: malformedRef },
+    })).toBeNull();
+  });
+
+  it('fails closed for incomplete production text and topic inputs', () => {
+    expect(buildRerunPayload(task({ inputData: { inputMode: 'text' } }))).toBeNull();
+    expect(buildRerunPayload(task({
+      taskType: 'topic-generation',
+      inputData: { field: '计算机科学' },
+    }))).toBeNull();
+    expect(buildRerunPayload(task({ inputData: null as unknown as Record<string, any> }))).toBeNull();
+  });
 });
