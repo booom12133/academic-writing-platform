@@ -3,14 +3,12 @@
 ## Candidate identity
 
 - Accepted `main`: `862b0548943fb09913c524b5d0178151524bf946`
-- P2 implementation head before this payment truth fix: `c633fc33022650a2f59cd5b435a94a5e233a4d46`
+- P2 implementation head before this server payment-boundary fix: `65d4c985d5134816556b023813e7ddd1a4386b6f`
 - Source branch: `phase-p2-product-integration`
 - Review candidate final branch head: the final branch HEAD after evidence documentation; the authoritative SHA is recorded in the PR preparation result and verified with `git rev-parse HEAD` after commit.
-- P2 implementation commits after accepted `main` (before evidence): 14
-- P2 implementation diff: 111 files changed, `+10548/-701`
-- Candidate commits after accepted `main` before this payment truth fix: 16
-- Candidate diff before this payment truth fix: 112 files changed, `+10701/-701`
-- Payment truth fix commit: the commit updating this evidence and the production UI; its authoritative SHA is reported with the final branch HEAD.
+- P2 implementation commits after accepted `main` before this fix: 17
+- P2 implementation diff before this fix: 117 files changed, `+10813/-893`
+- Server payment-boundary fix commit: the authoritative SHA is reported with the final branch HEAD.
 
 This is review evidence, not a Final Acceptance Report. The evidence is based on code and automated tests; it does not claim a real production browser deployment.
 
@@ -91,11 +89,14 @@ P2 proves these integrated code paths. P3 proves real deployed production topolo
 - `mock_token` appears only in an auth test fixture; the client production login path does not use it.
 - The legacy mock order/payment backend remains retained but is not exposed as an executable production product flow.
 - Production UI does not offer recharge/payment in P2; `/recharge` is an unavailable page and does not create orders, pay orders, or display a fake QR.
+- Production HTTP mutation routes `POST /api/orders`, `POST /api/orders/:id/pay`, and `POST /api/orders/:id/cancel` reject with `PAYMENT_NOT_AVAILABLE` and HTTP 503 before calling the legacy service.
+- Read-only `GET /api/orders` and `GET /api/orders/:id` remain owner-scoped through `req.userContext.userId`.
+- Authenticated users cannot obtain points through the legacy mock payment HTTP path because `PointsService.recharge` is unreachable from the rejected payment route.
 - A real payment provider remains outside P2.
 
-The product-truth, production-capability, input-contract, and tool-gate regression command passed with 4 suites and 11 tests.
+The product-truth, production-capability, input-contract, and tool-gate regression command passed with 5 suites and 16 tests.
 
-The payment product-truth regression additionally verifies that Navbar and Dashboard expose no recharge action, Profile order history is read-only, and `/recharge` mounts no executable mock payment UI.
+The payment product-truth regression additionally verifies that Navbar and Dashboard expose no recharge action, Profile order history is read-only, and `/recharge` mounts no executable mock payment UI. The server payment-boundary regression verifies the three rejected mutations and both retained owner-scoped read paths (2 suites, 9 tests total).
 
 ## Frozen boundaries and retained limitations
 
@@ -117,13 +118,13 @@ Executed from `phase-p2-product-integration`:
 
 | Verification | Result |
 |---|---|
-| `npm test -- --runInBand` | 166 suites passed; 872 tests passed; 21 skipped |
+| `npm test -- --runInBand` | 168 suites passed; 882 tests passed; 21 skipped |
 | `npm run type:check` | PASS |
 | `npm run build:server` | PASS |
 | `npm run build:client` | PASS |
 | `npm run lint` | PASS |
 | `npm run test:app-bootstrap` | PASS; AppModule bootstrap resolved |
-| Production boundary/gate regression | 4 suites, 11 tests passed |
+| Production boundary/gate regression | 5 suites, 16 tests passed |
 | E6 regression | 14 suites, 51 tests passed |
 | E3 regression | 10 suites, 36 tests passed |
 | WP7 regression | 4 suites, 27 passed, 1 skipped |
@@ -143,7 +144,7 @@ Result: 3 guarded HTTP tests passed and 1 PostgreSQL product integration case sk
 
 ## CI and governance
 
-CI run ID/status is not applicable before PR creation. After the single formal P2 PR is created, any automatically triggered CI result must be reported without treating it as local verification.
+The latest completed CI for PR #15 before this server-boundary push was run `34224107013`; `verify`, `postgres-schema`, and `production-gates` all passed. A new run for the final fix HEAD must be reported after push.
 
 At candidate preparation time:
 

@@ -24,6 +24,7 @@ export enum ResponseCode {
 
   // 业务错误
   BUSINESS_ERROR = 'BUSINESS_ERROR',
+  PAYMENT_NOT_AVAILABLE = 'PAYMENT_NOT_AVAILABLE',
 }
 
 // 状态码映射配置
@@ -46,6 +47,7 @@ export const RESPONSE_CODE_TO_HTTP_STATUS_MAP: Record<ResponseCode, number> = {
   [ResponseCode.SERVICE_UNAVAILABLE]: HttpStatus.SERVICE_UNAVAILABLE,
 
   [ResponseCode.BUSINESS_ERROR]: HttpStatus.UNPROCESSABLE_ENTITY, // 通用业务错误状态码
+  [ResponseCode.PAYMENT_NOT_AVAILABLE]: HttpStatus.SERVICE_UNAVAILABLE,
 };
 
 // 自动生成的HTTP状态码映射
