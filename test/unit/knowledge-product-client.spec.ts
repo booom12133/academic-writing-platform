@@ -9,9 +9,12 @@ jest.mock('../../client/src/api/http', () => ({
 import { productHttpClient } from '../../client/src/api/http';
 import {
   deleteDocument,
+  getIndexStatus,
   getDocument,
+  indexDocument,
   importDocument,
   listDocuments,
+  retryIndex,
 } from '../../client/src/api/knowledge';
 import type { DocumentInputDescriptor } from '@shared/document-input.interface';
 import type { KnowledgeWorkspaceDocument } from '@shared/knowledge-product.interface';
@@ -132,6 +135,21 @@ describe('knowledge product client API', () => {
       status: 503,
       retryable: true,
     });
+  });
+
+  it('uses the authenticated synchronous indexing and retry routes', async () => {
+    const post = productHttpClient.post as jest.Mock;
+    const get = productHttpClient.get as jest.Mock;
+    post.mockResolvedValueOnce({ data: workspaceDocument });
+    post.mockResolvedValueOnce({ data: workspaceDocument });
+    get.mockResolvedValueOnce({ data: workspaceDocument });
+
+    await expect(indexDocument(workspaceDocument.document.id)).resolves.toEqual(workspaceDocument);
+    await expect(getIndexStatus(workspaceDocument.document.id)).resolves.toEqual(workspaceDocument);
+    await expect(retryIndex('index/1')).resolves.toEqual(workspaceDocument);
+    expect(post).toHaveBeenNthCalledWith(1, `/api/knowledge/documents/${workspaceDocument.document.id}/index`);
+    expect(get).toHaveBeenCalledWith(`/api/knowledge/documents/${workspaceDocument.document.id}/index`);
+    expect(post).toHaveBeenNthCalledWith(2, '/api/knowledge/indexes/index%2F1/retry');
   });
 });
 

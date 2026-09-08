@@ -8,6 +8,7 @@ import type { DocumentInputRef } from '@shared/document-input.interface';
 import { DocumentInputError } from '../document-input/document-input.errors';
 import { DocumentInputService } from '../document-input/document-input.service';
 import { KnowledgeError } from '../knowledge/knowledge.errors';
+import type { KnowledgeEmbeddingIndex } from '../knowledge/indexing/knowledge-indexing.types';
 import { KnowledgeRepository } from '../knowledge/knowledge.repository';
 import { KnowledgeService } from '../knowledge/knowledge.service';
 import type {
@@ -19,6 +20,7 @@ import {
   parseKnowledgeDocumentId,
 } from './knowledge-product.http.dto';
 import { KnowledgeProductError } from './knowledge-product.errors';
+import { KnowledgeProductIndexingService } from './knowledge-product.indexing';
 import type { KnowledgeProductRepository } from './knowledge-product.types';
 
 @Injectable()
@@ -30,7 +32,52 @@ export class KnowledgeProductService {
     private readonly knowledge: Pick<KnowledgeService, 'importDocument' | 'tombstoneDocument'>,
     @Inject(DocumentInputService)
     private readonly documentInput: Pick<DocumentInputService, 'validateOwnedRef'>,
+    @Inject(KnowledgeProductIndexingService)
+    private readonly indexing: KnowledgeProductIndexingService,
   ) {}
+
+  async indexActiveVersion(
+    userId: string,
+    documentId: string,
+  ): Promise<KnowledgeWorkspaceDocument> {
+    this.requireUser(userId);
+    const parsedId = parseKnowledgeDocumentId(documentId);
+    try {
+      const index = await this.indexing.indexActiveVersion(userId, parsedId);
+      return await this.projectDocumentWithIndex(userId, parsedId, index);
+    } catch (error) {
+      throw this.mapDependencyError(error);
+    }
+  }
+
+  async getIndexStatus(
+    userId: string,
+    documentId: string,
+  ): Promise<KnowledgeWorkspaceDocument> {
+    this.requireUser(userId);
+    const parsedId = parseKnowledgeDocumentId(documentId);
+    try {
+      const index = await this.indexing.getIndexStatus(userId, parsedId);
+      return await this.projectDocumentWithIndex(userId, parsedId, index ?? undefined);
+    } catch (error) {
+      throw this.mapDependencyError(error);
+    }
+  }
+
+  async retryIndex(
+    userId: string,
+    indexId: string,
+  ): Promise<KnowledgeWorkspaceDocument> {
+    this.requireUser(userId);
+    try {
+      const index = await this.indexing.retryIndex(userId, indexId);
+      const version = await this.repository.getVersion(userId, index.documentVersionId);
+      if (!version || version.userId !== userId) throw this.notFound();
+      return await this.projectDocumentWithIndex(userId, version.documentId, index);
+    } catch (error) {
+      throw this.mapDependencyError(error);
+    }
+  }
 
   async listDocuments(userId: string): Promise<KnowledgeWorkspaceDocument[]> {
     this.requireUser(userId);
@@ -123,13 +170,37 @@ export class KnowledgeProductService {
     const version = document.activeVersionId
       ? await this.repository.getVersion(userId, document.activeVersionId)
       : null;
-    return this.projectVersion(userId, document, version);
+    const index = await this.indexing.getIndexStatus(userId, document.id);
+    return this.projectVersion(userId, document, version, index ?? undefined);
+  }
+
+  private async projectDocumentWithIndex(
+    userId: string,
+    documentId: string,
+    index?: KnowledgeEmbeddingIndex,
+  ): Promise<KnowledgeWorkspaceDocument> {
+    const document = await this.repository.getDocument(userId, documentId);
+    if (!document || document.userId !== userId || document.lifecycleStatus !== 'active') {
+      throw this.notFound();
+    }
+    if (index && document.activeVersionId !== index.documentVersionId) {
+      throw new KnowledgeProductError(
+        'KNOWLEDGE_PRODUCT_INDEX_NOT_RETRYABLE',
+        'The embedding index does not belong to the active document version.',
+        409,
+      );
+    }
+    const version = document.activeVersionId
+      ? await this.repository.getVersion(userId, document.activeVersionId)
+      : null;
+    return this.projectVersion(userId, document, version, index);
   }
 
   private projectVersion(
     userId: string,
     document: KnowledgeDocument,
     version: KnowledgeDocumentVersion | null,
+    index?: KnowledgeEmbeddingIndex,
   ): KnowledgeWorkspaceDocument {
     const activeVersion =
       version &&
@@ -167,6 +238,23 @@ export class KnowledgeProductService {
       },
       ...(activeVersion === undefined ? {} : { activeVersion }),
       ...(documentRef === undefined ? {} : { documentRef }),
+      ...(index === undefined ? {} : { index: this.projectIndex(index) }),
+    };
+  }
+
+  private projectIndex(index: KnowledgeEmbeddingIndex): NonNullable<KnowledgeWorkspaceDocument['index']> {
+    return {
+      id: index.id,
+      status: index.status,
+      totalChunks: index.totalChunks,
+      indexedChunks: index.indexedChunks,
+      failedChunks: index.failedChunks,
+      ...(index.lastErrorCode === undefined ? {} : { lastErrorCode: index.lastErrorCode }),
+      ...(index.status === 'failed'
+        ? { lastErrorMessage: '索引处理失败，请重试。' }
+        : index.status === 'stale'
+          ? { lastErrorMessage: '索引内容已过期，请重新建立索引。' }
+          : {}),
     };
   }
 

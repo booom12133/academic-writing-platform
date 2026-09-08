@@ -39,6 +39,18 @@ export class KnowledgeProductController {
   }
 
   @NeedLogin()
+  @Post(':documentId/index')
+  async indexDocument(@Req() req: Request, @Param('documentId') documentId: string) {
+    return this.service.indexActiveVersion(this.requireUser(req), documentId);
+  }
+
+  @NeedLogin()
+  @Get(':documentId/index')
+  async getIndexStatus(@Req() req: Request, @Param('documentId') documentId: string) {
+    return this.service.getIndexStatus(this.requireUser(req), documentId);
+  }
+
+  @NeedLogin()
   @Delete(':documentId')
   async deleteDocument(@Req() req: Request, @Param('documentId') documentId: string) {
     return this.service.deleteDocument(this.requireUser(req), documentId);
@@ -48,5 +60,19 @@ export class KnowledgeProductController {
     const userId = req.userContext?.userId;
     if (!userId) throw new UnauthorizedException('Authentication is required.');
     return userId;
+  }
+}
+
+@Controller('api/knowledge/indexes')
+@UseFilters(KnowledgeProductExceptionFilter)
+export class KnowledgeProductIndexController {
+  constructor(private readonly service: KnowledgeProductService) {}
+
+  @NeedLogin()
+  @Post(':indexId/retry')
+  async retryIndex(@Req() req: Request, @Param('indexId') indexId: string) {
+    const userId = req.userContext?.userId;
+    if (!userId) throw new UnauthorizedException('Authentication is required.');
+    return this.service.retryIndex(userId, indexId);
   }
 }

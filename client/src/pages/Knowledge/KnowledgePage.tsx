@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { BookOpen, FileText, RefreshCw, Trash2 } from 'lucide-react';
 
 import { knowledgeApi } from '@client/src/api/index';
+import { ProductApiError } from '@client/src/api/knowledge';
 import { DocumentUploadFlow } from '@client/src/components/documents/DocumentUploadFlow';
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
@@ -14,19 +15,36 @@ const originLabels: Record<KnowledgeWorkspaceDocument['document']['originKind'],
   'external-attachment': '外部附件',
 };
 
+const indexStatusLabels: Record<'indexing' | 'indexed' | 'failed' | 'stale', string> = {
+  indexing: '索引中',
+  indexed: '已建立索引',
+  failed: '索引失败',
+  stale: '索引已过期',
+};
+
+function safeErrorMessage(error: unknown): string {
+  return error instanceof ProductApiError
+    ? error.message
+    : '知识工作区操作失败，请稍后重试。';
+}
+
 export default function KnowledgePage() {
   const [documents, setDocuments] = useState<KnowledgeWorkspaceDocument[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [indexAction, setIndexAction] = useState<{
+    documentId: string;
+    kind: 'index' | 'refresh' | 'retry';
+  } | null>(null);
 
   const loadDocuments = useCallback(async () => {
     setLoading(true);
-    setError(false);
+    setError(null);
     try {
       setDocuments(await knowledgeApi.listDocuments());
-    } catch (_error) {
-      setError(true);
+    } catch (loadError) {
+      setError(safeErrorMessage(loadError));
     } finally {
       setLoading(false);
     }
@@ -41,10 +59,32 @@ export default function KnowledgePage() {
     try {
       await knowledgeApi.deleteDocument(documentId);
       setDocuments((current) => current.filter((item) => item.document.id !== documentId));
-    } catch (_error) {
-      setError(true);
+    } catch (deleteError) {
+      setError(safeErrorMessage(deleteError));
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const updateDocument = (updated: KnowledgeWorkspaceDocument) => {
+    setDocuments((current) => current.map((item) => (
+      item.document.id === updated.document.id ? updated : item
+    )));
+  };
+
+  const runIndexAction = async (
+    item: KnowledgeWorkspaceDocument,
+    kind: 'index' | 'refresh' | 'retry',
+    action: () => Promise<KnowledgeWorkspaceDocument>,
+  ) => {
+    setIndexAction({ documentId: item.document.id, kind });
+    setError(null);
+    try {
+      updateDocument(await action());
+    } catch (indexError) {
+      setError(safeErrorMessage(indexError));
+    } finally {
+      setIndexAction(null);
     }
   };
 
@@ -56,7 +96,7 @@ export default function KnowledgePage() {
           <h1 className="text-2xl font-semibold leading-tight text-slate-800">文档工作区</h1>
         </div>
         <p className="mt-2 text-sm text-slate-500">
-          上传资料并保存为可复用文档。当前阶段只导入内容，不会自动建立索引。
+          上传资料并保存为可复用文档。导入与建立索引是两个独立的显式操作。
         </p>
       </div>
 
@@ -82,7 +122,7 @@ export default function KnowledgePage() {
         ) : error ? (
           <Card>
             <CardContent className="space-y-3 py-8 text-center">
-              <p className="text-sm text-red-600">文档工作区加载或操作失败。</p>
+              <p className="text-sm text-red-600">{error}</p>
               <Button type="button" variant="outline" onClick={() => void loadDocuments()}>重试</Button>
             </CardContent>
           </Card>
@@ -106,7 +146,7 @@ export default function KnowledgePage() {
                       </p>
                     </div>
                     <Badge variant="secondary">
-                      {item.index?.status ?? '未建立索引'}
+                      {item.index ? indexStatusLabels[item.index.status] : '未建立索引'}
                     </Badge>
                   </div>
                   <div className="space-y-1 text-xs text-slate-500">
@@ -114,6 +154,45 @@ export default function KnowledgePage() {
                     <p>
                       文件工具：{item.documentRef ? '可用于润色与论文修改' : '仅文本知识版本，不提供文件引用'}
                     </p>
+                    <p>
+                      {item.index
+                        ? `索引块：${item.index.indexedChunks}/${item.index.totalChunks}`
+                        : '当前未建立索引；Academic Search 和 Zotero 导入不会自动建立索引。'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!item.index && item.activeVersion ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={indexAction?.documentId === item.document.id}
+                        onClick={() => void runIndexAction(item, 'index', () => knowledgeApi.indexDocument(item.document.id))}
+                      >
+                        {indexAction?.documentId === item.document.id && indexAction.kind === 'index' ? '正在建立索引…' : '建立索引'}
+                      </Button>
+                    ) : null}
+                    {item.index ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={indexAction?.documentId === item.document.id}
+                        onClick={() => void runIndexAction(item, 'refresh', () => knowledgeApi.getIndexStatus(item.document.id))}
+                      >
+                        {indexAction?.documentId === item.document.id && indexAction.kind === 'refresh' ? '正在刷新…' : '刷新状态'}
+                      </Button>
+                    ) : null}
+                    {item.index && (item.index.status === 'failed' || item.index.status === 'stale') ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={indexAction?.documentId === item.document.id || !item.index.id}
+                        onClick={() => void runIndexAction(item, 'retry', () => knowledgeApi.retryIndex(item.index!.id))}
+                      >
+                        {indexAction?.documentId === item.document.id && indexAction.kind === 'retry' ? '正在重试…' : '重试索引'}
+                      </Button>
+                    ) : null}
                   </div>
                   <Button
                     type="button"

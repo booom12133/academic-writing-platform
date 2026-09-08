@@ -101,3 +101,30 @@ export async function deleteDocument(
     return response.data;
   });
 }
+
+export async function indexDocument(documentId: string): Promise<KnowledgeWorkspaceDocument> {
+  return productRequest(async () => {
+    const response = await productHttpClient.post<KnowledgeWorkspaceDocument>(
+      `/api/knowledge/documents/${encodeURIComponent(documentId)}/index`,
+    );
+    return response.data;
+  });
+}
+
+export async function getIndexStatus(documentId: string): Promise<KnowledgeWorkspaceDocument> {
+  return productRequest(async () => {
+    const response = await productHttpClient.get<KnowledgeWorkspaceDocument>(
+      `/api/knowledge/documents/${encodeURIComponent(documentId)}/index`,
+    );
+    return response.data;
+  });
+}
+
+export async function retryIndex(indexId: string): Promise<KnowledgeWorkspaceDocument> {
+  return productRequest(async () => {
+    const response = await productHttpClient.post<KnowledgeWorkspaceDocument>(
+      `/api/knowledge/indexes/${encodeURIComponent(indexId)}/retry`,
+    );
+    return response.data;
+  });
+}

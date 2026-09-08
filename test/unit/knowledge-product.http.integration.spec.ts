@@ -134,12 +134,18 @@ describe('KnowledgeProduct HTTP boundary', () => {
   const documentInput = {
     validateOwnedRef: jest.fn().mockResolvedValue(documentRef),
   };
+  const indexing = {
+    getIndexStatus: jest.fn().mockResolvedValue(null),
+    indexActiveVersion: jest.fn(),
+    retryIndex: jest.fn(),
+  };
 
   beforeAll(async () => {
     const service = new KnowledgeProductService(
       repository as never,
       knowledge as never,
       documentInput as never,
+      indexing as never,
     );
     const moduleRef = await Test.createTestingModule({
       controllers: [KnowledgeProductHttpBoundaryController],

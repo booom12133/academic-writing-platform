@@ -30,7 +30,10 @@ describe('KnowledgeProductController', () => {
     importDocument: jest.fn(),
     listDocuments: jest.fn(),
     getDocument: jest.fn(),
+    indexActiveVersion: jest.fn(),
+    getIndexStatus: jest.fn(),
     deleteDocument: jest.fn(),
+    retryIndex: jest.fn(),
   };
   const controller = new KnowledgeProductController(
     service as unknown as KnowledgeProductService,
@@ -57,7 +60,7 @@ describe('KnowledgeProductController', () => {
       body,
     );
 
-    expect(NeedLogin).toHaveBeenCalledTimes(4);
+    expect(NeedLogin).toHaveBeenCalledTimes(7);
     expect(service.importDocument).toHaveBeenCalledWith('owner-1', body);
   });
 

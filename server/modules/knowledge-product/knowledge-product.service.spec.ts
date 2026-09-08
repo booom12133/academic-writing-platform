@@ -127,16 +127,23 @@ function serviceFixture() {
   const documentInput = {
     validateOwnedRef: jest.fn().mockResolvedValue(documentRef),
   };
+  const indexing = {
+    getIndexStatus: jest.fn().mockResolvedValue(null),
+    indexActiveVersion: jest.fn(),
+    retryIndex: jest.fn(),
+  };
   const service = new KnowledgeProductService(
     repository as never,
     knowledge as never,
     documentInput as never,
+    indexing as never,
   );
   return {
     service,
     repository,
     knowledge,
     documentInput,
+    indexing,
     storedDocument,
     storedVersion,
   };
