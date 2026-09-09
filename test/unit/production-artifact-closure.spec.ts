@@ -14,11 +14,16 @@ const migrationName = '0001_standard_postgres_baseline.sql';
 function createArtifact(root: string, migrationContent = 'CREATE TABLE baseline ();') {
   mkdirSync(join(root, 'server'), { recursive: true });
   mkdirSync(join(root, 'dist', 'client'), { recursive: true });
+  mkdirSync(join(root, 'client'), { recursive: true });
+  mkdirSync(join(root, 'shared'), { recursive: true });
+  mkdirSync(join(root, 'sourcemaps'), { recursive: true });
   mkdirSync(join(root, 'node_modules'), { recursive: true });
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(root, 'drizzle', 'migrations'), { recursive: true });
   writeFileSync(join(root, 'server', 'main.js'), 'runtime');
   writeFileSync(join(root, 'dist', 'client', 'index.html'), 'client');
+  writeFileSync(join(root, 'api-routes.json'), '{}');
+  writeFileSync(join(root, 'page-routes.json'), '{}');
   writeFileSync(join(root, 'package.json'), '{"private":true}');
   writeFileSync(join(root, 'run.sh'), '#!/usr/bin/env bash');
   for (const script of [
@@ -73,6 +78,28 @@ describe('production artifact closure', () => {
       expect(() =>
         assertProductionArtifactLayout(root, migrationsRoot),
       ).toThrow(/scripts\/lint\.js/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(migrationsRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an unrelated top-level artifact entry', () => {
+    const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
+    const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));
+    try {
+      createArtifact(root);
+      mkdirSync(join(root, 'tests'), { recursive: true });
+      writeFileSync(join(root, 'tests', 'fixture.txt'), 'fixture');
+      mkdirSync(migrationsRoot, { recursive: true });
+      writeFileSync(
+        join(migrationsRoot, migrationName),
+        'CREATE TABLE baseline ();',
+      );
+
+      expect(() =>
+        assertProductionArtifactLayout(root, migrationsRoot),
+      ).toThrow(/unexpected top-level artifact entry: tests/);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(migrationsRoot, { recursive: true, force: true });

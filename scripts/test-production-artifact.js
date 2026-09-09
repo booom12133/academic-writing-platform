@@ -9,7 +9,12 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 
 const REQUIRED_ARTIFACT_ENTRIES = new Set([
+  'api-routes.json',
+  'client',
+  'page-routes.json',
   'server',
+  'shared',
+  'sourcemaps',
   'dist',
   'node_modules',
   'package.json',

@@ -45,9 +45,13 @@ describe('P3 deployment contract', () => {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
 
-    expect(readProjectFile('deploy/scripts/host-preflight.sh')).toContain(
-      'ss -ltnp',
-    );
+    const preflight = readProjectFile('deploy/scripts/host-preflight.sh');
+    expect(preflight).toContain('ss -ltnp');
+    expect(preflight).toContain('NOT_FOUND');
+    expect(preflight).toContain('node');
+    expect(preflight).toContain('npm');
+    expect(preflight).toContain('systemctl');
+    expect(preflight).not.toContain('set -euo pipefail');
     expect(readProjectFile('deploy/scripts/release-install.sh')).toContain(
       'release-manifest.sha256',
     );
