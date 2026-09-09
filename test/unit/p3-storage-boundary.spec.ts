@@ -26,16 +26,38 @@ describe('P3 persistent storage deployment boundary', () => {
     expect(script).not.toMatch(/^\s*(?:sudo\s+)?(?:rm|cp|mv|ln)\b/mu);
   });
 
+  it('defines idempotent identity and storage provisioning without destructive account changes', () => {
+    const scriptPath = join(root, 'deploy', 'scripts', 'prepare-storage.sh');
+    expect(existsSync(scriptPath)).toBe(true);
+
+    const script = readProjectFile('deploy/scripts/prepare-storage.sh');
+    expect(script).toContain('set -euo pipefail');
+    expect(script).toContain('groupadd --system "$service_group"');
+    expect(script).toContain('--system');
+    expect(script).toContain('--gid "$service_group"');
+    expect(script).toContain('--no-create-home');
+    expect(script).toContain('--home-dir "$service_home"');
+    expect(script).toContain('service_shell="/usr/sbin/nologin"');
+    expect(script).toContain('service_home="/nonexistent"');
+    expect(script).toContain('install -d -o "$service_user" -g "$service_group" -m 700');
+    expect(script).toContain('refusing to alter it');
+    expect(script).not.toMatch(/\b(?:userdel|groupdel|usermod|groupmod)\b/u);
+    expect(script).not.toMatch(/^\s*(?:sudo\s+)?(?:rm|cp|mv|ln)\b/mu);
+  });
+
   it('documents the exact root and non-conflicting runtime identity', () => {
     const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
     const manifest = readProjectFile('docs/deployment/P3_ENVIRONMENT_MANIFEST.md');
 
     expect(runbook).toContain(storageRoot);
     expect(runbook).toContain('academic-writing:academic-writing');
-    expect(runbook).toContain("-m 700");
+    expect(runbook).toContain('mode `700`');
     expect(runbook).toContain('verify-storage.sh');
     expect(manifest).toContain('DOCUMENT_STORAGE_DRIVER=filesystem');
     expect(manifest).toContain(`DOCUMENT_STORAGE_ROOT=${storageRoot}`);
+
+    const provisioning = readProjectFile('deploy/scripts/prepare-storage.sh');
+    expect(provisioning).toContain('-m 700');
   });
 
   it('keeps persistent storage outside build and release mutation paths', () => {

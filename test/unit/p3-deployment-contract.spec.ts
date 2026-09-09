@@ -41,6 +41,7 @@ describe('P3 deployment contract', () => {
       'release-activate.sh',
       'verify-live.sh',
       'rollback.sh',
+      'prepare-storage.sh',
       'verify-storage.sh',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
@@ -67,6 +68,9 @@ describe('P3 deployment contract', () => {
     );
     expect(readProjectFile('deploy/scripts/verify-storage.sh')).toContain(
       '/var/lib/academic-writing-platform/documents',
+    );
+    expect(readProjectFile('deploy/scripts/prepare-storage.sh')).toContain(
+      'useradd',
     );
   });
 

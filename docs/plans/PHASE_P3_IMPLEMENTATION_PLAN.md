@@ -326,10 +326,12 @@ Existing Accepted Contract: DOCUMENT_STORAGE_ROOT is absolute; filesystem storag
 
 Files to Inspect: server/modules/document-input/document-storage.config.ts, filesystem-document-storage.adapter.ts, storage-readiness.ts, their specs, production-config.ts, and document-input integration tests.
 
-Files Expected to Change: No business storage changes. Add deploy/scripts/verify-storage.sh and a focused p3-storage-boundary test only if deployment-path coverage is needed.
+Files Expected to Change: No business storage changes. Add deploy/scripts/prepare-storage.sh, deploy/scripts/verify-storage.sh, and focused persistent-storage boundary tests.
 
 Server Changes after authorization:
 
+    sudo groupadd --system academic-writing  # only when the group is absent
+    sudo useradd --system --gid academic-writing --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin academic-writing  # only when the user is absent
     sudo install -d -o academic-writing -g academic-writing -m 700 /var/lib/academic-writing-platform/documents
     sudo install -d -o academic-writing -g academic-writing -m 700 /var/log/academic-writing-platform
     sudo install -d -o academic-writing -g academic-writing -m 700 /var/backups/academic-writing-platform
@@ -346,7 +348,7 @@ Commands after authorization [B: production release app / HTTPS + C: host OS]: R
 
 Tests Before Change: document-input specs, storage readiness tests, and Workflow A/B local contract tests.
 
-Implementation Steps: Create mode-700 root, verify PM2 user, perform upload/download, verify external path, and use temporary-file cleanup only as an optional best-effort operational command.
+Implementation Steps: Idempotently establish the exact academic-writing system group/user when absent, fail closed on an incompatible existing identity without recreating or renumbering it, create the mode-700 root, verify the runtime identity, perform upload/download, verify external path, and use temporary-file cleanup only as an optional best-effort operational command.
 
 Verification: Storage readiness returns ready, no group/other permissions exist, file hash survives restart/release switch, and anonymous/static requests cannot read the file.
 
@@ -477,18 +479,18 @@ Existing Accepted Contract: scripts/build.sh, scripts/run.sh, scripts/test-produ
 
 Files Expected to Change: Deployment files from WP1, scripts/build.sh, scripts/test-production-artifact.js, and focused artifact-closure tests from WP1 only. Do not copy the whole repository scripts/ directory or add production-only npm scripts.
 
-Server Changes after authorization: Create the academic-writing service user, copy the exact reviewed build artifact contents into /opt/academic-writing-platform/releases/<commit-sha>/app/, copy deploy metadata from the same reviewed commit into /opt/academic-writing-platform/releases/<commit-sha>/deploy/, verify both manifests, point /opt/academic-writing-platform/current to that release directory, and start/reload PM2 with cwd=/opt/academic-writing-platform/current/app. The app artifact must contain server/, dist/, node_modules/, package.json, run.sh, only the three approved scripts under scripts/, and the exact drizzle/migrations tree from the reviewed commit.
+Server Changes after authorization: Reuse and verify the exact academic-writing service identity established by WP3; do not recreate or renumber it. Copy the exact reviewed build artifact contents into /opt/academic-writing-platform/releases/<commit-sha>/app/, copy deploy metadata from the same reviewed commit into /opt/academic-writing-platform/releases/<commit-sha>/deploy/, verify both manifests, point /opt/academic-writing-platform/current to that release directory, and start/reload PM2 with cwd=/opt/academic-writing-platform/current/app. The app artifact must contain server/, dist/, node_modules/, package.json, run.sh, only the three approved scripts under scripts/, and the exact drizzle/migrations tree from the reviewed commit.
 
 Configuration / Env: PM2 starts server/main.js from cwd=/opt/academic-writing-platform/current/app with node_args=--env-file=/etc/academic-writing-platform/production.env. Node 22 reads this file before loading the application; PM2 is not assumed to understand or auto-load env files. The file is outside Git and the artifact, owned by academic-writing:academic-writing with mode 600, and contains NODE_ENV=production, RUNTIME_PROFILE=standalone, SERVER_HOST=127.0.0.1, SERVER_PORT=3000, and the approved production manifest. No watch mode, cluster mode, or multiple instances.
 
 Production env loading and rotation contract: Before PM2 start, validate that the file exists, is mode 600, is owned by academic-writing:academic-writing, contains no duplicate keys, has no forbidden production values, and can be consumed by Node 22 without printing values. The PM2 config contains only the fixed --env-file path and non-secret process settings. A missing/unreadable/malformed env file causes Node startup/config validation to fail closed and PM2 must remain offline or enter its bounded restart policy; it must not start with local defaults. After editing the file, replace it atomically with mode 600 and run pm2 reload academic-writing-platform --update-env as the academic-writing user; Node rereads --env-file on each new process, then verify status and health without displaying the environment. Rotate secrets by the same atomic replacement and controlled reload.
 
-PM2 OS boot recovery: Create the dedicated academic-writing service user with HOME=/home/academic-writing and a stable Node/PM2 PATH. Run pm2 startup systemd -u academic-writing --hp /home/academic-writing, execute the exact privileged command emitted by PM2, then enable pm2-academic-writing.service. The saved PM2 process definition must retain cwd=current/app, script=server/main.js, node_args=--env-file=/etc/academic-writing-platform/production.env, and the single-fork settings. pm2 save is run as academic-writing after the validated process starts; it is not the boot-recovery mechanism by itself.
+PM2 OS boot recovery: Reuse the dedicated academic-writing service user established by WP3, configure the approved stable PM2 HOME/PATH without recreating or renumbering the account, and run pm2 startup systemd for that user. Execute the exact privileged command emitted by PM2, then enable pm2-academic-writing.service. The saved PM2 process definition must retain cwd=current/app, script=server/main.js, node_args=--env-file=/etc/academic-writing-platform/production.env, and the single-fork settings. pm2 save is run as academic-writing after the validated process starts; it is not the boot-recovery mechanism by itself.
 
 Commands after authorization [C: production host OS + B: production release app]:
 
-    sudo useradd --system --create-home --home-dir /home/academic-writing --shell /usr/sbin/nologin academic-writing
-    sudo install -d -o academic-writing -g academic-writing -m 700 /home/academic-writing
+    sudo getent passwd academic-writing
+    sudo getent group academic-writing
     sudo install -d -o academic-writing -g academic-writing -m 700 /opt/academic-writing-platform/releases/<commit-sha>/app
     sudo install -d -o academic-writing -g academic-writing -m 700 /opt/academic-writing-platform/releases/<commit-sha>/deploy
     sudo cp -a dist/. /opt/academic-writing-platform/releases/<commit-sha>/app/
@@ -721,6 +723,8 @@ Out-of-Scope Guard: No enterprise DR, remote backup product, replication, HA, or
     deploy/scripts/release-activate.sh
     deploy/scripts/verify-live.sh
     deploy/scripts/rollback.sh
+    deploy/scripts/prepare-storage.sh
+    deploy/scripts/verify-storage.sh
     docs/deployment/P3_RUNBOOK.md
     docs/deployment/P3_ENVIRONMENT_MANIFEST.md
     docs/deployment/P3_ACCEPTANCE_EVIDENCE.md

@@ -58,24 +58,28 @@ the source checkout. The future PM2 runtime identity is the dedicated
 `academic-writing:academic-writing` user/group defined by the deployment
 design. Do not substitute another identity.
 
-The WP3 host mutation is idempotent and does not create an operating-system
-identity. First verify that the approved identity already exists; if it does
-not, stop and report the missing WP6 service-user prerequisite rather than
-creating a conflicting account:
+The WP3 host preparation is idempotent and establishes the dedicated
+operating-system identity. If the identity is absent, create exactly one
+system group and one system user with no interactive login and no normal user
+home directory. If either already exists, verify compatibility and never
+recreate, renumber, or modify it destructively. The approved procedure is
+`deploy/scripts/prepare-storage.sh`:
 
-    if ! getent passwd academic-writing || ! getent group academic-writing; then
-      echo "BLOCKED: academic-writing service identity is not present" >&2
-      exit 20
-    fi
-    sudo install -d -o academic-writing -g academic-writing -m 700 \
-      /var/lib/academic-writing-platform
-    sudo install -d -o academic-writing -g academic-writing -m 700 \
-      /var/lib/academic-writing-platform/documents
-    sudo -u academic-writing test -r /var/lib/academic-writing-platform/documents
-    sudo -u academic-writing test -w /var/lib/academic-writing-platform/documents
-    sudo -u academic-writing test -x /var/lib/academic-writing-platform/documents
-    stat -c '%a %U %G %n' /var/lib/academic-writing-platform/documents
-    df -B1 /var/lib/academic-writing-platform/documents
+    sudo /path/to/prepare-storage.sh
+
+When absent, that script runs `groupadd --system academic-writing`, then
+`useradd --system --gid academic-writing --no-create-home
+--home-dir /nonexistent --shell /usr/sbin/nologin academic-writing`. It then
+creates both `/var/lib/academic-writing-platform` and
+`/var/lib/academic-writing-platform/documents` with owner
+`academic-writing:academic-writing` and mode `700`. An incompatible existing
+identity causes a non-zero failure before any account is altered. WP6 must
+reuse this identity and must not create a second account.
+
+After provisioning, verify the directory without displaying document names or
+contents:
+
+    sudo /path/to/verify-storage.sh
 
 The resulting directory must be owned by `academic-writing:academic-writing`
 with mode `700`; it must not be world-writable or group-readable. The checked
@@ -123,8 +127,9 @@ over the live database.
 
 ## Boot recovery
 
-Create the dedicated academic-writing service user with a stable HOME and Node
-or PM2 PATH. Run PM2 startup for systemd, execute its exact privileged command,
+Use the dedicated `academic-writing` identity established by WP3, with the
+stable runtime HOME and Node/PM2 PATH required by the later PM2 setup. Do not
+recreate or renumber the identity in WP6. Run PM2 startup for systemd, execute its exact privileged command,
 enable pm2-academic-writing.service, start the validated single fork, and run
 pm2 save as academic-writing. pm2 save alone is not the boot contract.
 
