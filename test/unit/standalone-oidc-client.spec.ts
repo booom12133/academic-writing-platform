@@ -35,6 +35,9 @@ describe('standalone browser OIDC bridge', () => {
         response_type: 'code',
         scope: config.scope,
       });
+      expect(settings).toHaveProperty('extraQueryParams', {
+        audience: 'https://academic-writing-platform/api',
+      });
       expect(settings).not.toHaveProperty('client_secret');
       expect(settings).toMatchObject({
         stateStore: { _store: sessionStorage },

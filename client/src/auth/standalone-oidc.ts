@@ -70,6 +70,9 @@ export function createOidcUserManagerSettings(
     post_logout_redirect_uri: config.postLogoutRedirectUri,
     response_type: 'code',
     scope: config.scope,
+    extraQueryParams: {
+      audience: 'https://academic-writing-platform/api',
+    },
     stateStore,
     userStore: new WebStorageStateStore({ store: storage }),
     automaticSilentRenew: false,
