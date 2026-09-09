@@ -100,29 +100,102 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Configure verified TLS for disposable PostgreSQL service
+        run: |
+          set -euo pipefail
+          tls_dir="$RUNNER_TEMP/p3-postgres-tls"
+          mkdir -p "$tls_dir"
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/ca.key" \
+            -out "$tls_dir/ca.pem" \
+            -days 1 \
+            -subj '/CN=P3 CI PostgreSQL CA'
+          openssl req -new -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/server.key" \
+            -out "$tls_dir/server.csr" \
+            -subj '/CN=localhost'
+          printf '%s\n' \
+            'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            > "$tls_dir/server.ext"
+          openssl x509 -req \
+            -in "$tls_dir/server.csr" \
+            -CA "$tls_dir/ca.pem" \
+            -CAkey "$tls_dir/ca.key" \
+            -CAcreateserial \
+            -out "$tls_dir/server.crt" \
+            -days 1 \
+            -extfile "$tls_dir/server.ext"
+
+          service_id="$(docker ps --filter 'ancestor=pgvector/pgvector:pg16' --format '{{.ID}}' | head -n 1)"
+          test -n "$service_id"
+          docker cp "$tls_dir/server.crt" "$service_id:/var/lib/postgresql/data/server.crt"
+          docker cp "$tls_dir/server.key" "$service_id:/var/lib/postgresql/data/server.key"
+          docker exec "$service_id" chown postgres:postgres \
+            /var/lib/postgresql/data/server.crt \
+            /var/lib/postgresql/data/server.key
+          docker exec "$service_id" chmod 600 \
+            /var/lib/postgresql/data/server.key
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl = 'on';"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl_cert_file = '/var/lib/postgresql/data/server.crt';"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl_key_file = '/var/lib/postgresql/data/server.key';"
+          docker restart "$service_id"
+          for attempt in $(seq 1 30); do
+            if docker exec -u postgres "$service_id" pg_isready \
+              -U postgres -d academic_writing_test >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              exit 1
+            fi
+            sleep 1
+          done
+
+          sudo install -d -m 755 /etc/academic-writing-platform
+          sudo install -m 644 "$tls_dir/ca.pem" \
+            /etc/academic-writing-platform/postgres-ca.pem
+          {
+            echo 'PGSSLMODE=verify-full'
+            echo 'PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem'
+            echo 'DATABASE_SSL=require'
+            echo 'DATABASE_SSL_CA_FILE=/etc/academic-writing-platform/postgres-ca.pem'
+          } >> "$GITHUB_ENV"
+
       - name: Validate standard PostgreSQL migrations
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
         run: npm run db:migrate
 
       - name: Verify standard PostgreSQL schema and pgvector
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
         run: npm run test:integration:postgres
 
       - name: Re-run migrations as an upgrade gate
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
         run: npm run db:migrate
 
       - name: Create PostgreSQL backup
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
           BACKUP_OUTPUT_PATH: /tmp/academic-writing-test.dump
         run: npm run db:backup
 
       - name: Restore and verify PostgreSQL backup
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
           BACKUP_INPUT_PATH: /tmp/academic-writing-test.dump
         run: npm run db:restore:verify -- --confirm-restore
