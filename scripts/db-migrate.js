@@ -1,4 +1,5 @@
 const path = require('node:path');
+const fs = require('node:fs');
 const { drizzle } = require('drizzle-orm/node-postgres');
 const { migrate } = require('drizzle-orm/node-postgres/migrator');
 const { Pool } = require('pg');
@@ -14,6 +15,20 @@ function boundedInteger(env, name, fallback, minimum, maximum) {
     throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
   }
   return value;
+}
+
+function readDatabaseCa(env) {
+  const caFile = (env.DATABASE_SSL_CA_FILE || '').trim();
+  if (caFile) {
+    try {
+      const ca = fs.readFileSync(caFile, 'utf8');
+      if (!ca.trim()) throw new Error('empty CA file');
+      return ca;
+    } catch {
+      throw new Error('DATABASE_SSL_CA_FILE must be a readable non-empty PEM file.');
+    }
+  }
+  return env.DATABASE_SSL_CA;
 }
 
 function createMigrationPoolConfig(env = process.env) {
@@ -32,6 +47,10 @@ function createMigrationPoolConfig(env = process.env) {
     throw new Error('DATABASE_URL must use a PostgreSQL connection URL.');
   }
   const production = env.NODE_ENV === 'production';
+  const sslMode = parsed.searchParams.get('sslmode');
+  if (production && sslMode && sslMode !== 'verify-full') {
+    throw new Error('DATABASE_URL sslmode must be verify-full in production.');
+  }
   if (production && env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');
   }
@@ -39,6 +58,7 @@ function createMigrationPoolConfig(env = process.env) {
     throw new Error('DATABASE_SSL cannot disable TLS in production.');
   }
   const sslRequired = production || env.DATABASE_SSL === 'require';
+  const ca = readDatabaseCa(env);
   return {
     connectionString,
     max: boundedInteger(env, 'DATABASE_POOL_MAX', 5, 1, 20),
@@ -53,7 +73,7 @@ function createMigrationPoolConfig(env = process.env) {
     ssl: sslRequired
       ? {
           rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
-          ...(env.DATABASE_SSL_CA ? { ca: env.DATABASE_SSL_CA } : {}),
+          ...(ca ? { ca } : {}),
         }
       : undefined,
   };

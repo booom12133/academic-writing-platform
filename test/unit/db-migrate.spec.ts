@@ -17,6 +17,38 @@ describe('standard PostgreSQL migration runner', () => {
     );
   });
 
+  it('loads the trusted CA file for production migration TLS', () => {
+    const config = createMigrationPoolConfig({
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://runtime.example/academic_writing',
+      DATABASE_SSL_CA_FILE: __filename,
+    });
+
+    expect(config.ssl).toMatchObject({
+      rejectUnauthorized: true,
+      ca: expect.any(String),
+    });
+  });
+
+  it('fails closed when the migration CA file is unreadable', () => {
+    expect(() =>
+      createMigrationPoolConfig({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://runtime.example/academic_writing',
+        DATABASE_SSL_CA_FILE: '/missing/postgres-ca.pem',
+      }),
+    ).toThrow(/DATABASE_SSL_CA_FILE/);
+  });
+
+  it('rejects sslmode=require in a production migration URL', () => {
+    expect(() =>
+      createMigrationPoolConfig({
+        NODE_ENV: 'production',
+        DATABASE_URL: 'postgresql://migration.example/academic_writing?sslmode=require',
+      }),
+    ).toThrow(/sslmode must be verify-full/);
+  });
+
   it('locks and migrates on one client before releasing it', async () => {
     const client = {
       query: jest.fn().mockResolvedValue({}),

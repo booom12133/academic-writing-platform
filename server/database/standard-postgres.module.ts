@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+
 import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, type PoolConfig } from 'pg';
@@ -24,6 +26,20 @@ function parseBoundedInteger(
   return value;
 }
 
+function readDatabaseCa(env: NodeJS.ProcessEnv): string | undefined {
+  const caFile = env.DATABASE_SSL_CA_FILE?.trim();
+  if (caFile) {
+    try {
+      const ca = readFileSync(caFile, 'utf8');
+      if (!ca.trim()) throw new Error('empty CA file');
+      return ca;
+    } catch {
+      throw new Error('DATABASE_SSL_CA_FILE must be a readable non-empty PEM file.');
+    }
+  }
+  return env.DATABASE_SSL_CA;
+}
+
 export function createStandardPostgresConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): StandardPostgresConfig {
@@ -46,6 +62,10 @@ export function createStandardPostgresConfig(
   }
 
   const isProduction = env.NODE_ENV === 'production';
+  const sslMode = parsed.searchParams.get('sslmode');
+  if (isProduction && sslMode && sslMode !== 'verify-full') {
+    throw new Error('DATABASE_URL sslmode must be verify-full in production.');
+  }
   if (isProduction && env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');
   }
@@ -54,10 +74,11 @@ export function createStandardPostgresConfig(
   }
 
   const sslRequired = isProduction || env.DATABASE_SSL === 'require';
+  const ca = readDatabaseCa(env);
   const ssl = sslRequired
     ? {
         rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
-        ...(env.DATABASE_SSL_CA ? { ca: env.DATABASE_SSL_CA } : {}),
+        ...(ca ? { ca } : {}),
       }
     : undefined;
 
