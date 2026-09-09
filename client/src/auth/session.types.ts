@@ -15,6 +15,7 @@ export interface AuthSessionSnapshot {
 export interface AuthAdapter {
   getSession(): Promise<AuthSessionSnapshot>;
   getAccessToken(): Promise<string | null>;
+  completeLogin?: () => Promise<{ session: AuthSessionSnapshot; returnUrl: string }>;
   beginLogin?: (returnUrl: string) => void | Promise<void>;
   signOut?: () => Promise<void>;
 }
@@ -54,6 +55,7 @@ export interface PlatformAuthClient {
 export interface StandaloneAuthBridge {
   getAccessToken: () => Promise<string | null>;
   getSession?: () => Promise<AuthSessionSnapshot>;
+  completeLogin?: () => Promise<{ session: AuthSessionSnapshot; returnUrl: string }>;
   beginLogin?: (returnUrl: string) => void | Promise<void>;
   signOut?: () => Promise<void>;
 }

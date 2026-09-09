@@ -29,6 +29,7 @@ import { ApiSecurityModule } from './common/security/api-security.module';
 import { LifecycleModule } from './common/lifecycle/lifecycle.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { HealthModule } from './modules/health/health.module';
+import { RuntimeConfigModule } from './modules/runtime-config/runtime-config.module';
 
 const runtimeConfig = loadRuntimeConfig();
 
@@ -63,6 +64,7 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
     ...createRuntimeModuleImports(runtimeConfig),
     LifecycleModule,
     HealthModule.forRoot(runtimeConfig),
+    RuntimeConfigModule,
     // ====== @route-section: business-modules START ======
     UsersModule,
     TasksModule,
