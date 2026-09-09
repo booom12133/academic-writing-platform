@@ -11,6 +11,7 @@ export interface StandaloneOidcClientConfig {
   provider: typeof STANDALONE_OIDC_PROVIDER;
   clientId: string;
   issuer: string;
+  audience: string;
   redirectUri: typeof STANDALONE_OIDC_REDIRECT_URI;
   postLogoutRedirectUri: typeof STANDALONE_OIDC_POST_LOGOUT_REDIRECT_URI;
   scope: typeof STANDALONE_OIDC_SCOPE;
@@ -58,6 +59,7 @@ export function loadStandaloneOidcClientConfig(
   }
 
   const issuer = requireHttpsUrl(required(env, 'OIDC_ISSUER_URL'), 'OIDC_ISSUER_URL');
+  const audience = required(env, 'OIDC_AUDIENCE');
   const redirectUri = requireExact(
     requireHttpsUrl(required(env, 'OIDC_REDIRECT_URI'), 'OIDC_REDIRECT_URI'),
     STANDALONE_OIDC_REDIRECT_URI,
@@ -76,6 +78,7 @@ export function loadStandaloneOidcClientConfig(
     provider: STANDALONE_OIDC_PROVIDER,
     clientId: required(env, 'OIDC_CLIENT_ID'),
     issuer,
+    audience,
     redirectUri: redirectUri as typeof STANDALONE_OIDC_REDIRECT_URI,
     postLogoutRedirectUri:
       postLogoutRedirectUri as typeof STANDALONE_OIDC_POST_LOGOUT_REDIRECT_URI,
