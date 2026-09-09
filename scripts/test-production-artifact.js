@@ -1,11 +1,148 @@
 'use strict';
 
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const http = require('node:http');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+
+const REQUIRED_ARTIFACT_ENTRIES = new Set([
+  'server',
+  'dist',
+  'node_modules',
+  'package.json',
+  'run.sh',
+  'scripts',
+  'drizzle',
+]);
+const REQUIRED_ARTIFACT_PATHS = [
+  'server/main.js',
+  'package.json',
+  'run.sh',
+  'scripts/db-migrate.js',
+  'scripts/db-backup.js',
+  'scripts/db-restore-verify.js',
+];
+const ALLOWED_PRODUCTION_SCRIPTS = new Set([
+  'db-migrate.js',
+  'db-backup.js',
+  'db-restore-verify.js',
+]);
+
+function toRelativePath(root, fullPath) {
+  return path.relative(root, fullPath).split(path.sep).join('/');
+}
+
+function collectFiles(root) {
+  const files = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        visit(fullPath);
+      } else if (!entry.isSymbolicLink()) {
+        files.push(toRelativePath(root, fullPath));
+      }
+    }
+  }
+  visit(root);
+  return files.sort();
+}
+
+function sha256File(filePath) {
+  return crypto
+    .createHash('sha256')
+    .update(fs.readFileSync(filePath))
+    .digest('hex');
+}
+
+function assertProductionArtifactLayout(
+  root,
+  expectedMigrationsRoot = path.resolve(__dirname, '..', 'drizzle', 'migrations'),
+) {
+  const violations = [];
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    throw new Error('production artifact root is missing: ' + root);
+  }
+
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!REQUIRED_ARTIFACT_ENTRIES.has(entry.name)) {
+      violations.push('unexpected top-level artifact entry: ' + entry.name);
+    }
+  }
+
+  for (const requiredPath of REQUIRED_ARTIFACT_PATHS) {
+    if (!fs.existsSync(path.join(root, requiredPath))) {
+      violations.push('missing required artifact path: ' + requiredPath);
+    }
+  }
+
+  const distRoot = path.join(root, 'dist');
+  if (!fs.existsSync(distRoot) || !fs.statSync(distRoot).isDirectory()) {
+    violations.push('missing required artifact directory: dist');
+  }
+  const nodeModulesRoot = path.join(root, 'node_modules');
+  if (
+    !fs.existsSync(nodeModulesRoot) ||
+    !fs.statSync(nodeModulesRoot).isDirectory()
+  ) {
+    violations.push('missing required artifact directory: node_modules');
+  }
+
+  const scriptsRoot = path.join(root, 'scripts');
+  if (fs.existsSync(scriptsRoot) && fs.statSync(scriptsRoot).isDirectory()) {
+    for (const entry of fs.readdirSync(scriptsRoot, { withFileTypes: true })) {
+      if (
+        !entry.isFile() ||
+        !ALLOWED_PRODUCTION_SCRIPTS.has(entry.name)
+      ) {
+        violations.push(
+          'unexpected production script: ' +
+            toRelativePath(root, path.join(scriptsRoot, entry.name)),
+        );
+      }
+    }
+  }
+
+  const actualMigrationsRoot = path.join(root, 'drizzle', 'migrations');
+  if (
+    !fs.existsSync(actualMigrationsRoot) ||
+    !fs.statSync(actualMigrationsRoot).isDirectory()
+  ) {
+    violations.push('missing required artifact directory: drizzle/migrations');
+  } else if (
+    !fs.existsSync(expectedMigrationsRoot) ||
+    !fs.statSync(expectedMigrationsRoot).isDirectory()
+  ) {
+    violations.push(
+      'expected migrations root is missing: ' + expectedMigrationsRoot,
+    );
+  } else {
+    const actualMigrations = collectFiles(actualMigrationsRoot);
+    const expectedMigrations = collectFiles(expectedMigrationsRoot);
+    if (actualMigrations.join('\n') !== expectedMigrations.join('\n')) {
+      violations.push('migration file set mismatch');
+    }
+    for (const migration of expectedMigrations) {
+      const actualPath = path.join(actualMigrationsRoot, migration);
+      const expectedPath = path.join(expectedMigrationsRoot, migration);
+      if (
+        fs.existsSync(actualPath) &&
+        sha256File(actualPath) !== sha256File(expectedPath)
+      ) {
+        violations.push('migration content mismatch: ' + migration);
+      }
+    }
+  }
+
+  if (violations.length > 0) {
+    throw new Error(
+      'production artifact layout gate failed: ' + violations.join('; '),
+    );
+  }
+}
 
 function findArtifactViolations(root, forbiddenValues = []) {
   const violations = [];
@@ -107,6 +244,10 @@ async function run() {
   if (!fs.existsSync(path.join(root, 'server', 'main.js'))) {
     throw new Error(`production artifact is missing server/main.js: ${root}`);
   }
+  const expectedMigrationsRoot =
+    process.env.EXPECTED_MIGRATIONS_ROOT ||
+    path.resolve(__dirname, '..', 'drizzle', 'migrations');
+  assertProductionArtifactLayout(root, expectedMigrationsRoot);
   const secrets = [
     'artifact-deepseek-secret',
     'artifact-embedding-secret',
@@ -190,4 +331,8 @@ if (require.main === module) {
   });
 }
 
-module.exports = { findArtifactViolations, run };
+module.exports = {
+  assertProductionArtifactLayout,
+  findArtifactViolations,
+  run,
+};

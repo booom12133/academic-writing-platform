@@ -1,0 +1,56 @@
+# P3 Acceptance Evidence
+
+This template is populated only after authorized WP0-WP10 execution. It is
+not an acceptance decision and does not authorize production mutation.
+
+## Identity
+
+- Repository: booom12133/academic-writing-platform
+- Phase branch: phase/p3-deployment-e2e
+- Base SHA: 666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d
+- Candidate commit:
+- Production release SHA:
+
+## WP0-WP1 checkpoint
+
+- Baseline proof:
+- Host preflight:
+- Changed files:
+- Targeted tests:
+- Full relevant regression:
+- Reproducible-build output:
+- Artifact closure output:
+- Artifact smoke output:
+- No-secret scan:
+- Production mutation before checkpoint: NO
+
+## Deployment and E2E
+
+- PostgreSQL 16 and pgvector:
+- PostgreSQL certificate verification:
+- Migration and schema:
+- Persistent storage:
+- PM2 single-fork lifecycle:
+- PM2 systemd boot recovery:
+- Nginx HTTPS boundary:
+- Auth0 OIDC:
+- Provider health:
+- Workflow A:
+- Workflow B:
+- Owner isolation:
+
+## Recovery
+
+- Pre-release backup hash:
+- Persistent document hash:
+- Representative database state:
+- Rollback release:
+- Controlled ECS reboot:
+- Post-reboot PostgreSQL/Nginx/PM2/Node/live/ready:
+- Post-reboot database and document hashes:
+
+## Final status
+
+P3_ACCEPTED=NO
+P3_ACCEPTED_CLOSED=NO
+STOP_FOR_CHATGPT_REVIEW=YES

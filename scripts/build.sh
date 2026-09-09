@@ -154,11 +154,21 @@ else
   # 拷贝 run.sh 到 dist/（prod 从 dist/ 启动，确保 cwd 一致性）
   cp "$ROOT_DIR/scripts/run.sh" "$DIST_DIR/"
 
+  # 仅复制生产 DB 运维脚本；禁止把整个 repository scripts/ 带入产物
+  mkdir -p "$DIST_DIR/scripts"
+  for production_script in db-migrate.js db-backup.js db-restore-verify.js; do
+    cp "$ROOT_DIR/scripts/$production_script" "$DIST_DIR/scripts/$production_script"
+  done
+
+  # 迁移必须来自同一 reviewed commit，并与 app/ 一起进入 release manifest
+  test -d "$ROOT_DIR/drizzle/migrations"
+  mkdir -p "$DIST_DIR/drizzle/migrations"
+  cp -R "$ROOT_DIR/drizzle/migrations/." "$DIST_DIR/drizzle/migrations/"
+
   # Secrets are supplied by the deployment environment; never copy .env into the artifact.
 fi
 
 # 清理无用文件
-rm -rf "$DIST_DIR/scripts"
 rm -rf "$DIST_DIR/tsconfig.node.tsbuildinfo"
 
 print_time $STEP_START
