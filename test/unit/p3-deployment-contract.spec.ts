@@ -41,6 +41,7 @@ describe('P3 deployment contract', () => {
       'release-activate.sh',
       'verify-live.sh',
       'rollback.sh',
+      'verify-storage.sh',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
@@ -63,6 +64,9 @@ describe('P3 deployment contract', () => {
     );
     expect(readProjectFile('deploy/scripts/rollback.sh')).toContain(
       'pm2 reload',
+    );
+    expect(readProjectFile('deploy/scripts/verify-storage.sh')).toContain(
+      '/var/lib/academic-writing-platform/documents',
     );
   });
 
