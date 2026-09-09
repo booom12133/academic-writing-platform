@@ -34,13 +34,15 @@ verify-full with PGSSLROOTCERT.
 
 ## Auth0 public configuration
 
+    OIDC_PROVIDER=Auth0
+    OIDC_CLIENT_ID=<registered public SPA client id>
     OIDC_ISSUER_URL=https://<auth0-domain>/
     OIDC_JWKS_URL=https://<auth0-domain>/.well-known/jwks.json
     OIDC_AUDIENCE=https://academic-writing-platform/api
     OIDC_USER_ID_CLAIM=sub
     OIDC_ALLOWED_ALGORITHMS=RS256
     OIDC_REDIRECT_URI=https://write.yingrenji.cn/auth/callback
-    OIDC_LOGOUT_REDIRECT_URI=https://write.yingrenji.cn/login
+    OIDC_POST_LOGOUT_REDIRECT_URI=https://write.yingrenji.cn/login
 
 The Auth0 tenant domain and client ID are supplied by the operator. A SPA
 client secret is never required or bundled.
