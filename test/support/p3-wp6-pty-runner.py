@@ -8,6 +8,7 @@ import sys
 import termios
 import fcntl
 import time
+import signal
 
 
 PROMPT = b"PostgreSQL administrative password (input hidden): "
@@ -127,13 +128,28 @@ def main() -> int:
     except BaseException as error:
         print(f"PTY runner failed: {error}", file=sys.stderr)
         try:
-            os.kill(pid, 15)
-        except ProcessLookupError:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
             pass
-        try:
-            os.waitpid(pid, 0)
-        except ChildProcessError:
-            pass
+        reap_deadline = time.monotonic() + 2
+        while True:
+            try:
+                waited_pid, _ = os.waitpid(pid, os.WNOHANG)
+            except ChildProcessError:
+                break
+            if waited_pid == pid:
+                break
+            if time.monotonic() >= reap_deadline:
+                try:
+                    os.killpg(os.getpgid(pid), signal.SIGKILL)
+                except (ProcessLookupError, PermissionError):
+                    pass
+                try:
+                    os.waitpid(pid, 0)
+                except ChildProcessError:
+                    pass
+                break
+            time.sleep(0.05)
         return 98
     finally:
         os.close(master_fd)
