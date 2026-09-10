@@ -40,6 +40,40 @@ describe('P3 immutable release integrity contract', () => {
     }
   });
 
+  it('uses one deterministic ordering for migration metadata manifest entries', () => {
+    const {
+      writeReleaseManifest,
+      verifyReleaseManifest,
+    } = require('../../deploy/scripts/release-manifest.js');
+    const releaseRoot = mkdtempSync(join(tmpdir(), 'p3-release-order-'));
+    try {
+      mkdirSync(join(releaseRoot, 'app', 'drizzle', 'migrations', 'meta'), {
+        recursive: true,
+      });
+      mkdirSync(join(releaseRoot, 'deploy'), { recursive: true });
+      writeFileSync(
+        join(releaseRoot, 'app', 'drizzle', 'migrations', 'meta', '_journal.json'),
+        'journal',
+      );
+      writeFileSync(
+        join(releaseRoot, 'app', 'drizzle', 'migrations', 'meta', '0001_snapshot.json'),
+        'snapshot-1',
+      );
+      writeFileSync(
+        join(releaseRoot, 'app', 'drizzle', 'migrations', 'meta', '0002_snapshot.json'),
+        'snapshot-2',
+      );
+      writeFileSync(join(releaseRoot, 'deploy', 'metadata.txt'), 'deploy');
+
+      writeReleaseManifest(releaseRoot);
+      expect(
+        verifyReleaseManifest(releaseRoot, { checkRuntimePermissions: false }),
+      ).toBe(true);
+    } finally {
+      rmSync(releaseRoot, { recursive: true, force: true });
+    }
+  });
+
   it('uses root-controlled release ownership and verifies before activation or rollback', () => {
     const install = readProjectFile('deploy/scripts/release-install.sh');
     const activate = readProjectFile('deploy/scripts/release-activate.sh');

@@ -40,6 +40,17 @@ function sha256(filePath) {
   return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
 }
 
+function compareManifestPaths(left, right) {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+function sortManifestEntries(entries) {
+  return entries.sort((left, right) =>
+    compareManifestPaths(left.relativePath, right.relativePath),
+  );
+}
+
 function assertRuntimeMode(mode) {
   if ((mode & 0o022) !== 0) {
     throw new Error('release tree is runtime-writable');
@@ -66,10 +77,12 @@ function assertRuntimeReadOnlyRelease(releaseRoot) {
 }
 
 function manifestEntries(releaseRoot) {
-  return collectReleaseFiles(releaseRoot).map((filePath) => ({
-    digest: sha256(filePath),
-    relativePath: relativeReleasePath(releaseRoot, filePath),
-  }));
+  return sortManifestEntries(
+    collectReleaseFiles(releaseRoot).map((filePath) => ({
+      digest: sha256(filePath),
+      relativePath: relativeReleasePath(releaseRoot, filePath),
+    })),
+  );
 }
 
 function writeReleaseManifest(releaseRoot) {
@@ -106,7 +119,7 @@ function readManifest(releaseRoot) {
   if (entries.length === 0) throw new Error('release manifest is empty');
   const paths = entries.map((entry) => entry.relativePath);
   if (new Set(paths).size !== paths.length) throw new Error('release manifest has duplicate entries');
-  return entries.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+  return sortManifestEntries(entries);
 }
 
 function verifyReleaseManifest(releaseRoot, { checkRuntimePermissions = true } = {}) {
