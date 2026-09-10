@@ -7,6 +7,7 @@ import select
 import sys
 import termios
 import fcntl
+import time
 
 
 PROMPT = b"PostgreSQL administrative password (input hidden): "
@@ -56,9 +57,16 @@ def main() -> int:
     master_open = True
     stdin_open = True
     status = None
+    synchronization_deadline = time.monotonic() + 30
+    echo_disabled = False
 
     try:
         while master_open:
+            if time.monotonic() >= synchronization_deadline and not password_sent:
+                raise RuntimeError(
+                    "PTY prompt synchronization timed out "
+                    f"(prompt_seen={prompt_seen}, echo_disabled={echo_disabled})",
+                )
             read_fds = [master_fd]
             if prompt_seen and not password_sent and stdin_open:
                 read_fds.append(0)
@@ -80,7 +88,8 @@ def main() -> int:
 
             if prompt_seen and not password_sent:
                 attributes = termios.tcgetattr(slave_fd)
-                if not attributes[3] & termios.ECHO:
+                echo_disabled = not attributes[3] & termios.ECHO
+                if echo_disabled:
                     if not ready_notified:
                         os.write(2, READY)
                         sys.stderr.flush()
@@ -104,7 +113,7 @@ def main() -> int:
                 try:
                     waited_pid, waited_status = os.waitpid(pid, os.WNOHANG)
                 except ChildProcessError:
-                    waited_pid, waited_status = pid, status
+                    raise RuntimeError("PTY child was reaped without a status")
                 if waited_pid == pid and waited_status is not None:
                     status = waited_status
                     if not master_open:
