@@ -191,14 +191,15 @@ jobs:
         run: |
           set -euo pipefail
           npm run build:server
-          app_root="$RUNNER_TEMP/p3-wp6-app"
-          mkdir -p "$app_root/server/config" \
-            "$app_root/server/modules/knowledge/indexing" \
-            "$app_root/node_modules"
-          cp -R dist/server/config/. "$app_root/server/config/"
+          staging_root="$RUNNER_TEMP/p3-wp6-app-staging"
+          app_root="/opt/academic-writing-platform/current/app"
+          mkdir -p "$staging_root/server/config" \
+            "$staging_root/server/modules/knowledge/indexing" \
+            "$staging_root/node_modules"
+          cp -R dist/server/config/. "$staging_root/server/config/"
           cp -R dist/server/modules/knowledge/indexing/. \
-            "$app_root/server/modules/knowledge/indexing/"
-          cp package.json "$app_root/package.json"
+            "$staging_root/server/modules/knowledge/indexing/"
+          cp package.json "$staging_root/package.json"
           for dependency in \
             pg \
             pg-connection-string \
@@ -213,9 +214,13 @@ jobs:
             postgres-interval \
             split2 \
             xtend; do
-            cp -R "node_modules/$dependency" "$app_root/node_modules/$dependency"
+            cp -R "node_modules/$dependency" "$staging_root/node_modules/$dependency"
           done
-          chmod -R a+rX "$app_root"
+          sudo rm -rf -- /opt/academic-writing-platform
+          sudo install -d -o root -g root -m 755 "$app_root"
+          sudo cp -R "$staging_root/." "$app_root/"
+          sudo chown -R root:root /opt/academic-writing-platform
+          sudo chmod -R a+rX /opt/academic-writing-platform
           test -r "$app_root/server/config/production-config.js"
           test -r "$app_root/node_modules/pg/package.json"
           echo "P3_WP6_APP_ROOT=$app_root" >> "$GITHUB_ENV"
@@ -234,6 +239,7 @@ jobs:
         run: |
           set +e
           sudo rm -rf -- /etc/academic-writing-platform
+          sudo rm -rf -- /opt/academic-writing-platform
           sudo sed -i '/db\.academic-writing\.internal/d' /etc/hosts
 
   postgres-schema:
