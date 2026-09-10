@@ -241,6 +241,55 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     }
   });
 
+  it('requires a root-only candidate staging file before reading production secrets', () => {
+    const rotationScript = readProjectFile('deploy/scripts/rotate-production-env.sh');
+    const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
+    const {
+      APPROVED_STAGING_ROOT,
+      validateCandidateMetadata,
+    } = require('../../deploy/scripts/candidate-input-contract.js');
+    const baseMetadata = {
+      isRegularFile: true,
+      isSymbolicLink: false,
+      uid: 0,
+      gid: 0,
+      mode: 0o600,
+      parent: {
+        isDirectory: true,
+        isSymbolicLink: false,
+        uid: 0,
+        gid: 0,
+        mode: 0o700,
+      },
+    };
+
+    expect(validateCandidateMetadata({
+      candidatePath: `${APPROVED_STAGING_ROOT}/production.env`,
+      metadata: baseMetadata,
+    })).toMatchObject({ approved: true });
+    expect(() => validateCandidateMetadata({
+      candidatePath: `${APPROVED_STAGING_ROOT}/production.env`,
+      metadata: { ...baseMetadata, mode: 0o644 },
+    })).toThrow(/mode.*600/);
+    expect(() => validateCandidateMetadata({
+      candidatePath: `${APPROVED_STAGING_ROOT}/production.env`,
+      metadata: { ...baseMetadata, uid: 1000 },
+    })).toThrow(/root-owned/);
+    expect(() => validateCandidateMetadata({
+      candidatePath: `${APPROVED_STAGING_ROOT}/production.env`,
+      metadata: { ...baseMetadata, isSymbolicLink: true },
+    })).toThrow(/symlink/);
+    expect(() => validateCandidateMetadata({
+      candidatePath: '/tmp/production.env',
+      metadata: baseMetadata,
+    })).toThrow(/approved staging root/);
+    expect(rotationScript).toContain('candidate-input-contract.js');
+    expect(rotationScript).toContain('rm -f -- "$candidate_file"');
+    expect(runbook).toContain('rotation-input');
+    expect(runbook).toContain('candidate source is deleted');
+    expect(runbook).toContain('0600');
+  });
+
   it('uses a root-only PM2 startup command and validates generated systemd semantics', () => {
     const startupHelper = readProjectFile('deploy/scripts/install-pm2-systemd.sh');
     const serviceCli = readProjectFile('deploy/scripts/pm2-service-cli.sh');
@@ -257,6 +306,11 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(startupHelper).toContain('startup systemd -u "$service_user"');
     expect(startupHelper).not.toContain('pm2-service-cli.sh');
     expect(startupHelper).toContain('systemctl cat "$service_name"');
+    expect(startupHelper).toContain('systemctl disable "$service_name"');
+    expect(startupHelper).toContain('rm -f -- "$unit_path"');
+    expect(startupHelper).toContain('systemctl daemon-reload');
+    expect(startupHelper).toContain('systemctl is-enabled "$service_name"');
+    expect(startupHelper).not.toContain('--hp');
     expect(serviceCli).toContain('test "$1" != "startup"');
 
     const command = buildRootStartupCommand('/usr/bin/pm2');
@@ -296,6 +350,13 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       serviceName: SERVICE_NAME,
       unitText: validUnit.replace(`PM2_HOME=${PM2_HOME}`, 'PM2_HOME=/tmp/pm2'),
     })).toThrow(/PM2_HOME/);
+    expect(() => assertSystemdUnit({
+      serviceName: SERVICE_NAME,
+      unitText: validUnit.replace(
+        'PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid',
+        'PIDFile=/tmp/pm2.pid',
+      ),
+    })).toThrow(/PIDFile/);
   });
 
   it('freezes the reviewed activation order before any PM2 start', () => {
@@ -332,6 +393,19 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       expect(document).toContain(
         'Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2',
       );
+      expect(document).toContain('PM2 startup may enable');
+      expect(document).toContain('cleanup');
+    }
+    for (const document of [planSequence, runbookSequence]) {
+      for (const helper of [
+        'rotate-production-env.sh',
+        'verify-production-env.sh',
+        'prepare-pm2-state.sh',
+        'pm2-service-cli.sh',
+        'install-pm2-systemd.sh',
+      ]) {
+        expect(document).toContain(`/opt/academic-writing-platform/current/deploy/scripts/${helper}`);
+      }
     }
   });
 });

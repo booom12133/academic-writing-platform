@@ -7,12 +7,53 @@ service_group="academic-writing"
 service_home="/nonexistent"
 service_shell="/usr/sbin/nologin"
 service_name="pm2-academic-writing.service"
+unit_path="/etc/systemd/system/$service_name"
 pm2_path="/usr/local/bin:/usr/bin"
 contract_script="$(dirname "$0")/pm2-systemd-contract.js"
 
 fail() {
   echo "PM2 systemd installation failed: $*" >&2
   exit 1
+}
+
+cleanup_invalid_startup() {
+  if systemctl disable "$service_name" >/dev/null 2>&1; then
+    echo "cleanup_disable=success"
+  else
+    echo "cleanup_disable=failure"
+  fi
+
+  if [ -e "$unit_path" ] || [ -L "$unit_path" ]; then
+    if rm -f -- "$unit_path"; then
+      echo "cleanup_unit=removed"
+    else
+      echo "cleanup_unit=removal-failure"
+      return 1
+    fi
+  else
+    echo "cleanup_unit=absent"
+  fi
+
+  if systemctl daemon-reload >/dev/null 2>&1; then
+    echo "cleanup_daemon_reload=success"
+  else
+    echo "cleanup_daemon_reload=failure"
+    return 1
+  fi
+
+  enabled_state="$(systemctl is-enabled "$service_name" 2>/dev/null || true)"
+  case "$enabled_state" in
+    enabled|enabled-runtime|linked|linked-runtime|alias|indirect)
+      echo "cleanup_enabled_state=still-enabled"
+      return 1
+      ;;
+    '')
+      echo "cleanup_enabled_state=not-found"
+      ;;
+    *)
+      echo "cleanup_enabled_state=$enabled_state"
+      ;;
+  esac
 }
 
 test "$(id -u)" = "0" || fail "root invocation is required"
@@ -46,14 +87,36 @@ case "$pm2_binary" in
 esac
 test -x "$pm2_binary" || fail "approved PM2 binary is not executable"
 
+if [ -e "$unit_path" ] || [ -L "$unit_path" ]; then
+  existing_unit="$(systemctl cat "$service_name" 2>/dev/null || true)"
+  if printf '%s\n' "$existing_unit" |
+    node "$contract_script" --verify-unit "$service_name" >/dev/null; then
+    echo "PM2 systemd unit already verified"
+    exit 0
+  fi
+  fail "an existing PM2 systemd unit is invalid; refusing to overwrite it"
+fi
+
+set +e
 env PM2_HOME="$pm2_home" HOME=/root PATH="$pm2_path" \
   "$pm2_binary" startup systemd -u "$service_user"
+startup_status=$?
+set -e
+if [ "$startup_status" -ne 0 ]; then
+  cleanup_invalid_startup || fail "startup failed and cleanup was incomplete"
+  fail "PM2 startup command failed"
+fi
 
-unit_text="$(systemctl cat "$service_name" 2>/dev/null)" ||
+if ! unit_text="$(systemctl cat "$service_name" 2>/dev/null)"; then
+  cleanup_invalid_startup || fail "generated unit is missing and cleanup was incomplete"
   fail "generated systemd unit is missing"
-printf '%s\n' "$unit_text" |
-  node "$contract_script" --verify-unit "$service_name" >/dev/null ||
+fi
+
+if ! printf '%s\n' "$unit_text" |
+  node "$contract_script" --verify-unit "$service_name" >/dev/null; then
+  cleanup_invalid_startup || fail "invalid generated unit cleanup was incomplete"
   fail "generated systemd unit does not match the frozen PM2 contract"
+fi
 
 echo "PM2 systemd unit verified"
 echo "service=$service_name"

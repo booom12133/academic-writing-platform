@@ -63,26 +63,27 @@ PM2:
     sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
     sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
     sudo /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-activate.sh <commit-sha>
-    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
-    sudo deploy/scripts/prepare-pm2-state.sh
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
-    sudo deploy/scripts/install-pm2-systemd.sh
+    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/current/deploy/scripts/rotate-production-env.sh /etc/academic-writing-platform/rotation-input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+    sudo /opt/academic-writing-platform/current/deploy/scripts/prepare-pm2-state.sh
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
+    sudo /opt/academic-writing-platform/current/deploy/scripts/install-pm2-systemd.sh
     # The root-only helper executes env PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u academic-writing.
     sudo systemctl cat pm2-academic-writing.service
-    sudo systemctl enable pm2-academic-writing.service
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh status
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
+    sudo systemctl is-enabled pm2-academic-writing.service
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
 
 `systemctl cat` must show `User=academic-writing`,
 `Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`, and
-`PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid` before the enable
-operation. `install-pm2-systemd.sh` performs startup installation as root and
-parses the generated `pm2-academic-writing.service`; it is not run through
-`pm2-service-cli.sh`, and it never uses `--hp`. `release-activate.sh` and
-`rollback.sh` both fail closed if their selected release manifest or release
-ownership contract does not verify.
+`PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid`. PM2 startup may enable the generated service; `install-pm2-systemd.sh` performs startup
+installation as root and parses the generated `pm2-academic-writing.service`
+immediately. On mismatch its cleanup disables the service, removes the unit, reloads
+systemd, verifies the service is no longer enabled, and exits non-zero. It is
+not run through `pm2-service-cli.sh`, and it never uses `--hp`.
+`release-activate.sh` and `rollback.sh` both fail closed if their selected
+release manifest or release ownership contract does not verify.
 
 ## Persistent document filesystem
 
@@ -149,8 +150,19 @@ DATABASE_URL, MIGRATION_DATABASE_URL, ACADEMIC_SEARCH_CURSOR_SECRET, and
 ZOTERO_CREDENTIAL_ENCRYPTION_KEY values with the root-only atomic helper:
 
     sudo install -d -o root -g root -m 755 /etc/academic-writing-platform
-    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+    sudo install -d -o root -g root -m 700 /etc/academic-writing-platform/rotation-input
+    sudo install -o root -g root -m 600 <operator-source-production.env> /etc/academic-writing-platform/rotation-input/production.env
+    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/current/deploy/scripts/rotate-production-env.sh /etc/academic-writing-platform/rotation-input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+
+The candidate staging directory is `root:root` mode `700`; the candidate is a
+regular `root:root` mode `0600` file directly beneath it, never a symlink, and
+never a path under a release, `current`, document storage, PM2_HOME, web root,
+`/tmp`, or another shared temporary directory. The helper validates this
+contract before reading candidate values. On successful atomic replacement and
+marker completion, the candidate source is deleted. On failure it is retained
+only under the same root-only `0600` contract and must be removed by the
+operator before retry after preserving any required recovery evidence.
 
 The initial helper changes the existing PostgreSQL role passwords for
 `academic_writing_app` and `academic_writing_migrator`, then validates both
@@ -201,14 +213,14 @@ canonical PM2 state is `/var/lib/academic-writing-platform/pm2`, owned by
 `current` symlink. Prepare it once, then use the same wrapper for every PM2
 CLI operation:
 
-    sudo deploy/scripts/prepare-pm2-state.sh
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
-    sudo deploy/scripts/install-pm2-systemd.sh
+    sudo /opt/academic-writing-platform/current/deploy/scripts/prepare-pm2-state.sh
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
+    sudo /opt/academic-writing-platform/current/deploy/scripts/install-pm2-systemd.sh
     sudo systemctl cat pm2-academic-writing.service
-    sudo systemctl enable pm2-academic-writing.service
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh reload academic-writing-platform --update-env
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh status
+    sudo systemctl is-enabled pm2-academic-writing.service
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh reload academic-writing-platform --update-env
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
 
 The wrapper sets `PM2_HOME=/var/lib/academic-writing-platform/pm2`,
 `HOME=/nonexistent`, and the approved system PATH, and refuses to run unless

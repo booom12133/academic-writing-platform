@@ -16,6 +16,7 @@ script_dir="$(dirname "$0")"
 verify_script="$script_dir/verify-production-env.sh"
 rotation_contract="$script_dir/rotation-contract.js"
 role_rotation_script="$script_dir/rotate-postgres-roles.js"
+candidate_contract="$script_dir/candidate-input-contract.js"
 
 fail() {
   echo "production secret rotation blocked: $*" >&2
@@ -26,7 +27,8 @@ test "${P3_SECURITY_SECRET_ROTATION_REQUIRED:-}" = "YES" ||
   fail "P3_SECURITY_SECRET_ROTATION_REQUIRED=YES is required"
 test "$(id -u)" = "0" || fail "rotation must run as root"
 test -f "$candidate_file" || fail "candidate env file is missing"
-test ! -L "$candidate_file" || fail "candidate env file must not be a symlink"
+node "$candidate_contract" "$candidate_file" >/dev/null ||
+  fail "candidate env file staging contract failed"
 test -d "$env_dir" || fail "production env directory is missing"
 test ! -L "$env_dir" || fail "production env directory must not be a symlink"
 test "$(stat -c '%U:%G' "$env_dir")" = "root:root" ||
@@ -103,9 +105,14 @@ if [ "$rotation_mode" = "INITIAL_COMPROMISE_ROTATION" ]; then
   temp_marker=""
 fi
 
+if ! rm -f -- "$candidate_file" || [ -e "$candidate_file" ]; then
+  fail "candidate source cleanup failed"
+fi
+
 echo "production secrets rotated atomically"
 echo "rotation_mode=$rotation_mode"
 echo "env_path=$env_file"
+echo "candidate_cleanup=deleted"
 if [ "$rotation_mode" = "INITIAL_COMPROMISE_ROTATION" ]; then
   echo "rotation_marker=$rotation_marker"
 fi

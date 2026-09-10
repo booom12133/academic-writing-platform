@@ -52,6 +52,7 @@ describe('P3 deployment contract', () => {
       'release-manifest.js',
       'install-pm2-systemd.sh',
       'pm2-systemd-contract.js',
+      'candidate-input-contract.js',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
