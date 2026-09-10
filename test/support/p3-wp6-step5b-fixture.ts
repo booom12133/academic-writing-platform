@@ -259,7 +259,7 @@ export function createStep5BFixture() {
     writeFileSync(currentSource, envText(currentEnv));
     writeFileSync(candidateSource, envText(candidateEnv));
     installRootFile(currentSource, CURRENT_ENV_PATH, 'root:academic-writing', '640');
-    installRootFile(candidateSource, CANDIDATE_ENV_PATH, 'root:root', '600');
+    installRootFile(candidateSource, CANDIDATE_ENV_PATH, 'root:academic-writing', '640');
   }
 
   function assertProductionEnvDoesNotContain(secret: string): void {
@@ -376,7 +376,7 @@ export function createStep5BFixture() {
       candidateEnv = { ...nextCandidateEnv };
       const candidateSource = join(tempRoot, 'candidate.env');
       writeFileSync(candidateSource, envText(candidateEnv));
-      installRootFile(candidateSource, CANDIDATE_ENV_PATH, 'root:root', '600');
+      installRootFile(candidateSource, CANDIDATE_ENV_PATH, 'root:academic-writing', '640');
     },
 
     readFile(filePath: string): string {
