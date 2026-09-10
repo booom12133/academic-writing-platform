@@ -71,6 +71,147 @@ jobs:
       - name: Smoke test clean production artifact
         run: node scripts/test-production-artifact.js
 
+  wp6-step5b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: academic_writing
+          POSTGRES_PASSWORD: synthetic-bootstrap-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d academic_writing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create production-equivalent service identity
+        run: |
+          set -euo pipefail
+          sudo groupadd --system academic-writing || true
+          sudo useradd --system \
+            --gid academic-writing \
+            --home-dir /nonexistent \
+            --shell /usr/sbin/nologin \
+            academic-writing || true
+          id academic-writing
+          getent group academic-writing
+
+      - name: Configure PostgreSQL 16 TLS and SCRAM
+        run: |
+          set -euo pipefail
+          tls_dir="$RUNNER_TEMP/p3-wp6-tls"
+          mkdir -p "$tls_dir"
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/ca.key" \
+            -out "$tls_dir/ca.pem" \
+            -days 1 \
+            -subj '/CN=P3 WP6 disposable PostgreSQL CA'
+          openssl req -new -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/server.key" \
+            -out "$tls_dir/server.csr" \
+            -subj '/CN=db.academic-writing.internal'
+          printf '%s\n' \
+            '[v3_req]' \
+            'subjectAltName=DNS:db.academic-writing.internal' \
+            > "$tls_dir/server.ext"
+          openssl x509 -req \
+            -in "$tls_dir/server.csr" \
+            -CA "$tls_dir/ca.pem" \
+            -CAkey "$tls_dir/ca.key" \
+            -CAcreateserial \
+            -out "$tls_dir/server.crt" \
+            -days 1 \
+            -extfile "$tls_dir/server.ext" \
+            -extensions v3_req
+
+          service_id="$(docker ps --filter 'ancestor=pgvector/pgvector:pg16' --format '{{.ID}}' | head -n 1)"
+          test -n "$service_id"
+          docker cp "$tls_dir/server.crt" "$service_id:/var/lib/postgresql/data/server.crt"
+          docker cp "$tls_dir/server.key" "$service_id:/var/lib/postgresql/data/server.key"
+          docker exec "$service_id" chown postgres:postgres \
+            /var/lib/postgresql/data/server.crt \
+            /var/lib/postgresql/data/server.key
+          docker exec "$service_id" chmod 600 /var/lib/postgresql/data/server.key
+          docker exec "$service_id" sh -c \
+            "sed -i '1ihostssl all all 0.0.0.0/0 scram-sha-256' /var/lib/postgresql/data/pg_hba.conf"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres -d academic_writing -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET listen_addresses = '*';" \
+            -c "ALTER SYSTEM SET ssl = 'on';" \
+            -c "ALTER SYSTEM SET password_encryption = 'scram-sha-256';" \
+            -c "ALTER SYSTEM SET ssl_cert_file = '/var/lib/postgresql/data/server.crt';" \
+            -c "ALTER SYSTEM SET ssl_key_file = '/var/lib/postgresql/data/server.key';"
+          docker restart "$service_id"
+          for attempt in $(seq 1 30); do
+            if docker exec -u postgres "$service_id" pg_isready \
+              -U postgres -d academic_writing >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              exit 1
+            fi
+            sleep 1
+          done
+
+          sudo install -d -m 755 /etc/academic-writing-platform
+          sudo install -o root -g academic-writing -m 640 "$tls_dir/ca.pem" \
+            /etc/academic-writing-platform/postgres-ca.pem
+          echo '127.0.0.1 db.academic-writing.internal' | sudo tee -a /etc/hosts >/dev/null
+          test "$(docker exec -u postgres "$service_id" psql -At \
+            -U postgres -d academic_writing -c "SHOW password_encryption")" = 'scram-sha-256'
+
+      - name: Build and stage compiled production app root
+        run: |
+          set -euo pipefail
+          npm run build:server
+          app_root="$RUNNER_TEMP/p3-wp6-app"
+          mkdir -p "$app_root/server/config" \
+            "$app_root/server/modules/knowledge/indexing" \
+            "$app_root/node_modules"
+          cp -R dist/server/config/. "$app_root/server/config/"
+          cp -R dist/server/modules/knowledge/indexing/. \
+            "$app_root/server/modules/knowledge/indexing/"
+          cp package.json "$app_root/package.json"
+          cp -R node_modules/pg "$app_root/node_modules/pg"
+          chmod -R a+rX "$app_root"
+          test -r "$app_root/server/config/production-config.js"
+          test -r "$app_root/node_modules/pg/package.json"
+          echo "P3_WP6_APP_ROOT=$app_root" >> "$GITHUB_ENV"
+          echo "P3_WP6_CA_PATH=/etc/academic-writing-platform/postgres-ca.pem" >> "$GITHUB_ENV"
+          echo 'P3_WP6_DATABASE_HOST=db.academic-writing.internal' >> "$GITHUB_ENV"
+          echo 'P3_WP6_BOOTSTRAP_PASSWORD=synthetic-bootstrap-password' >> "$GITHUB_ENV"
+
+      - name: Run all Step5B scenarios
+        env:
+          P3_WP6_INTEGRATION: YES
+          P3_WP6_PYTHON: python3
+        run: npx jest test/unit/p3-wp6-step5b.integration.spec.ts --runInBand
+
+      - name: Cleanup disposable Step5B host state
+        if: always()
+        run: |
+          set +e
+          sudo rm -rf -- /etc/academic-writing-platform
+          sudo sed -i '/db\.academic-writing\.internal/d' /etc/hosts
+
   postgres-schema:
     runs-on: ubuntu-latest
     timeout-minutes: 10
