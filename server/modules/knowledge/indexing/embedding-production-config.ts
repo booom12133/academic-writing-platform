@@ -7,6 +7,10 @@ export interface EmbeddingProductionConfig {
   timeoutMs: number;
 }
 
+export const APPROVED_EMBEDDING_BASE_URL = 'https://api.siliconflow.cn/v1';
+export const APPROVED_EMBEDDING_MODEL = 'BAAI/bge-m3';
+export const APPROVED_EMBEDDING_DIMENSIONS = 1024;
+
 function required(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name]?.trim();
   if (!value) throw new Error(`${name} is required for production embedding.`);
@@ -39,15 +43,33 @@ export function resolveEmbeddingProductionConfig(
   if (parsed.protocol !== 'https:') {
     throw new Error('EMBEDDING_BASE_URL must use HTTPS in production.');
   }
+  if (rawBaseUrl !== APPROVED_EMBEDDING_BASE_URL) {
+    throw new Error(
+      `EMBEDDING_BASE_URL must be ${APPROVED_EMBEDDING_BASE_URL} in production.`,
+    );
+  }
+
+  const model = required(env, 'EMBEDDING_MODEL');
+  if (model !== APPROVED_EMBEDDING_MODEL) {
+    throw new Error(
+      `EMBEDDING_MODEL must be ${APPROVED_EMBEDDING_MODEL} in production.`,
+    );
+  }
+  const dimensions = boundedInteger(env, 'EMBEDDING_DIMENSIONS', 1, 8192);
+  if (dimensions !== APPROVED_EMBEDDING_DIMENSIONS) {
+    throw new Error(
+      `EMBEDDING_DIMENSIONS must be ${APPROVED_EMBEDDING_DIMENSIONS} in production.`,
+    );
+  }
 
   return {
     baseUrl: rawBaseUrl,
     apiKey: required(env, 'EMBEDDING_API_KEY'),
-    model: required(env, 'EMBEDDING_MODEL'),
+    model,
     ...(env.EMBEDDING_MODEL_REVISION?.trim()
       ? { modelRevision: env.EMBEDDING_MODEL_REVISION.trim() }
       : {}),
-    dimensions: boundedInteger(env, 'EMBEDDING_DIMENSIONS', 1, 8192),
+    dimensions,
     timeoutMs: boundedInteger(env, 'EMBEDDING_TIMEOUT_MS', 100, 120_000),
   };
 }

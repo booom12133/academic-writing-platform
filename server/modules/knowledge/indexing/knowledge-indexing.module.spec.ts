@@ -32,10 +32,10 @@ describe('knowledge indexing provider runtime boundary', () => {
       NODE_ENV: 'production',
       RUNTIME_PROFILE: 'platform',
       ...productionExternalEnv,
-      EMBEDDING_BASE_URL: 'https://embedding.example.com',
+      EMBEDDING_BASE_URL: 'https://api.siliconflow.cn/v1',
       EMBEDDING_API_KEY: 'secret',
-      EMBEDDING_MODEL: 'text-embedding-3-small',
-      EMBEDDING_DIMENSIONS: '1536',
+      EMBEDDING_MODEL: 'BAAI/bge-m3',
+      EMBEDDING_DIMENSIONS: '1024',
       EMBEDDING_TIMEOUT_MS: '5000',
     })).toBeInstanceOf(OpenAiCompatibleEmbeddingProvider);
   });
