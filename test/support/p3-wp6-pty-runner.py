@@ -9,7 +9,6 @@ import termios
 import fcntl
 import time
 import signal
-import errno
 
 
 PROMPT = b"PostgreSQL administrative password (input hidden): "
@@ -50,15 +49,6 @@ def main() -> int:
         except BaseException as error:
             os.write(2, f"PTY child failed: {error}\n".encode())
             os._exit(127)
-
-    # The parent must not keep the slave open.  Otherwise the master never
-    # observes EOF when the child exits, and the orchestration loop can hang.
-    try:
-        os.close(slave_fd)
-    except OSError as error:
-        if error.errno != errno.EBADF:
-            raise
-    slave_fd = -1
 
     prompt_seen = False
     ready_notified = False
@@ -127,11 +117,15 @@ def main() -> int:
                     raise RuntimeError("PTY child was reaped without a status")
                 if waited_pid == pid and waited_status is not None:
                     status = waited_status
+                    os.close(slave_fd)
+                    slave_fd = -1
                     if not master_open:
                         break
 
         if status is None:
             _, status = os.waitpid(pid, 0)
+            os.close(slave_fd)
+            slave_fd = -1
         if not password_sent and prompt_seen:
             return 97
         return child_status(status)
