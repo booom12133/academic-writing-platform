@@ -50,6 +50,10 @@ def main() -> int:
             os.write(2, f"PTY child failed: {error}\n".encode())
             os._exit(127)
 
+    # The parent must not keep the slave open.  Otherwise the master never
+    # observes EOF when the child exits, and the orchestration loop can hang.
+    os.close(slave_fd)
+
     prompt_seen = False
     ready_notified = False
     password_sent = False
