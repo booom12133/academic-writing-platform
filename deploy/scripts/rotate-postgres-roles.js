@@ -127,6 +127,23 @@ function clientConfig(connectionString, env) {
   };
 }
 
+function createAdminClientConfig(adminUrl, adminPassword, env) {
+  const parsed = new URL(adminUrl);
+  if (parsed.password) {
+    throw new Error('P3_DB_ADMIN_URL must not contain a password');
+  }
+
+  return {
+    user: decodeURIComponent(parsed.username),
+    host: parsed.hostname,
+    port: Number(parsed.port || 5432),
+    database: decodeURIComponent(parsed.pathname.replace(/^\/+/, '')),
+    password: adminPassword,
+    ssl: { ca: readDatabaseCa(env), rejectUnauthorized: true },
+    connectionTimeoutMillis: 10_000,
+  };
+}
+
 function quoteIdentifier(identifier) {
   return `"${identifier.replaceAll('"', '""')}"`;
 }
@@ -215,14 +232,9 @@ async function main() {
     if (!adminUrl || !adminPassword) {
       throw new Error('interactive PostgreSQL administrative credentials are required');
     }
-    const parsedAdminUrl = new URL(adminUrl);
-    if (parsedAdminUrl.password) {
-      throw new Error('P3_DB_ADMIN_URL must not contain a password');
-    }
-    const adminClient = new Client({
-      ...clientConfig(adminUrl, candidateEnv),
-      password: adminPassword,
-    });
+    const adminClient = new Client(
+      createAdminClientConfig(adminUrl, adminPassword, candidateEnv),
+    );
     try {
       await adminClient.connect();
       if (plan.zoteroKeyChanged) {
@@ -265,6 +277,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  createAdminClientConfig,
   loadPgClient,
   loadRotationInputs,
   validateAppRoot,

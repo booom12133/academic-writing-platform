@@ -125,6 +125,31 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     }
   });
 
+  it('builds a discrete pg admin client config with the runtime-only password', () => {
+    const { Client } = require('pg');
+    const { createAdminClientConfig } = require('../../deploy/scripts/rotate-postgres-roles.js');
+    const runtimeAdminPassword = 'runtime-only-admin-password';
+    const config = createAdminClientConfig(
+      'postgresql://admin@127.0.0.1:5432/academic_writing',
+      runtimeAdminPassword,
+      { DATABASE_SSL_CA: 'synthetic-ca' },
+    );
+
+    expect(config).toEqual({
+      user: 'admin',
+      host: '127.0.0.1',
+      port: 5432,
+      database: 'academic_writing',
+      password: runtimeAdminPassword,
+      ssl: { ca: 'synthetic-ca', rejectUnauthorized: true },
+      connectionTimeoutMillis: 10_000,
+    });
+    expect(config).not.toHaveProperty('connectionString');
+
+    const client = new Client(config);
+    expect(client.connectionParameters.password).toBe(runtimeAdminPassword);
+  });
+
   it('rejects an administrative password when it is present in the candidate env file', () => {
     const { createRotationPlan } = require('../../deploy/scripts/rotation-contract.js');
     const { loadRotationInputs } = require('../../deploy/scripts/rotate-postgres-roles.js');
