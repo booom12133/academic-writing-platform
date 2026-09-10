@@ -47,6 +47,10 @@ if ! awk -F= '
   fail "env file has duplicate keys or invalid lines"
 fi
 
+if grep -Eq '^P3_DB_ADMIN_PASSWORD=' "$env_file"; then
+  fail "P3_DB_ADMIN_PASSWORD must not be stored in production.env"
+fi
+
 for key in NODE_ENV RUNTIME_PROFILE SERVER_HOST SERVER_PORT DATABASE_URL \
   MIGRATION_DATABASE_URL DOCUMENT_STORAGE_ROOT DATABASE_SSL_CA_FILE \
   PGSSLMODE PGSSLROOTCERT OIDC_PROVIDER OIDC_CLIENT_ID OIDC_ISSUER_URL \

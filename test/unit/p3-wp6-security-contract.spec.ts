@@ -44,6 +44,7 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(verify).toContain('duplicate');
     expect(verify).toContain('sudo -u "$service_user"');
     expect(verify).toContain('node --env-file=');
+    expect(verify).toContain('P3_DB_ADMIN_PASSWORD must not be stored');
     expect(rotate).toContain('mktemp');
     expect(rotate).toContain('mv -f');
     const rotationContract = readProjectFile('deploy/scripts/rotation-contract.js');
@@ -51,6 +52,8 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(roleRotation).toContain('zotero_connections');
     expect(rotationContract).toContain('controller review required');
     expect(rotate).toContain('secret-rotation-complete');
+    expect(rotate).toContain('P3_DB_ADMIN_URL');
+    expect(rotate).toContain('/dev/tty');
     expect(rotationContract).toContain('DATABASE_URL');
     expect(rotationContract).toContain('MIGRATION_DATABASE_URL');
     expect(rotationContract).toContain('ACADEMIC_SEARCH_CURSOR_SECRET');
@@ -139,7 +142,52 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
         currentEnv,
         candidateEnv: { ...candidateEnv, MIGRATION_DATABASE_URL: currentEnv.MIGRATION_DATABASE_URL },
       }),
-    ).toThrow(/MIGRATION_DATABASE_URL must be changed/);
+    ).toThrow(/MIGRATION_DATABASE_URL password must be changed/);
+
+    expect(() =>
+      createRotationPlan({
+        mode: 'INITIAL_COMPROMISE_ROTATION',
+        currentEnv,
+        candidateEnv: {
+          ...candidateEnv,
+          DATABASE_URL: connection('academic_writing_app', 'baseline'),
+        },
+      }),
+    ).toThrow(/DATABASE_URL password must be changed/);
+
+    expect(() =>
+      createRotationPlan({
+        mode: 'INITIAL_COMPROMISE_ROTATION',
+        currentEnv,
+        candidateEnv: {
+          ...candidateEnv,
+          DATABASE_URL: [
+            'postgresql://',
+            'academic_writing_app',
+            ':',
+            Buffer.from('academic_writing_app-baseline').toString('base64url'),
+            '@other-db.example/other_database?target_session_attrs=read-write',
+          ].join(''),
+        },
+      }),
+    ).toThrow(/DATABASE_URL password must be changed/);
+
+    const passwordRotated = createRotationPlan({
+      mode: 'INITIAL_COMPROMISE_ROTATION',
+      currentEnv,
+      candidateEnv,
+    });
+    expect(passwordRotated.rolesToRotate).toEqual([
+      'academic_writing_app',
+      'academic_writing_migrator',
+    ]);
+    expect(() =>
+      createRotationPlan({
+        mode: 'INITIAL_COMPROMISE_ROTATION',
+        currentEnv,
+        candidateEnv: { ...candidateEnv, P3_DB_ADMIN_PASSWORD: 'synthetic-admin-value' },
+      }),
+    ).toThrow(/P3_DB_ADMIN_PASSWORD must not be stored/);
 
     expect(() =>
       assertZoteroRotationAllowed({
@@ -164,6 +212,92 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     ).not.toThrow();
   });
 
+  it('does not print synthetic database password values from the rotation contract CLI', () => {
+    const { mkdtempSync, rmSync, writeFileSync } = require('node:fs');
+    const { tmpdir } = require('node:os');
+    const { spawnSync } = require('node:child_process');
+    const tempRoot = mkdtempSync(join(tmpdir(), 'p3-rotation-contract-'));
+    const currentPath = join(tempRoot, 'current.env');
+    const candidatePath = join(tempRoot, 'candidate.env');
+    const syntheticPassword = Buffer.from('synthetic-only-password').toString('base64url');
+    const envLine = (revision: string) => [
+      `DATABASE_URL=postgresql://academic_writing_app:${syntheticPassword}@db.example/academic_writing`,
+      `MIGRATION_DATABASE_URL=postgresql://academic_writing_migrator:${syntheticPassword}-${revision}@db.example/academic_writing`,
+      `ACADEMIC_SEARCH_CURSOR_SECRET=cursor-${revision}`,
+      `ZOTERO_CREDENTIAL_ENCRYPTION_KEY=zotero-${revision}`,
+    ].join('\n');
+    writeFileSync(currentPath, envLine('baseline'));
+    writeFileSync(candidatePath, envLine('rotated'));
+
+    const result = spawnSync(
+      process.execPath,
+      [join(root, 'deploy/scripts/rotation-contract.js'), currentPath, candidatePath, 'INITIAL_COMPROMISE_ROTATION'],
+      { encoding: 'utf8' },
+    );
+    try {
+      expect(`${result.stdout}${result.stderr}`).not.toContain(syntheticPassword);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('uses a root-only PM2 startup command and validates generated systemd semantics', () => {
+    const startupHelper = readProjectFile('deploy/scripts/install-pm2-systemd.sh');
+    const serviceCli = readProjectFile('deploy/scripts/pm2-service-cli.sh');
+    const {
+      PM2_HOME,
+      SERVICE_NAME,
+      buildRootStartupCommand,
+      parseSystemdUnit,
+      assertSystemdUnit,
+    } = require('../../deploy/scripts/pm2-systemd-contract.js');
+
+    expect(startupHelper).toContain('test "$(id -u)" = "0"');
+    expect(startupHelper).toContain('PM2_HOME="$pm2_home"');
+    expect(startupHelper).toContain('startup systemd -u "$service_user"');
+    expect(startupHelper).not.toContain('pm2-service-cli.sh');
+    expect(startupHelper).toContain('systemctl cat "$service_name"');
+    expect(serviceCli).toContain('test "$1" != "startup"');
+
+    const command = buildRootStartupCommand('/usr/bin/pm2');
+    expect(command.env).toEqual({ PM2_HOME });
+    expect(command.args).toEqual([
+      '/usr/bin/pm2',
+      'startup',
+      'systemd',
+      '-u',
+      'academic-writing',
+    ]);
+    expect(command.args).not.toContain('--hp');
+
+    const validUnit = [
+      '# /etc/systemd/system/pm2-academic-writing.service',
+      '[Service]',
+      'User=academic-writing',
+      'Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2',
+      'PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid',
+    ].join('\n');
+    expect(parseSystemdUnit(validUnit)).toMatchObject({
+      user: 'academic-writing',
+      pm2Home: PM2_HOME,
+      pidFile: `${PM2_HOME}/pm2.pid`,
+    });
+    expect(assertSystemdUnit({ serviceName: SERVICE_NAME, unitText: validUnit })).toEqual({
+      serviceName: SERVICE_NAME,
+      user: 'academic-writing',
+      pm2Home: PM2_HOME,
+      pidFile: `${PM2_HOME}/pm2.pid`,
+    });
+    expect(() => assertSystemdUnit({
+      serviceName: SERVICE_NAME,
+      unitText: validUnit.replace('User=academic-writing', 'User=root'),
+    })).toThrow(/User=academic-writing/);
+    expect(() => assertSystemdUnit({
+      serviceName: SERVICE_NAME,
+      unitText: validUnit.replace(`PM2_HOME=${PM2_HOME}`, 'PM2_HOME=/tmp/pm2'),
+    })).toThrow(/PM2_HOME/);
+  });
+
   it('freezes the reviewed activation order before any PM2 start', () => {
     const plan = readProjectFile('docs/plans/PHASE_P3_IMPLEMENTATION_PLAN.md');
     const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
@@ -175,7 +309,7 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       'verify-production-env.sh',
       'prepare-pm2-state.sh',
       'pm2-service-cli.sh start',
-      'pm2-service-cli.sh startup',
+      'install-pm2-systemd.sh',
       'pm2-service-cli.sh save',
     ];
 

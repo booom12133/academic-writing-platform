@@ -28,6 +28,8 @@ test "$(stat -c '%U:%G' "$pm2_home")" = "$service_user:$service_group" ||
 test "$(stat -c '%a' "$pm2_home")" = "700" ||
   fail "PM2 state directory mode must be 700"
 test "$#" -gt 0 || fail "a PM2 command is required"
+test "$1" != "startup" ||
+  fail "startup installation must use install-pm2-systemd.sh as root"
 
 exec sudo -u "$service_user" -- env -i \
   HOME=/nonexistent \

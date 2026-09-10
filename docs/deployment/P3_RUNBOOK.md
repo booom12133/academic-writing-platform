@@ -63,22 +63,26 @@ PM2:
     sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
     sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
     sudo /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-activate.sh <commit-sha>
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
     sudo deploy/scripts/prepare-pm2-state.sh
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
-    # Execute the exact privileged command emitted by PM2.
+    sudo deploy/scripts/install-pm2-systemd.sh
+    # The root-only helper executes env PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u academic-writing.
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl enable pm2-academic-writing.service
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh status
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
 
-`systemctl cat` must show `Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`
-or equivalent unit evidence before the enable operation. `release-activate.sh`
-and `rollback.sh` both fail closed if their selected release manifest or
-release ownership contract does not verify.
+`systemctl cat` must show `User=academic-writing`,
+`Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`, and
+`PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid` before the enable
+operation. `install-pm2-systemd.sh` performs startup installation as root and
+parses the generated `pm2-academic-writing.service`; it is not run through
+`pm2-service-cli.sh`, and it never uses `--hp`. `release-activate.sh` and
+`rollback.sh` both fail closed if their selected release manifest or release
+ownership contract does not verify.
 
 ## Persistent document filesystem
 
@@ -145,14 +149,17 @@ DATABASE_URL, MIGRATION_DATABASE_URL, ACADEMIC_SEARCH_CURSOR_SECRET, and
 ZOTERO_CREDENTIAL_ENCRYPTION_KEY values with the root-only atomic helper:
 
     sudo install -d -o root -g root -m 755 /etc/academic-writing-platform
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
 
 The initial helper changes the existing PostgreSQL role passwords for
 `academic_writing_app` and `academic_writing_migrator`, then validates both
 new credentials over verified TLS. It accepts `P3_DB_ADMIN_URL` only without a
-password and reads the administrative password through hidden interactive
-input. It records role name plus rotation/connectivity status only. The helper
+password and receives it as a non-secret environment input; it reads the
+administrative password through hidden `/dev/tty` input. It rejects
+`P3_DB_ADMIN_PASSWORD` in the candidate production.env, records role name plus
+rotation/connectivity status only, and compares each database password
+component rather than relying on whole-URL changes. The helper
 validates duplicate keys, production configuration, Node 22 env-file
 consumption, runtime readability, and exact ownership/modes without printing
 values. It atomically replaces the target and creates the root:root mode-600
@@ -196,8 +203,7 @@ CLI operation:
 
     sudo deploy/scripts/prepare-pm2-state.sh
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
-    # Execute the exact privileged command emitted by PM2.
+    sudo deploy/scripts/install-pm2-systemd.sh
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl enable pm2-academic-writing.service
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
@@ -206,9 +212,12 @@ CLI operation:
 
 The wrapper sets `PM2_HOME=/var/lib/academic-writing-platform/pm2`,
 `HOME=/nonexistent`, and the approved system PATH, and refuses to run unless
-the rotation gate and root-only completion marker pass. PM2 startup/systemd
-must retain the same PM2_HOME and `--hp` path. pm2 save alone is not the boot
-contract.
+the rotation gate and root-only completion marker pass. Startup installation
+is performed directly as root by `install-pm2-systemd.sh` using
+`PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u
+academic-writing`; it is never run through the service-user wrapper and never
+uses `--hp`. The helper verifies the generated unit's User, PM2_HOME, PIDFile,
+and exact service name. pm2 save alone is not the boot contract.
 
 Before the single approved ECS reboot, record a backup hash, representative DB
 state, persistent document hash, rollback release, enabled PostgreSQL/Nginx/

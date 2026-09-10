@@ -50,6 +50,8 @@ describe('P3 deployment contract', () => {
       'rotation-contract.js',
       'rotate-postgres-roles.js',
       'release-manifest.js',
+      'install-pm2-systemd.sh',
+      'pm2-systemd-contract.js',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
@@ -100,7 +102,8 @@ describe('P3 deployment contract', () => {
       expect(content).toContain('/var/lib/academic-writing-platform/pm2');
     }
     expect(scripts).not.toContain('/home/academic-writing');
-    expect(plan).toContain('--hp /var/lib/academic-writing-platform/pm2');
+    expect(plan).toContain('install-pm2-systemd.sh');
+    expect(plan).not.toContain('--hp /var/lib/academic-writing-platform/pm2');
     expect(runbook).toContain('HOME=/nonexistent');
     expect(runbook).toContain('shell remains `/usr/sbin/nologin`');
   });

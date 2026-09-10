@@ -47,9 +47,21 @@ function assertDatabaseRole(key, value, expectedRole) {
   if (!parsed.password) throw new Error(`${key} must contain a rotated credential`);
 }
 
+function databasePassword(key, value, expectedRole) {
+  assertDatabaseRole(key, value, expectedRole);
+  try {
+    return decodeURIComponent(new URL(value).password);
+  } catch {
+    throw new Error(`${key} must contain a valid password component`);
+  }
+}
+
 function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
   if (!['INITIAL_COMPROMISE_ROTATION', 'NORMAL_FUTURE_ROTATION'].includes(mode)) {
     throw new Error('rotation mode is invalid');
+  }
+  if (Object.hasOwn(candidateEnv, 'P3_DB_ADMIN_PASSWORD')) {
+    throw new Error('P3_DB_ADMIN_PASSWORD must not be stored in production.env');
   }
   for (const key of INITIAL_SECRET_KEYS) {
     if (!candidateEnv[key]) throw new Error(`${key} is required`);
@@ -65,19 +77,38 @@ function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
     ROLE_BY_DATABASE_KEY.MIGRATION_DATABASE_URL,
   );
 
+  const currentDatabasePasswords = {};
+  const candidateDatabasePasswords = {};
+  for (const [key, role] of Object.entries(ROLE_BY_DATABASE_KEY)) {
+    if (!Object.hasOwn(currentEnv, key) || !currentEnv[key]) {
+      throw new Error(`${key} current value is required for password comparison`);
+    }
+    currentDatabasePasswords[key] = databasePassword(key, currentEnv[key], role);
+    candidateDatabasePasswords[key] = databasePassword(key, candidateEnv[key], role);
+  }
+  const databasePasswordChanged = Object.keys(ROLE_BY_DATABASE_KEY).filter(
+    (key) => currentDatabasePasswords[key] !== candidateDatabasePasswords[key],
+  );
+
   const changedKeys = INITIAL_SECRET_KEYS.filter(
     (key) => currentEnv[key] !== candidateEnv[key],
   );
   if (mode === 'INITIAL_COMPROMISE_ROTATION') {
-    for (const key of INITIAL_SECRET_KEYS) {
-      if (Object.hasOwn(currentEnv, key) && currentEnv[key] === candidateEnv[key]) {
+    for (const key of Object.keys(ROLE_BY_DATABASE_KEY)) {
+      if (!databasePasswordChanged.includes(key)) {
+        throw new Error(`${key} password must be changed during initial compromise rotation`);
+      }
+    }
+    for (const key of INITIAL_SECRET_KEYS.filter(
+      (secretKey) => !Object.hasOwn(ROLE_BY_DATABASE_KEY, secretKey),
+    )) {
+      if (currentEnv[key] === candidateEnv[key]) {
         throw new Error(`${key} must be changed during initial compromise rotation`);
       }
     }
   }
-  const rolesToRotate = INITIAL_SECRET_KEYS
-    .filter((key) => mode === 'INITIAL_COMPROMISE_ROTATION' || changedKeys.includes(key))
-    .filter((key) => Object.hasOwn(ROLE_BY_DATABASE_KEY, key))
+  const rolesToRotate = Object.keys(ROLE_BY_DATABASE_KEY)
+    .filter((key) => databasePasswordChanged.includes(key))
     .map((key) => ROLE_BY_DATABASE_KEY[key]);
 
   if (mode === 'NORMAL_FUTURE_ROTATION' && changedKeys.length === 0) {
@@ -87,6 +118,7 @@ function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
   return {
     mode,
     changedKeys,
+    databasePasswordChanged,
     rolesToRotate,
     zoteroKeyChanged: changedKeys.includes('ZOTERO_CREDENTIAL_ENCRYPTION_KEY'),
     createsInitialMarker: mode === 'INITIAL_COMPROMISE_ROTATION',
