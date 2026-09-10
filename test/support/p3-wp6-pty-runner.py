@@ -100,11 +100,15 @@ def main() -> int:
                     password_sent = True
                     stdin_open = False
 
-            waited_pid, waited_status = os.waitpid(pid, os.WNOHANG)
-            if waited_pid == pid:
-                status = waited_status
-                if not master_open:
-                    break
+            if status is None:
+                try:
+                    waited_pid, waited_status = os.waitpid(pid, os.WNOHANG)
+                except ChildProcessError:
+                    waited_pid, waited_status = pid, status
+                if waited_pid == pid and waited_status is not None:
+                    status = waited_status
+                    if not master_open:
+                        break
 
         if status is None:
             _, status = os.waitpid(pid, 0)

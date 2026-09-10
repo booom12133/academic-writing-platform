@@ -102,7 +102,13 @@ jobs:
         run: npm ci
 
       - name: Prepare reviewed shell entrypoints
-        run: chmod +x deploy/scripts/rotate-production-env.sh deploy/scripts/verify-production-env.sh
+        run: |
+          set -euo pipefail
+          chmod +x deploy/scripts/rotate-production-env.sh deploy/scripts/verify-production-env.sh
+          node_path="$(command -v node)"
+          test -x "$node_path"
+          sudo ln -sf "$node_path" /usr/local/bin/node
+          test -x /usr/local/bin/node
 
       - name: Create production-equivalent service identity
         run: |
