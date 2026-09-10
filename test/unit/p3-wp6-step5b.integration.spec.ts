@@ -9,6 +9,10 @@ const integrationEnabled =
 const describeStep5B =
   integrationEnabled ? describe : describe.skip;
 
+if (integrationEnabled) {
+  jest.setTimeout(120_000);
+}
+
 async function expectRoleLogin(
   fixture: ReturnType<typeof createStep5BFixture>,
   role: 'academic_writing_app' | 'academic_writing_migrator',
