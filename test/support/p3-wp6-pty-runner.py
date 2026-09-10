@@ -58,6 +58,7 @@ def main() -> int:
     except OSError as error:
         if error.errno != errno.EBADF:
             raise
+    slave_fd = -1
 
     prompt_seen = False
     ready_notified = False
@@ -162,7 +163,8 @@ def main() -> int:
         return 98
     finally:
         os.close(master_fd)
-        os.close(slave_fd)
+        if slave_fd >= 0:
+            os.close(slave_fd)
 
 
 if __name__ == "__main__":
