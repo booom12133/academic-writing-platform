@@ -221,6 +221,99 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     }
   });
 
+  it('executes the helper with a runtime-only admin password without printing that password', () => {
+    const { spawnSync } = require('node:child_process');
+    const tempRoot = mkdtempSync(join(tmpdir(), 'p3-rotation-runtime-output-'));
+    const appRoot = join(tempRoot, 'app');
+    const appPgRoot = join(appRoot, 'node_modules', 'pg');
+    const deployScriptsRoot = join(tempRoot, 'deploy', 'scripts');
+    const currentPath = join(tempRoot, 'current.env');
+    const candidatePath = join(tempRoot, 'candidate.env');
+    const observedPath = join(tempRoot, 'observed.json');
+    const syntheticAdminSecret = `synthetic-admin-${process.pid}-${Date.now()}`;
+    const envLine = (revision: string) => [
+      `DATABASE_URL=postgresql://academic_writing_app:${revision}-app@db.example/academic_writing`,
+      `MIGRATION_DATABASE_URL=postgresql://academic_writing_migrator:${revision}-migrator@db.example/academic_writing`,
+      `ACADEMIC_SEARCH_CURSOR_SECRET=cursor-${revision}`,
+      `ZOTERO_CREDENTIAL_ENCRYPTION_KEY=zotero-${revision}`,
+      'DATABASE_SSL_CA=synthetic-ca',
+    ].join('\n');
+
+    mkdirSync(appPgRoot, { recursive: true });
+    mkdirSync(deployScriptsRoot, { recursive: true });
+    writeFileSync(
+      join(appRoot, 'package.json'),
+      JSON.stringify({
+        name: 'reviewed-production-app',
+        dependencies: { pg: '8.23.0' },
+      }),
+    );
+    writeFileSync(
+      join(appPgRoot, 'package.json'),
+      JSON.stringify({ name: 'pg', main: 'index.js' }),
+    );
+    writeFileSync(
+      join(appPgRoot, 'index.js'),
+      [
+        "const fs = require('node:fs');",
+        'class Client {',
+        '  constructor(config) {',
+        '    fs.writeFileSync(process.env.P3_TEST_OBSERVED_PATH, JSON.stringify({',
+        '      adminPasswordWasPassed: config.password === process.env.P3_DB_ADMIN_PASSWORD,',
+        '      adminPasswordLength: typeof config.password === \'string\' ? config.password.length : 0,',
+        '    }));',
+        '  }',
+        "  async connect() { throw new Error('synthetic admin connection refusal'); }",
+        '  async end() {}',
+        '}',
+        'module.exports = { Client };',
+      ].join('\n'),
+    );
+    writeFileSync(
+      join(deployScriptsRoot, 'rotation-contract.js'),
+      readProjectFile('deploy/scripts/rotation-contract.js'),
+    );
+    writeFileSync(
+      join(deployScriptsRoot, 'rotate-postgres-roles.js'),
+      readProjectFile('deploy/scripts/rotate-postgres-roles.js'),
+    );
+    writeFileSync(currentPath, envLine('baseline'));
+    writeFileSync(candidatePath, envLine('rotated'));
+    expect(readFileSync(candidatePath, 'utf8')).not.toContain('P3_DB_ADMIN_PASSWORD');
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          join(deployScriptsRoot, 'rotate-postgres-roles.js'),
+          currentPath,
+          candidatePath,
+          'INITIAL_COMPROMISE_ROTATION',
+          appRoot,
+        ],
+        {
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            P3_DB_ADMIN_URL: 'postgresql://admin@127.0.0.1:1/academic_writing',
+            P3_DB_ADMIN_PASSWORD: syntheticAdminSecret,
+            P3_TEST_OBSERVED_PATH: observedPath,
+          },
+        },
+      );
+      const output = `${result.stdout}${result.stderr}`;
+      expect(result.status).not.toBe(0);
+      expect(JSON.parse(readFileSync(observedPath, 'utf8'))).toEqual({
+        adminPasswordWasPassed: true,
+        adminPasswordLength: syntheticAdminSecret.length,
+      });
+      expect(output).toContain('synthetic admin connection refusal');
+      expect(output).not.toContain(syntheticAdminSecret);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
   it('keeps initial compromise rotation distinct from normal future rotation', () => {
     const {
       createRotationPlan,
