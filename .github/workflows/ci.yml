@@ -190,7 +190,22 @@ jobs:
           cp -R dist/server/modules/knowledge/indexing/. \
             "$app_root/server/modules/knowledge/indexing/"
           cp package.json "$app_root/package.json"
-          cp -R node_modules/pg "$app_root/node_modules/pg"
+          for dependency in \
+            pg \
+            pg-connection-string \
+            pg-pool \
+            pg-protocol \
+            pg-types \
+            pgpass \
+            pg-int8 \
+            postgres-array \
+            postgres-bytea \
+            postgres-date \
+            postgres-interval \
+            split2 \
+            xtend; do
+            cp -R "node_modules/$dependency" "$app_root/node_modules/$dependency"
+          done
           chmod -R a+rX "$app_root"
           test -r "$app_root/server/config/production-config.js"
           test -r "$app_root/node_modules/pg/package.json"

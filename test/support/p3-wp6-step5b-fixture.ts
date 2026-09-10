@@ -4,7 +4,6 @@ import {
   chmodSync,
   mkdirSync,
   mkdtempSync,
-  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -151,7 +150,7 @@ export function createStep5BFixture() {
       port: DATABASE_PORT,
       database: DATABASE_NAME,
       ssl: {
-        ca: overrides.ca || readFileSync(caPath, 'utf8'),
+        ca: overrides.ca || runSudo(['cat', '--', caPath]),
         rejectUnauthorized: true,
       },
       connectionTimeoutMillis: 5_000,
