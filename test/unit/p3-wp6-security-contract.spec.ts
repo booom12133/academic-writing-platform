@@ -339,6 +339,16 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     }
   });
 
+  it('keeps the admin password inside the hidden runtime boundary and unsets it after the helper', () => {
+    const rotationScript = readProjectFile('deploy/scripts/rotate-production-env.sh');
+
+    expect(rotationScript).toContain('read -r -s admin_password </dev/tty');
+    expect(rotationScript).toContain('export P3_DB_ADMIN_PASSWORD="$admin_password"');
+    expect(rotationScript).toContain('unset P3_DB_ADMIN_PASSWORD');
+    expect(rotationScript).not.toContain('P3_DB_ADMIN_PASSWORD="$admin_password" >');
+    expect(rotationScript).not.toContain('P3_DB_ADMIN_PASSWORD="${admin_password}" >');
+  });
+
   it('keeps initial compromise rotation distinct from normal future rotation', () => {
     const {
       createRotationPlan,
