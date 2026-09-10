@@ -117,7 +117,10 @@ def main() -> int:
             os.kill(pid, 15)
         except ProcessLookupError:
             pass
-        os.waitpid(pid, 0)
+        try:
+            os.waitpid(pid, 0)
+        except ChildProcessError:
+            pass
         return 98
     finally:
         os.close(master_fd)

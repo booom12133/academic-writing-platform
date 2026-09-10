@@ -175,8 +175,44 @@ export function createStep5BFixture() {
     await client.query(`ALTER ROLE "${role}" PASSWORD ${literalResult.rows[0].literal}`);
   }
 
+  async function createRole(
+    client: Client,
+    role: string,
+    options: string,
+    password: string,
+  ): Promise<void> {
+    const literalResult = await client.query(
+      'SELECT quote_literal($1) AS literal',
+      [password],
+    );
+    await client.query(
+      `CREATE ROLE "${role}" ${options} PASSWORD ${literalResult.rows[0].literal}`,
+    );
+  }
+
   async function resetDatabase(): Promise<void> {
     await withBootstrap(async (client) => {
+      const roleResult = await client.query(
+        `SELECT rolname
+         FROM pg_catalog.pg_roles
+         WHERE rolname = ANY($1::text[])`,
+        [['p3_rotation_admin', 'academic_writing_app', 'academic_writing_migrator']],
+      );
+      const existingRoles = new Set(roleResult.rows.map((row) => row.rolname));
+      if (!existingRoles.has('academic_writing_app')) {
+        await createRole(client, 'academic_writing_app', 'LOGIN', appOldPassword);
+      }
+      if (!existingRoles.has('academic_writing_migrator')) {
+        await createRole(client, 'academic_writing_migrator', 'LOGIN', migratorOldPassword);
+      }
+      if (!existingRoles.has('p3_rotation_admin')) {
+        await createRole(
+          client,
+          'p3_rotation_admin',
+          'LOGIN NOINHERIT CREATEROLE',
+          adminPassword,
+        );
+      }
       await setRolePassword(client, 'p3_rotation_admin', adminPassword);
       await setRolePassword(client, 'academic_writing_app', appOldPassword);
       await setRolePassword(client, 'academic_writing_migrator', migratorOldPassword);
@@ -193,26 +229,13 @@ export function createStep5BFixture() {
       await client.query('DROP ROLE IF EXISTS p3_rotation_admin');
       await client.query('DROP ROLE IF EXISTS academic_writing_app');
       await client.query('DROP ROLE IF EXISTS academic_writing_migrator');
-      const appPassword = await client.query(
-        'SELECT quote_literal($1) AS literal',
-        [appOldPassword],
-      );
-      const migratorPassword = await client.query(
-        'SELECT quote_literal($1) AS literal',
-        [migratorOldPassword],
-      );
-      const adminPasswordLiteral = await client.query(
-        'SELECT quote_literal($1) AS literal',
-        [adminPassword],
-      );
-      await client.query(
-        `CREATE ROLE academic_writing_app LOGIN PASSWORD ${appPassword.rows[0].literal}`,
-      );
-      await client.query(
-        `CREATE ROLE academic_writing_migrator LOGIN PASSWORD ${migratorPassword.rows[0].literal}`,
-      );
-      await client.query(
-        `CREATE ROLE p3_rotation_admin LOGIN NOINHERIT CREATEROLE PASSWORD ${adminPasswordLiteral.rows[0].literal}`,
+      await createRole(client, 'academic_writing_app', 'LOGIN', appOldPassword);
+      await createRole(client, 'academic_writing_migrator', 'LOGIN', migratorOldPassword);
+      await createRole(
+        client,
+        'p3_rotation_admin',
+        'LOGIN NOINHERIT CREATEROLE',
+        adminPassword,
       );
       await client.query(`
         CREATE TABLE public.zotero_connections (

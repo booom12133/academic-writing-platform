@@ -101,6 +101,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare reviewed shell entrypoints
+        run: chmod +x deploy/scripts/rotate-production-env.sh deploy/scripts/verify-production-env.sh
+
       - name: Create production-equivalent service identity
         run: |
           set -euo pipefail
