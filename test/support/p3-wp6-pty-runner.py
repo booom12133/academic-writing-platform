@@ -9,6 +9,7 @@ import termios
 import fcntl
 import time
 import signal
+import errno
 
 
 PROMPT = b"PostgreSQL administrative password (input hidden): "
@@ -52,7 +53,11 @@ def main() -> int:
 
     # The parent must not keep the slave open.  Otherwise the master never
     # observes EOF when the child exits, and the orchestration loop can hang.
-    os.close(slave_fd)
+    try:
+        os.close(slave_fd)
+    except OSError as error:
+        if error.errno != errno.EBADF:
+            raise
 
     prompt_seen = False
     ready_notified = False
