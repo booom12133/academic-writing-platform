@@ -1,5 +1,13 @@
-import { existsSync, readFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 const root = join(__dirname, '..', '..');
 const readProjectFile = (relativePath: string) =>
@@ -72,6 +80,49 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(existsSync(join(root, 'deploy', 'scripts', 'rotate-production-env.sh'))).toBe(true);
     expect(artifact).toContain('ALLOWED_PRODUCTION_SCRIPTS');
     expect(artifact).not.toContain('rotate-production-env.sh');
+  });
+
+  it('resolves pg from app node_modules in the production sibling layout', () => {
+    const releaseRoot = mkdtempSync(join(tmpdir(), 'p3-rotation-layout-'));
+    try {
+      const appRoot = join(releaseRoot, 'app');
+      const deployScriptsRoot = join(releaseRoot, 'deploy', 'scripts');
+      const appPgRoot = join(appRoot, 'node_modules', 'pg');
+      mkdirSync(appPgRoot, { recursive: true });
+      mkdirSync(deployScriptsRoot, { recursive: true });
+      writeFileSync(
+        join(appRoot, 'package.json'),
+        JSON.stringify({
+          name: 'reviewed-production-app',
+          dependencies: { pg: '8.23.0' },
+        }),
+      );
+      writeFileSync(
+        join(appPgRoot, 'index.js'),
+        'module.exports = { Client: class Client {} };',
+      );
+      writeFileSync(
+        join(appPgRoot, 'package.json'),
+        JSON.stringify({ name: 'pg', main: 'index.js' }),
+      );
+      writeFileSync(
+        join(deployScriptsRoot, 'rotation-contract.js'),
+        readProjectFile('deploy/scripts/rotation-contract.js'),
+      );
+      writeFileSync(
+        join(deployScriptsRoot, 'rotate-postgres-roles.js'),
+        readProjectFile('deploy/scripts/rotate-postgres-roles.js'),
+      );
+
+      expect(existsSync(join(releaseRoot, 'deploy', 'node_modules'))).toBe(false);
+      expect(readProjectFile('deploy/scripts/rotate-production-env.sh')).toContain(
+        '"$role_rotation_script" "$env_file" "$rotation_mode" "$app_root"',
+      );
+      const helper = require(join(deployScriptsRoot, 'rotate-postgres-roles.js'));
+      expect(helper.loadPgClient(appRoot)).toEqual(expect.any(Function));
+    } finally {
+      rmSync(releaseRoot, { recursive: true, force: true });
+    }
   });
 
   it('keeps initial compromise rotation distinct from normal future rotation', () => {

@@ -1,7 +1,8 @@
 'use strict';
 
 const fs = require('node:fs');
-const { Client } = require('pg');
+const path = require('node:path');
+const { createRequire } = require('node:module');
 const {
   assertZoteroRotationAllowed,
   createRotationPlan,
@@ -12,6 +13,104 @@ const ROLE_BY_ENV_KEY = {
   DATABASE_URL: 'academic_writing_app',
   MIGRATION_DATABASE_URL: 'academic_writing_migrator',
 };
+
+function lstatOrFail(targetPath, description) {
+  let stats;
+  try {
+    stats = fs.lstatSync(targetPath);
+  } catch {
+    throw new Error(`${description} is missing or unavailable`);
+  }
+  if (stats.isSymbolicLink()) {
+    throw new Error(`${description} must not be a symlink`);
+  }
+  return stats;
+}
+
+function validateAppRoot(appRoot) {
+  if (!appRoot || !path.isAbsolute(appRoot)) {
+    throw new Error('rotation app root must be an absolute path');
+  }
+
+  const appRootStats = lstatOrFail(appRoot, 'rotation app root');
+  if (!appRootStats.isDirectory()) {
+    throw new Error('rotation app root must be a directory');
+  }
+
+  const packagePath = path.join(appRoot, 'package.json');
+  const packageStats = lstatOrFail(packagePath, 'rotation app package.json');
+  if (!packageStats.isFile()) {
+    throw new Error('rotation app package.json must be a regular file');
+  }
+
+  let packageJson;
+  try {
+    packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+  } catch {
+    throw new Error('rotation app package.json is invalid');
+  }
+  if (
+    !packageJson ||
+    typeof packageJson !== 'object' ||
+    typeof packageJson.dependencies?.pg !== 'string'
+  ) {
+    throw new Error('rotation app package.json must declare pg');
+  }
+
+  const nodeModulesRoot = path.join(appRoot, 'node_modules');
+  const nodeModulesStats = lstatOrFail(
+    nodeModulesRoot,
+    'rotation app node_modules',
+  );
+  if (!nodeModulesStats.isDirectory()) {
+    throw new Error('rotation app node_modules must be a directory');
+  }
+
+  return { packagePath, nodeModulesRoot };
+}
+
+function isWithinRoot(root, target) {
+  const relativePath = path.relative(root, target);
+  return (
+    relativePath !== '' &&
+    relativePath !== '..' &&
+    !relativePath.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relativePath)
+  );
+}
+
+function loadPgClient(appRoot) {
+  const { packagePath, nodeModulesRoot } = validateAppRoot(appRoot);
+  const appRequire = createRequire(packagePath);
+  let resolvedPgPath;
+  try {
+    resolvedPgPath = appRequire.resolve('pg');
+  } catch {
+    throw new Error('rotation app pg dependency is unavailable');
+  }
+  let resolvedPgRealPath;
+  let nodeModulesRealPath;
+  try {
+    resolvedPgRealPath = fs.realpathSync.native(resolvedPgPath);
+    nodeModulesRealPath = fs.realpathSync.native(nodeModulesRoot);
+  } catch {
+    throw new Error('rotation app pg dependency path is unavailable');
+  }
+  if (!isWithinRoot(nodeModulesRealPath, resolvedPgRealPath)) {
+    throw new Error('rotation app pg dependency resolved outside app node_modules');
+  }
+
+  let pg;
+  try {
+    pg = appRequire('pg');
+  } catch {
+    throw new Error('rotation app pg dependency could not be loaded');
+  }
+  if (!pg || typeof pg.Client !== 'function') {
+    throw new Error('rotation app pg dependency has no Client');
+  }
+  return pg.Client;
+}
 
 function readDatabaseCa(env) {
   const caFile = (env.DATABASE_SSL_CA_FILE || '').trim();
@@ -69,7 +168,7 @@ async function rotateRoles({ adminClient, plan, env }) {
   }
 }
 
-async function checkConnectivity(key, expectedRole, env) {
+async function checkConnectivity(key, expectedRole, env, Client) {
   const client = new Client(clientConfig(env[key], env));
   try {
     await client.connect();
@@ -87,8 +186,11 @@ async function checkConnectivity(key, expectedRole, env) {
 }
 
 async function main() {
-  const [, , currentEnvPath, mode] = process.argv;
-  if (!currentEnvPath || !mode) throw new Error('rotation helper arguments are invalid');
+  const [, , currentEnvPath, mode, appRoot] = process.argv;
+  if (!currentEnvPath || !mode || !appRoot) {
+    throw new Error('rotation helper arguments are invalid');
+  }
+  const Client = loadPgClient(appRoot);
   const currentEnv = parseEnvFile(currentEnvPath);
   const plan = createRotationPlan({ mode, currentEnv, candidateEnv: process.env });
   const adminUrl = process.env.P3_DB_ADMIN_URL || '';
@@ -131,16 +233,20 @@ async function main() {
   }
 
   for (const [key, role] of Object.entries(ROLE_BY_ENV_KEY)) {
-    await checkConnectivity(key, role, process.env);
+    await checkConnectivity(key, role, process.env, Client);
   }
   for (const role of plan.rolesToRotate) {
     process.stdout.write(`role=${role} rotation=success\n`);
   }
 }
 
-main().catch((error) => {
-  process.stderr.write(
-    `${error instanceof Error ? error.message : 'database credential rotation failed'}\n`,
-  );
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    process.stderr.write(
+      `${error instanceof Error ? error.message : 'database credential rotation failed'}\n`,
+    );
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { loadPgClient, validateAppRoot };
