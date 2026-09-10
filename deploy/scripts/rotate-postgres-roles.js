@@ -185,16 +185,31 @@ async function checkConnectivity(key, expectedRole, env, Client) {
   }
 }
 
+function loadRotationInputs(currentEnvPath, candidateEnvPath, runtimeEnv = process.env) {
+  if (!currentEnvPath || !candidateEnvPath) {
+    throw new Error('rotation env paths are required');
+  }
+  return {
+    currentEnv: parseEnvFile(currentEnvPath),
+    candidateEnv: parseEnvFile(candidateEnvPath),
+    adminUrl: runtimeEnv.P3_DB_ADMIN_URL || '',
+    adminPassword: runtimeEnv.P3_DB_ADMIN_PASSWORD || '',
+  };
+}
+
 async function main() {
-  const [, , currentEnvPath, mode, appRoot] = process.argv;
-  if (!currentEnvPath || !mode || !appRoot) {
+  const [, , currentEnvPath, candidateEnvPath, mode, appRoot] = process.argv;
+  if (!currentEnvPath || !candidateEnvPath || !mode || !appRoot) {
     throw new Error('rotation helper arguments are invalid');
   }
+  const {
+    currentEnv,
+    candidateEnv,
+    adminUrl,
+    adminPassword,
+  } = loadRotationInputs(currentEnvPath, candidateEnvPath);
   const Client = loadPgClient(appRoot);
-  const currentEnv = parseEnvFile(currentEnvPath);
-  const plan = createRotationPlan({ mode, currentEnv, candidateEnv: process.env });
-  const adminUrl = process.env.P3_DB_ADMIN_URL || '';
-  const adminPassword = process.env.P3_DB_ADMIN_PASSWORD || '';
+  const plan = createRotationPlan({ mode, currentEnv, candidateEnv });
   const needsAdmin = plan.rolesToRotate.length > 0 || plan.zoteroKeyChanged;
   if (needsAdmin) {
     if (!adminUrl || !adminPassword) {
@@ -205,7 +220,7 @@ async function main() {
       throw new Error('P3_DB_ADMIN_URL must not contain a password');
     }
     const adminClient = new Client({
-      ...clientConfig(adminUrl, process.env),
+      ...clientConfig(adminUrl, candidateEnv),
       password: adminPassword,
     });
     try {
@@ -226,14 +241,14 @@ async function main() {
           encryptedCredentialCount: count,
         });
       }
-      await rotateRoles({ adminClient, plan, env: process.env });
+      await rotateRoles({ adminClient, plan, env: candidateEnv });
     } finally {
       await adminClient.end().catch(() => undefined);
     }
   }
 
   for (const [key, role] of Object.entries(ROLE_BY_ENV_KEY)) {
-    await checkConnectivity(key, role, process.env, Client);
+    await checkConnectivity(key, role, candidateEnv, Client);
   }
   for (const role of plan.rolesToRotate) {
     process.stdout.write(`role=${role} rotation=success\n`);
@@ -249,4 +264,8 @@ if (require.main === module) {
   });
 }
 
-module.exports = { loadPgClient, validateAppRoot };
+module.exports = {
+  loadPgClient,
+  loadRotationInputs,
+  validateAppRoot,
+};

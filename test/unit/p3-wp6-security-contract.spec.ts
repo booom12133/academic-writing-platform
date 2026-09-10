@@ -116,12 +116,108 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
 
       expect(existsSync(join(releaseRoot, 'deploy', 'node_modules'))).toBe(false);
       expect(readProjectFile('deploy/scripts/rotate-production-env.sh')).toContain(
-        '"$role_rotation_script" "$env_file" "$rotation_mode" "$app_root"',
+        '"$role_rotation_script" "$env_file" "$temp_env" "$rotation_mode" "$app_root"',
       );
       const helper = require(join(deployScriptsRoot, 'rotate-postgres-roles.js'));
       expect(helper.loadPgClient(appRoot)).toEqual(expect.any(Function));
     } finally {
       rmSync(releaseRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an administrative password when it is present in the candidate env file', () => {
+    const { createRotationPlan } = require('../../deploy/scripts/rotation-contract.js');
+    const { loadRotationInputs } = require('../../deploy/scripts/rotate-postgres-roles.js');
+    const tempRoot = mkdtempSync(join(tmpdir(), 'p3-rotation-candidate-admin-'));
+    const currentPath = join(tempRoot, 'current.env');
+    const candidatePath = join(tempRoot, 'candidate.env');
+    const currentEnv = {
+      DATABASE_URL: 'postgresql://academic_writing_app:current@db.example/academic_writing',
+      MIGRATION_DATABASE_URL:
+        'postgresql://academic_writing_migrator:current@db.example/academic_writing',
+      ACADEMIC_SEARCH_CURSOR_SECRET: 'cursor-current',
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY: 'zotero-current',
+    };
+    const candidateEnv = {
+      DATABASE_URL: 'postgresql://academic_writing_app:rotated@db.example/academic_writing',
+      MIGRATION_DATABASE_URL:
+        'postgresql://academic_writing_migrator:rotated@db.example/academic_writing',
+      ACADEMIC_SEARCH_CURSOR_SECRET: 'cursor-rotated',
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY: 'zotero-rotated',
+      P3_DB_ADMIN_PASSWORD: 'synthetic-admin-password',
+    };
+    writeFileSync(currentPath, Object.entries(currentEnv).map(([key, value]) => `${key}=${value}`).join('\n'));
+    writeFileSync(candidatePath, Object.entries(candidateEnv).map(([key, value]) => `${key}=${value}`).join('\n'));
+
+    try {
+      const inputs = loadRotationInputs(currentPath, candidatePath, {
+        P3_DB_ADMIN_PASSWORD: 'runtime-only-admin-password',
+      });
+
+      expect(() => createRotationPlan({
+        mode: 'INITIAL_COMPROMISE_ROTATION',
+        currentEnv: inputs.currentEnv,
+        candidateEnv: inputs.candidateEnv,
+      })).toThrow(/P3_DB_ADMIN_PASSWORD must not be stored/);
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps a runtime-only administrative password out of candidate rotation inputs', () => {
+    const { createRotationPlan } = require('../../deploy/scripts/rotation-contract.js');
+    const { loadRotationInputs } = require('../../deploy/scripts/rotate-postgres-roles.js');
+    const tempRoot = mkdtempSync(join(tmpdir(), 'p3-rotation-runtime-admin-'));
+    const currentPath = join(tempRoot, 'current.env');
+    const candidatePath = join(tempRoot, 'candidate.env');
+    const currentEnv = {
+      DATABASE_URL: 'postgresql://academic_writing_app:current@db.example/academic_writing',
+      MIGRATION_DATABASE_URL:
+        'postgresql://academic_writing_migrator:current@db.example/academic_writing',
+      ACADEMIC_SEARCH_CURSOR_SECRET: 'cursor-current',
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY: 'zotero-current',
+    };
+    const candidateEnv = {
+      DATABASE_URL: 'postgresql://academic_writing_app:rotated@db.example/academic_writing',
+      MIGRATION_DATABASE_URL:
+        'postgresql://academic_writing_migrator:rotated@db.example/academic_writing',
+      ACADEMIC_SEARCH_CURSOR_SECRET: 'cursor-rotated',
+      ZOTERO_CREDENTIAL_ENCRYPTION_KEY: 'zotero-rotated',
+    };
+    writeFileSync(currentPath, Object.entries(currentEnv).map(([key, value]) => `${key}=${value}`).join('\n'));
+    writeFileSync(candidatePath, Object.entries(candidateEnv).map(([key, value]) => `${key}=${value}`).join('\n'));
+
+    const previousAdminPassword = process.env.P3_DB_ADMIN_PASSWORD;
+    const previousDatabaseUrl = process.env.DATABASE_URL;
+    process.env.P3_DB_ADMIN_PASSWORD = 'runtime-only-admin-password';
+    process.env.DATABASE_URL = 'postgresql://runtime-value@runtime.example/runtime';
+    try {
+      const inputs = loadRotationInputs(currentPath, candidatePath);
+
+      expect(inputs.adminPassword).toBe('runtime-only-admin-password');
+      expect(inputs.candidateEnv).toEqual(candidateEnv);
+      expect(inputs.candidateEnv).not.toHaveProperty('P3_DB_ADMIN_PASSWORD');
+      expect(inputs.candidateEnv.DATABASE_URL).toBe(candidateEnv.DATABASE_URL);
+      expect(createRotationPlan({
+        mode: 'INITIAL_COMPROMISE_ROTATION',
+        currentEnv: inputs.currentEnv,
+        candidateEnv: inputs.candidateEnv,
+      }).rolesToRotate).toEqual([
+        'academic_writing_app',
+        'academic_writing_migrator',
+      ]);
+    } finally {
+      if (previousAdminPassword === undefined) {
+        delete process.env.P3_DB_ADMIN_PASSWORD;
+      } else {
+        process.env.P3_DB_ADMIN_PASSWORD = previousAdminPassword;
+      }
+      if (previousDatabaseUrl === undefined) {
+        delete process.env.DATABASE_URL;
+      } else {
+        process.env.DATABASE_URL = previousDatabaseUrl;
+      }
+      rmSync(tempRoot, { recursive: true, force: true });
     }
   });
 

@@ -87,7 +87,7 @@ fi
 
 if ! (
   cd "$app_root"
-  node --env-file="$temp_env" "$role_rotation_script" "$env_file" "$rotation_mode" "$app_root"
+  node --env-file="$temp_env" "$role_rotation_script" "$env_file" "$temp_env" "$rotation_mode" "$app_root"
 ); then
   fail "database role rotation or new credential connectivity validation failed"
 fi
