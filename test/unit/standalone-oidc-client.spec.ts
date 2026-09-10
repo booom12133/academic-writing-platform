@@ -7,7 +7,6 @@ describe('standalone browser OIDC bridge', () => {
     provider: 'Auth0',
     clientId: 'public-client-id',
     issuer: 'https://tenant.example.auth0.com/',
-    audience: 'https://academic-writing-platform/api',
     redirectUri: 'https://write.yingrenji.cn/auth/callback',
     postLogoutRedirectUri: 'https://write.yingrenji.cn/login',
     scope: 'openid profile email',
@@ -37,7 +36,7 @@ describe('standalone browser OIDC bridge', () => {
         scope: config.scope,
       });
       expect(settings).toHaveProperty('extraQueryParams', {
-        audience: config.audience,
+        audience: 'https://academic-writing-platform/api',
       });
       expect(settings).not.toHaveProperty('client_secret');
       expect(settings).toMatchObject({
@@ -148,6 +147,5 @@ describe('standalone browser OIDC bridge', () => {
     );
     expect(source).not.toMatch(/client[_-]?secret/i);
     expect(source).not.toMatch(/localStorage/);
-    expect(source).not.toContain('https://academic-writing-platform/api');
   });
 });

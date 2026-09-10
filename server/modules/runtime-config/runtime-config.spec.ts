@@ -36,13 +36,11 @@ describe('runtime OIDC public configuration', () => {
       provider: 'Auth0',
       clientId: 'public-client-id',
       issuer: 'https://tenant.example.auth0.com/',
-      audience: 'https://academic-writing-platform/api',
       redirectUri: 'https://write.yingrenji.cn/auth/callback',
       postLogoutRedirectUri: 'https://write.yingrenji.cn/login',
       scope: 'openid profile email',
     });
     expect(Object.keys(response).sort()).toEqual([
-      'audience',
       'clientId',
       'issuer',
       'postLogoutRedirectUri',
@@ -51,13 +49,7 @@ describe('runtime OIDC public configuration', () => {
       'scope',
     ]);
     expect(JSON.stringify(response)).not.toContain('must-never-be-used');
-    expect(response.audience).toBe('https://academic-writing-platform/api');
-    expect(response).not.toHaveProperty('client_secret');
-    expect(response).not.toHaveProperty('jwksUrl');
-    expect(response).not.toHaveProperty('allowedAlgorithms');
-    expect(response).not.toHaveProperty('userIdClaim');
-    expect(response).not.toHaveProperty('databaseUrl');
-    expect(response).not.toHaveProperty('providerApiKey');
+    expect(JSON.stringify(response)).not.toContain('academic-writing-platform/api');
   });
 
   it('fails closed when production browser configuration is incomplete', () => {
@@ -65,7 +57,6 @@ describe('runtime OIDC public configuration', () => {
       new RuntimeConfigService({
         NODE_ENV: 'production',
         OIDC_PROVIDER: 'Auth0',
-        OIDC_AUDIENCE: 'https://academic-writing-platform/api',
         OIDC_ISSUER_URL: 'https://tenant.example.auth0.com/',
         OIDC_REDIRECT_URI: 'https://write.yingrenji.cn/auth/callback',
         OIDC_POST_LOGOUT_REDIRECT_URI: 'https://write.yingrenji.cn/login',

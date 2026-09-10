@@ -16,7 +16,6 @@ export interface StandaloneOidcRuntimeConfig {
   provider: string;
   clientId: string;
   issuer: string;
-  audience: string;
   redirectUri: string;
   postLogoutRedirectUri: string;
   scope: string;
@@ -72,7 +71,7 @@ export function createOidcUserManagerSettings(
     response_type: 'code',
     scope: config.scope,
     extraQueryParams: {
-      audience: config.audience,
+      audience: 'https://academic-writing-platform/api',
     },
     stateStore,
     userStore: new WebStorageStateStore({ store: storage }),
@@ -141,7 +140,6 @@ async function fetchRuntimeConfig(): Promise<StandaloneOidcRuntimeConfig> {
     'provider',
     'clientId',
     'issuer',
-    'audience',
     'redirectUri',
     'postLogoutRedirectUri',
     'scope',

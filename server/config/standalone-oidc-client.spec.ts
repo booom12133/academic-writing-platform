@@ -5,7 +5,6 @@ const validEnvironment = {
   OIDC_PROVIDER: 'Auth0',
   OIDC_CLIENT_ID: 'public-client-id',
   OIDC_ISSUER_URL: 'https://tenant.example.auth0.com/',
-  OIDC_AUDIENCE: 'https://academic-writing-platform/api',
   OIDC_REDIRECT_URI: 'https://write.yingrenji.cn/auth/callback',
   OIDC_POST_LOGOUT_REDIRECT_URI: 'https://write.yingrenji.cn/login',
 };
@@ -16,7 +15,6 @@ describe('standalone public OIDC client configuration', () => {
       provider: 'Auth0',
       clientId: 'public-client-id',
       issuer: 'https://tenant.example.auth0.com/',
-      audience: 'https://academic-writing-platform/api',
       redirectUri: 'https://write.yingrenji.cn/auth/callback',
       postLogoutRedirectUri: 'https://write.yingrenji.cn/login',
       scope: 'openid profile email',
@@ -30,19 +28,6 @@ describe('standalone public OIDC client configuration', () => {
         OIDC_CLIENT_ID: '',
       }),
     ).toThrow(/OIDC_CLIENT_ID/);
-
-    expect(() =>
-      loadStandaloneOidcClientConfig({
-        ...validEnvironment,
-        OIDC_AUDIENCE: '   ',
-      }),
-    ).toThrow(/OIDC_AUDIENCE/);
-
-    const withoutAudience = { ...validEnvironment };
-    delete withoutAudience.OIDC_AUDIENCE;
-    expect(() => loadStandaloneOidcClientConfig(withoutAudience)).toThrow(
-      /OIDC_AUDIENCE/,
-    );
 
     expect(() =>
       loadStandaloneOidcClientConfig({
