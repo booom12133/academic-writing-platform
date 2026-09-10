@@ -47,6 +47,9 @@ describe('P3 deployment contract', () => {
       'pm2-service-cli.sh',
       'verify-production-env.sh',
       'rotate-production-env.sh',
+      'rotation-contract.js',
+      'rotate-postgres-roles.js',
+      'release-manifest.js',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }

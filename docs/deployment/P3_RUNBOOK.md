@@ -46,6 +46,40 @@ in the release hash evidence. Persistent document data is never copied into a
 release. release-install.sh, release-activate.sh, and rollback.sh do not
 delete, replace, or traverse the persistent document root.
 
+Release installation is root-controlled. The release root and its `app/` and
+`deploy/` trees are owned by `root:academic-writing`; directories are mode
+`750`, regular files are mode `640`, and only required shell entrypoints are
+owner/group executable. The runtime group has no write permission. The
+`release-manifest.sha256` file is owned by `root:root`, mode `640`, and covers
+every regular file below `app/` and `deploy/`. The release manifest helper
+rejects symlinks, path traversal, missing files, extra files, duplicate
+entries, and digest mismatches.
+
+The first deployment command sequence is frozen as follows. It verifies the
+installed release before changing `current`, performs the initial compromise
+rotation before any Node or PM2 process, and only then prepares and activates
+PM2:
+
+    sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
+    sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
+    sudo /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-activate.sh <commit-sha>
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+    sudo deploy/scripts/prepare-pm2-state.sh
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
+    # Execute the exact privileged command emitted by PM2.
+    sudo systemctl cat pm2-academic-writing.service
+    sudo systemctl enable pm2-academic-writing.service
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh status
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
+
+`systemctl cat` must show `Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`
+or equivalent unit evidence before the enable operation. `release-activate.sh`
+and `rollback.sh` both fail closed if their selected release manifest or
+release ownership contract does not verify.
+
 ## Persistent document filesystem
 
 The only production document storage root is:
@@ -111,18 +145,26 @@ DATABASE_URL, MIGRATION_DATABASE_URL, ACADEMIC_SEARCH_CURSOR_SECRET, and
 ZOTERO_CREDENTIAL_ENCRYPTION_KEY values with the root-only atomic helper:
 
     sudo install -d -o root -g root -m 755 /etc/academic-writing-platform
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
 
-The rotation helper validates duplicate keys, production configuration, Node
-22 env-file consumption, runtime readability, and exact ownership/modes without
-printing values. It atomically replaces the target and creates the root:root
-mode-600 secret-rotation-complete marker. If the Zotero key changes, it checks
-zotero_connections before replacement; any existing encrypted credential stops
-the operation with a Controller-review error. A failed or unavailable check
-never permits the key rotation. Later rotations use the same helper, followed
-by the controlled PM2 reload below. Verify PM2 status and live/ready health
-using redacted output only.
+The initial helper changes the existing PostgreSQL role passwords for
+`academic_writing_app` and `academic_writing_migrator`, then validates both
+new credentials over verified TLS. It accepts `P3_DB_ADMIN_URL` only without a
+password and reads the administrative password through hidden interactive
+input. It records role name plus rotation/connectivity status only. The helper
+validates duplicate keys, production configuration, Node 22 env-file
+consumption, runtime readability, and exact ownership/modes without printing
+values. It atomically replaces the target and creates the root:root mode-600
+`secret-rotation-complete` marker only after every initial check succeeds. If
+the Zotero key changes, it checks `zotero_connections` before any role
+mutation; any existing encrypted credential or unavailable check stops the
+operation with a Controller-review error. A failed check never permits the key
+rotation. Future changes must use the explicit
+`NORMAL_FUTURE_ROTATION` mode, which rotates only changed secret classes and
+requires the existing initial marker. Follow future rotations by the
+controlled PM2 reload below. Verify PM2 status and live/ready health using
+redacted output only.
 
 ## Database operations
 
@@ -156,6 +198,7 @@ CLI operation:
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
     # Execute the exact privileged command emitted by PM2.
+    sudo systemctl cat pm2-academic-writing.service
     sudo systemctl enable pm2-academic-writing.service
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh reload academic-writing-platform --update-env

@@ -483,32 +483,26 @@ Server Changes after authorization: Reuse and verify the exact academic-writing 
 
 Configuration / Env: PM2 starts server/main.js from cwd=/opt/academic-writing-platform/current/app with node_args=--env-file=/etc/academic-writing-platform/production.env. Node 22 reads this file before loading the application; PM2 is not assumed to understand or auto-load env files. The file is outside Git and the artifact, owned by root:academic-writing with mode 640, and readable by academic-writing through its group without being writable by the runtime. Its parent directory is root:root mode 755. The canonical PM2 state is /var/lib/academic-writing-platform/pm2, owned by academic-writing:academic-writing with mode 700; it is outside every release and current symlink. No watch mode, cluster mode, or multiple instances.
 
-Production env loading and rotation contract: Before any production Node or PM2 startup, the hard gate P3_SECURITY_SECRET_ROTATION_REQUIRED=YES is mandatory. Run deploy/scripts/rotate-production-env.sh as root with a candidate env file; it validates duplicate keys, production config, Node 22 env-file consumption, root:academic-writing ownership, mode 640, and runtime readability without printing values, then atomically replaces /etc/academic-writing-platform/production.env and creates a root:root mode-600 completion marker. The known exposed DATABASE_URL runtime credential, MIGRATION_DATABASE_URL migrator credential, ACADEMIC_SEARCH_CURSOR_SECRET, and ZOTERO_CREDENTIAL_ENCRYPTION_KEY must be rotated before the first startup. If the Zotero key changes, the script checks the production database without exposing credentials; any existing row in zotero_connections stops rotation with a Controller-review error because historical credentials must remain decryptable. A failed or unavailable check never permits rotation. The PM2 config contains only the fixed --env-file path and non-secret process settings. A missing/unreadable/malformed env file causes startup/config validation to fail closed. All later env rotations use the same atomic replacement and controlled reload.
+Production env loading and rotation contract: Before any production Node or PM2 startup, the hard gate P3_SECURITY_SECRET_ROTATION_REQUIRED=YES is mandatory. The explicit INITIAL_COMPROMISE_ROTATION mode must perform server-side PostgreSQL password changes for the existing roles academic_writing_app and academic_writing_migrator, update candidate DATABASE_URL and MIGRATION_DATABASE_URL credentials, verify both new role connections over verified TLS, rotate ACADEMIC_SEARCH_CURSOR_SECRET and ZOTERO_CREDENTIAL_ENCRYPTION_KEY, and create the initial root:root mode-600 completion marker only after every check succeeds. The operator supplies P3_DB_ADMIN_URL without a password and enters the administrative password through hidden interactive input; no password is accepted as a command-line argument or printed. The helper validates duplicate keys, production config, Node 22 env-file consumption, root:academic-writing ownership, mode 640, and runtime readability without printing values, then atomically replaces /etc/academic-writing-platform/production.env. NORMAL_FUTURE_ROTATION requires the initial marker and changes only the supplied secret classes; changed database URLs trigger real role password rotation, while unchanged database URLs are still connectivity-validated. A changed ZOTERO_CREDENTIAL_ENCRYPTION_KEY requires a successful fail-closed check that zotero_connections has no existing encrypted credentials. The PM2 config contains only the fixed --env-file path and non-secret process settings. A missing/unreadable/malformed env file causes startup/config validation to fail closed. All later env rotations use the same atomic replacement and controlled reload.
 
-PM2 OS boot recovery: Reuse the dedicated academic-writing system user established by WP3 with home /nonexistent and shell /usr/sbin/nologin; never alter passwd metadata or grant the account a writable home. Run deploy/scripts/prepare-pm2-state.sh to establish /var/lib/academic-writing-platform/pm2, then use deploy/scripts/pm2-service-cli.sh for start, startup, save, reload, status, and describe. The wrapper sets PM2_HOME=/var/lib/academic-writing-platform/pm2, HOME=/nonexistent, and the approved system PATH, and refuses all PM2 commands unless the rotation gate and root-only completion marker pass. Run pm2 startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2, execute the exact privileged command emitted by PM2, then enable pm2-academic-writing.service. The saved PM2 process definition must retain cwd=current/app, script=server/main.js, node_args=--env-file=/etc/academic-writing-platform/production.env, and the single-fork settings. pm2 save is run through the same wrapper after validated startup; it is not the boot-recovery mechanism by itself.
+PM2 OS boot recovery: Reuse the dedicated academic-writing system user established by WP3 with home /nonexistent and shell /usr/sbin/nologin; never alter passwd metadata or grant the account a writable home. Run deploy/scripts/prepare-pm2-state.sh to establish /var/lib/academic-writing-platform/pm2, then use deploy/scripts/pm2-service-cli.sh for start, startup, save, reload, status, and describe. The wrapper sets PM2_HOME=/var/lib/academic-writing-platform/pm2, HOME=/nonexistent, and the approved system PATH, and refuses all PM2 commands unless the rotation gate and root-only completion marker pass. Run pm2 startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2, execute the exact privileged command emitted by PM2, verify the generated unit contains Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2 (or equivalent evidence), and only then enable pm2-academic-writing.service. The saved PM2 process definition must retain cwd=current/app, script=server/main.js, node_args=--env-file=/etc/academic-writing-platform/production.env, and the single-fork settings. pm2 save is run through the same wrapper after validated startup; it is not the boot-recovery mechanism by itself.
 
 Commands after authorization [C: production host OS + B: production release app]:
 
     sudo getent passwd academic-writing
     sudo getent group academic-writing
-    sudo install -d -o academic-writing -g academic-writing -m 700 /opt/academic-writing-platform/releases/<commit-sha>/app
-    sudo install -d -o academic-writing -g academic-writing -m 700 /opt/academic-writing-platform/releases/<commit-sha>/deploy
-    sudo cp -a dist/. /opt/academic-writing-platform/releases/<commit-sha>/app/
-    sudo cp -a deploy/. /opt/academic-writing-platform/releases/<commit-sha>/deploy/
-    test -f /opt/academic-writing-platform/releases/<commit-sha>/app/scripts/db-migrate.js
-    test -f /opt/academic-writing-platform/releases/<commit-sha>/app/scripts/db-backup.js
-    test -f /opt/academic-writing-platform/releases/<commit-sha>/app/scripts/db-restore-verify.js
-    test -d /opt/academic-writing-platform/releases/<commit-sha>/app/drizzle/migrations
-    find /opt/academic-writing-platform/releases/<commit-sha>/app/scripts -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | sort
-    sudo chown -R academic-writing:academic-writing /opt/academic-writing-platform/releases/<commit-sha>
-    find /opt/academic-writing-platform/releases/<commit-sha>/app /opt/academic-writing-platform/releases/<commit-sha>/deploy -type f -print0 | sort -z | xargs -0 sha256sum > /opt/academic-writing-platform/releases/<commit-sha>/release-manifest.sha256
-    sudo ln -sfn /opt/academic-writing-platform/releases/<commit-sha> /opt/academic-writing-platform/current
+    sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
+    sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
+    sudo deploy/scripts/release-activate.sh <commit-sha>
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
     sudo deploy/scripts/prepare-pm2-state.sh
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
+    # Execute the exact privileged command emitted by PM2, then verify the generated unit.
+    sudo systemctl cat pm2-academic-writing.service
     sudo systemctl enable pm2-academic-writing.service
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
     sudo systemctl is-enabled pm2-academic-writing.service
     sudo systemctl is-enabled postgresql nginx
     sudo systemctl status pm2-academic-writing.service --no-pager
@@ -731,6 +725,9 @@ Out-of-Scope Guard: No enterprise DR, remote backup product, replication, HA, or
     deploy/scripts/pm2-service-cli.sh
     deploy/scripts/verify-production-env.sh
     deploy/scripts/rotate-production-env.sh
+    deploy/scripts/rotation-contract.js
+    deploy/scripts/rotate-postgres-roles.js
+    deploy/scripts/release-manifest.js
     docs/deployment/P3_RUNBOOK.md
     docs/deployment/P3_ENVIRONMENT_MANIFEST.md
     docs/deployment/P3_ACCEPTANCE_EVIDENCE.md
