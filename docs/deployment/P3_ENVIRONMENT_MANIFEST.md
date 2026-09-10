@@ -2,7 +2,11 @@
 
 This file names production configuration only. Secret values are provisioned
 outside Git into /etc/academic-writing-platform/production.env with owner
-academic-writing:academic-writing and mode 600.
+root:academic-writing and mode 640. The parent directory is root:root mode
+755, so the academic-writing runtime can read the file but cannot replace it.
+The first production Node/PM2 startup requires
+P3_SECURITY_SECRET_ROTATION_REQUIRED=YES and a root:root mode-600 rotation
+completion marker created by the atomic rotation helper.
 
 ## Runtime
 

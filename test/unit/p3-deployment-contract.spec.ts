@@ -43,6 +43,10 @@ describe('P3 deployment contract', () => {
       'rollback.sh',
       'prepare-storage.sh',
       'verify-storage.sh',
+      'prepare-pm2-state.sh',
+      'pm2-service-cli.sh',
+      'verify-production-env.sh',
+      'rotate-production-env.sh',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
@@ -64,7 +68,13 @@ describe('P3 deployment contract', () => {
       '/health/live',
     );
     expect(readProjectFile('deploy/scripts/rollback.sh')).toContain(
-      'pm2 reload',
+      'reload academic-writing-platform',
+    );
+    expect(readProjectFile('deploy/scripts/rollback.sh')).toContain(
+      'pm2-service-cli.sh',
+    );
+    expect(readProjectFile('deploy/scripts/verify-live.sh')).toContain(
+      'pm2-service-cli.sh',
     );
     expect(readProjectFile('deploy/scripts/verify-storage.sh')).toContain(
       '/var/lib/academic-writing-platform/documents',
@@ -72,6 +82,24 @@ describe('P3 deployment contract', () => {
     expect(readProjectFile('deploy/scripts/prepare-storage.sh')).toContain(
       'useradd',
     );
+  });
+
+  it('keeps the frozen service identity out of the PM2 home contract', () => {
+    const plan = readProjectFile('docs/plans/PHASE_P3_IMPLEMENTATION_PLAN.md');
+    const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
+    const scripts = [
+      'deploy/scripts/rollback.sh',
+      'deploy/scripts/verify-live.sh',
+      'deploy/scripts/pm2-service-cli.sh',
+    ].map(readProjectFile).join('\n');
+
+    for (const content of [plan, runbook, scripts]) {
+      expect(content).toContain('/var/lib/academic-writing-platform/pm2');
+    }
+    expect(scripts).not.toContain('/home/academic-writing');
+    expect(plan).toContain('--hp /var/lib/academic-writing-platform/pm2');
+    expect(runbook).toContain('HOME=/nonexistent');
+    expect(runbook).toContain('shell remains `/usr/sbin/nologin`');
   });
 
   it('defines an external-state Playwright contract without credentials', () => {

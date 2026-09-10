@@ -97,15 +97,32 @@ root.
 
 ## Protected environment
 
-The file /etc/academic-writing-platform/production.env is outside Git and all
-release artifacts. It is owned by academic-writing:academic-writing, mode 600,
-and never printed or logged. Node 22 loads it through the fixed
---env-file argument in the PM2 configuration. A missing, unreadable, malformed,
-or unsafe file fails closed before the application serves traffic.
+The directory /etc/academic-writing-platform is root:root mode 755. The file
+/etc/academic-writing-platform/production.env is outside Git and all release
+artifacts, owned by root:academic-writing, mode 640. The academic-writing
+runtime can read it through its group but cannot replace it. It is never
+printed or logged. Node 22 loads it through the fixed --env-file argument in
+the PM2 configuration. A missing, unreadable, malformed, or unsafe file fails
+closed before the application serves traffic.
 
-Replace the file atomically with mode 600 during rotation, then run PM2 reload
-with --update-env as the academic-writing user. Verify PM2 status and live/ready
-health using redacted output only.
+Before the first production Node or PM2 startup, set the hard gate
+P3_SECURITY_SECRET_ROTATION_REQUIRED=YES and rotate the previously exposed
+DATABASE_URL, MIGRATION_DATABASE_URL, ACADEMIC_SEARCH_CURSOR_SECRET, and
+ZOTERO_CREDENTIAL_ENCRYPTION_KEY values with the root-only atomic helper:
+
+    sudo install -d -o root -g root -m 755 /etc/academic-writing-platform
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/rotate-production-env.sh /secure/input/production.env /opt/academic-writing-platform/current/app
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+
+The rotation helper validates duplicate keys, production configuration, Node
+22 env-file consumption, runtime readability, and exact ownership/modes without
+printing values. It atomically replaces the target and creates the root:root
+mode-600 secret-rotation-complete marker. If the Zotero key changes, it checks
+zotero_connections before replacement; any existing encrypted credential stops
+the operation with a Controller-review error. A failed or unavailable check
+never permits the key rotation. Later rotations use the same helper, followed
+by the controlled PM2 reload below. Verify PM2 status and live/ready health
+using redacted output only.
 
 ## Database operations
 
@@ -127,11 +144,28 @@ over the live database.
 
 ## Boot recovery
 
-Use the dedicated `academic-writing` identity established by WP3, with the
-stable runtime HOME and Node/PM2 PATH required by the later PM2 setup. Do not
-recreate or renumber the identity in WP6. Run PM2 startup for systemd, execute its exact privileged command,
-enable pm2-academic-writing.service, start the validated single fork, and run
-pm2 save as academic-writing. pm2 save alone is not the boot contract.
+Use the dedicated `academic-writing` identity established by WP3. Its home
+remains `/nonexistent` and its shell remains `/usr/sbin/nologin`; do not create
+`/home/academic-writing`, recreate the user, or alter passwd metadata. The
+canonical PM2 state is `/var/lib/academic-writing-platform/pm2`, owned by
+`academic-writing:academic-writing`, mode `700`, outside all releases and the
+`current` symlink. Prepare it once, then use the same wrapper for every PM2
+CLI operation:
+
+    sudo deploy/scripts/prepare-pm2-state.sh
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh startup systemd -u academic-writing --hp /var/lib/academic-writing-platform/pm2
+    # Execute the exact privileged command emitted by PM2.
+    sudo systemctl enable pm2-academic-writing.service
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh reload academic-writing-platform --update-env
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES deploy/scripts/pm2-service-cli.sh status
+
+The wrapper sets `PM2_HOME=/var/lib/academic-writing-platform/pm2`,
+`HOME=/nonexistent`, and the approved system PATH, and refuses to run unless
+the rotation gate and root-only completion marker pass. PM2 startup/systemd
+must retain the same PM2_HOME and `--hp` path. pm2 save alone is not the boot
+contract.
 
 Before the single approved ECS reboot, record a backup hash, representative DB
 state, persistent document hash, rollback release, enabled PostgreSQL/Nginx/

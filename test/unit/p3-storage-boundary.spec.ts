@@ -72,7 +72,7 @@ describe('P3 persistent storage deployment boundary', () => {
     expect(rollback).not.toContain(storageRoot);
     expect(install).toContain('release-manifest.sha256');
     expect(activate).toContain('current');
-    expect(rollback).toContain('pm2 reload');
+    expect(rollback).toContain('reload academic-writing-platform');
   });
 
   it('keeps the persistent root out of the production artifact closure', () => {

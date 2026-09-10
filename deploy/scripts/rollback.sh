@@ -13,7 +13,6 @@ test -d "$previous_root/deploy"
 test -s "$previous_root/release-manifest.sha256"
 
 sudo ln -sfn "$previous_root" /opt/academic-writing-platform/current
-sudo -u academic-writing -H env HOME=/home/academic-writing \
-  PATH=/usr/local/bin:/usr/bin:/home/academic-writing/.local/bin \
-  pm2 reload academic-writing-platform --update-env
+P3_SECURITY_SECRET_ROTATION_REQUIRED=YES \
+  "$(dirname "$0")/pm2-service-cli.sh" reload academic-writing-platform --update-env
 "$(dirname "$0")/verify-live.sh"

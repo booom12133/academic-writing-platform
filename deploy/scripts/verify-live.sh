@@ -9,7 +9,6 @@ fi
 
 curl --fail --silent --show-error "$base_url/health/live"
 curl --fail --silent --show-error "$base_url/health/ready"
-sudo -u academic-writing -H env HOME=/home/academic-writing \
-  PATH=/usr/local/bin:/usr/bin:/home/academic-writing/.local/bin \
-  pm2 status
+P3_SECURITY_SECRET_ROTATION_REQUIRED=YES \
+  "$(dirname "$0")/pm2-service-cli.sh" status
 sudo systemctl is-active postgresql nginx pm2-academic-writing.service
