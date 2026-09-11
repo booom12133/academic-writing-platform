@@ -195,7 +195,21 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   });
 
   it('S5 rejects a wrong TLS CA before database authentication', async () => {
-    await expect(fixture.connectAdmin({ ca: fixture.wrongCa })).rejects.toThrow(
+    let client;
+    let connectionError: unknown;
+    try {
+      client = await fixture.connectAdmin({ ca: fixture.wrongCa });
+    } catch (error) {
+      connectionError = error;
+    }
+    if (client) {
+      await client.end();
+      throw new Error('wrong TLS CA was unexpectedly accepted');
+    }
+    if (!(connectionError instanceof Error)) {
+      throw new Error('wrong TLS CA did not produce a connection error');
+    }
+    expect(connectionError.message).toMatch(
       /certificate|self[- ]signed|issuer|unable to verify|unable to get local issuer/i,
     );
   });
@@ -284,7 +298,6 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     expect(result.code).not.toBe(0);
     assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('synthetic activation failure');
-    expect(combinedOutput(result)).not.toContain(fixture.adminPassword);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath)).toMatchObject({

@@ -354,7 +354,9 @@ export function createStep5BFixture() {
       candidateEnv?.EMBEDDING_API_KEY,
       ...extraSecrets,
     ].filter((secret): secret is string => Boolean(secret)),
-    wrongCa,
+    get wrongCa(): string {
+      return wrongCa;
+    },
     wrongPassword,
     markerPath: ROTATION_MARKER,
 
