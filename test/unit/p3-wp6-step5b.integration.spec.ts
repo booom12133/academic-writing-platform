@@ -53,6 +53,29 @@ function parseEnvText(text: string): Record<string, string> {
   return values;
 }
 
+function assertExactEnv(
+  actual: Record<string, string>,
+  expected: Record<string, string>,
+  label: string,
+): void {
+  const actualKeys = Object.keys(actual).sort();
+  const expectedKeys = Object.keys(expected).sort();
+  if (actualKeys.length !== expectedKeys.length || actualKeys.some((key, index) => key !== expectedKeys[index])) {
+    throw new Error(`${label} key set mismatch`);
+  }
+  for (const key of expectedKeys) {
+    if (actual[key] !== expected[key]) {
+      throw new Error(`${label} value mismatch for ${key}`);
+    }
+  }
+}
+
+function assertSecretAbsent(text: string, source: string, secret: string): void {
+  if (text.includes(secret)) {
+    throw new Error(`${source} contains a forbidden secret`);
+  }
+}
+
 function assertNoSecretLeakage(
   fixture: ReturnType<typeof createStep5BFixture>,
   result: RotationResult,
@@ -62,22 +85,22 @@ function assertNoSecretLeakage(
   const secrets = fixture.secretValues(extraSecrets);
   const serviceLogs = options.checkServiceLogs ? fixture.databaseServiceLogs() : undefined;
   for (const secret of secrets) {
-    expect(result.stdout).not.toContain(secret);
-    expect(result.stderr).not.toContain(secret);
+    assertSecretAbsent(result.stdout, 'rotation stdout', secret);
+    assertSecretAbsent(result.stderr, 'rotation stderr', secret);
     if (serviceLogs !== undefined) {
-      expect(serviceLogs).not.toContain(secret);
+      assertSecretAbsent(serviceLogs, 'PostgreSQL service logs', secret);
     }
   }
   const currentEnv = fixture.readFile(fixture.currentEnvPath);
-  expect(currentEnv).not.toContain(fixture.adminPassword);
+  assertSecretAbsent(currentEnv, 'current production.env', fixture.adminPassword);
   for (const secret of extraSecrets) {
-    expect(currentEnv).not.toContain(secret);
+    assertSecretAbsent(currentEnv, 'current production.env', secret);
   }
   if (fixture.state(fixture.candidateEnvPath).exists) {
     const candidateEnv = fixture.readFile(fixture.candidateEnvPath);
-    expect(candidateEnv).not.toContain(fixture.adminPassword);
+    assertSecretAbsent(candidateEnv, 'candidate production.env', fixture.adminPassword);
     for (const secret of extraSecrets) {
-      expect(candidateEnv).not.toContain(secret);
+      assertSecretAbsent(candidateEnv, 'candidate production.env', secret);
     }
   }
 }
@@ -104,7 +127,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     assertNoSecretLeakage(fixture, result);
 
     const finalEnv = parseEnvText(fixture.readFile(fixture.currentEnvPath));
-    expect(finalEnv).toEqual(fixture.candidateEnv());
+    assertExactEnv(finalEnv, fixture.candidateEnv(), 'final production.env');
     expect(finalEnv.CORS_ALLOWED_ORIGINS).toBe('https://write.yingrenji.cn');
     expect(finalEnv.EMBEDDING_BASE_URL).toBe('https://api.siliconflow.cn/v1');
     expect(finalEnv.EMBEDDING_MODEL).toBe('BAAI/bge-m3');
@@ -158,7 +181,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     const result = await fixture.runRotation({ adminPassword: fixture.wrongPassword });
     expect(result.code).not.toBe(0);
     assertNoSecretLeakage(fixture, result, [fixture.wrongPassword], { checkServiceLogs: true });
-    expect(parseEnvText(fixture.readFile(fixture.currentEnvPath))).toEqual(fixture.currentEnv());
+    assertExactEnv(parseEnvText(fixture.readFile(fixture.currentEnvPath)), fixture.currentEnv(), 'current production.env');
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath)).toEqual({
       exists: true,
