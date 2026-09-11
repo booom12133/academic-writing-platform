@@ -31,7 +31,7 @@ export type RotationResult = {
 };
 
 export type ConnectionOverrides = {
-  ca?: string;
+  ca?: string | Buffer;
   host?: string;
   password?: string;
 };

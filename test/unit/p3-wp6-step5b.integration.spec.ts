@@ -198,7 +198,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     let client;
     let connectionError: unknown;
     try {
-      client = await fixture.connectAdmin({ ca: fixture.wrongCa });
+      client = await fixture.connectAdmin({ ca: Buffer.from(fixture.wrongCa, 'utf8') });
     } catch (error) {
       connectionError = error;
     }
