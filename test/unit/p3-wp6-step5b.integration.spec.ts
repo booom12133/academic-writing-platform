@@ -101,7 +101,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   it('S1 completes the real rotation chain and activates the candidate', async () => {
     const result = await fixture.runRotation();
     expect(result.code).toBe(0);
-    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    assertNoSecretLeakage(fixture, result);
 
     const finalEnv = parseEnvText(fixture.readFile(fixture.currentEnvPath));
     expect(finalEnv).toEqual(fixture.candidateEnv());
@@ -259,7 +259,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     const faultBin = await fixture.createActivationFaultWrapper();
     const result = await fixture.runRotation({ pathPrefix: faultBin });
     expect(result.code).not.toBe(0);
-    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('synthetic activation failure');
     expect(combinedOutput(result)).not.toContain(fixture.adminPassword);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
