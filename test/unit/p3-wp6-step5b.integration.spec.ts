@@ -238,7 +238,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.revokeMigratorAdminOption();
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertNoSecretLeakage(fixture, result);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
     expect(combinedOutput(result)).toContain('permission denied');
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
