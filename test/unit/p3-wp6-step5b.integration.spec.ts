@@ -43,7 +43,7 @@ function parseEnvText(text: string): Record<string, string> {
   const values: Record<string, string> = {};
   for (const line of text.split(/\r?\n/).filter(Boolean)) {
     const separator = line.indexOf('=');
-    if (separator <= 0) throw new Error(`invalid production env line: ${line}`);
+    if (separator <= 0) throw new Error('invalid production env line');
     const key = line.slice(0, separator);
     if (Object.prototype.hasOwnProperty.call(values, key)) {
       throw new Error(`duplicate production env key: ${key}`);
@@ -195,23 +195,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   });
 
   it('S5 rejects a wrong TLS CA before database authentication', async () => {
-    let client;
-    let connectionError: unknown;
-    try {
-      client = await fixture.connectAdmin({ ca: Buffer.from(fixture.wrongCa, 'utf8') });
-    } catch (error) {
-      connectionError = error;
-    }
-    if (client) {
-      await client.end();
-      throw new Error('wrong TLS CA was unexpectedly accepted');
-    }
-    if (!(connectionError instanceof Error)) {
-      throw new Error('wrong TLS CA did not produce a connection error');
-    }
-    expect(connectionError.message).toMatch(
-      /certificate|self[- ]signed|issuer|unable to verify|unable to get local issuer/i,
-    );
+    await fixture.rejectWrongTlsCa();
   });
 
   it('S6 rejects the certificate hostname mismatch', async () => {

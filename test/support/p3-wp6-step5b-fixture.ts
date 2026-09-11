@@ -10,7 +10,9 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { Socket } from 'node:net';
 import { Client, type ClientConfig } from 'pg';
+import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 
 const PROJECT_ROOT = resolve(__dirname, '..', '..');
 const ENV_DIR = '/etc/academic-writing-platform';
@@ -297,6 +299,55 @@ export function createStep5BFixture() {
     return `${logResult.stdout || ''}${logResult.stderr || ''}`;
   }
 
+  function rejectWrongTlsCa(): Promise<void> {
+    return new Promise((resolvePromise, rejectPromise) => {
+      const rawSocket = new Socket();
+      let tlsSocket: TLSSocket | undefined;
+      let settled = false;
+      const timeout = setTimeout(() => {
+        finish(new Error('wrong TLS CA handshake timed out'));
+      }, 5_000);
+      const finish = (error?: Error): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        tlsSocket?.destroy();
+        if (!tlsSocket) rawSocket.destroy();
+        if (error) rejectPromise(error);
+        else resolvePromise();
+      };
+      const onRawSocketError = (error: Error): void => finish(error);
+
+      rawSocket.once('error', onRawSocketError);
+      rawSocket.once('data', (data: Buffer) => {
+        if (data[0] !== 0x53) {
+          finish(new Error('PostgreSQL TLS negotiation was not accepted'));
+          return;
+        }
+        rawSocket.removeListener('error', onRawSocketError);
+        tlsSocket = tlsConnect({
+          socket: rawSocket,
+          ca: wrongCa,
+          rejectUnauthorized: true,
+          servername: databaseHost,
+        });
+        tlsSocket.once('secureConnect', () => {
+          finish(new Error('wrong TLS CA was unexpectedly trusted'));
+        });
+        tlsSocket.once('error', (error: Error) => {
+          if (/certificate|self[- ]signed|issuer|unable to verify|unable to get local issuer/i.test(error.message)) {
+            finish();
+          } else {
+            finish(new Error('wrong TLS CA handshake failed for an unexpected reason'));
+          }
+        });
+      });
+      rawSocket.connect(DATABASE_PORT, databaseHost, () => {
+        rawSocket.write(Buffer.from([0, 0, 0, 8, 4, 210, 22, 47]));
+      });
+    });
+  }
+
   function fileState(filePath: string): { exists: boolean; owner?: string; mode?: string } {
     try {
       return {
@@ -338,6 +389,7 @@ export function createStep5BFixture() {
     migratorNewPassword,
     migratorOldPassword,
     databaseServiceLogs,
+    rejectWrongTlsCa,
     secretValues: (extraSecrets: string[] = []): string[] => [
       adminPassword,
       appOldPassword,
