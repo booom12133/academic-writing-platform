@@ -1,9 +1,10 @@
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   chmodSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -78,7 +79,9 @@ export function createStep5BFixture() {
   const bootstrapPassword = process.env.P3_WP6_BOOTSTRAP_PASSWORD || 'synthetic-bootstrap-password';
   const adminPassword = `synthetic-admin-${process.pid}-${Date.now()}`;
   const wrongPassword = `${adminPassword}-wrong`;
-  const wrongCa = '-----BEGIN CERTIFICATE-----\nwrong-ca\n-----END CERTIFICATE-----\n';
+  const wrongCaPath = join(tempRoot, 'wrong-ca.pem');
+  const wrongCaKeyPath = join(tempRoot, 'wrong-ca.key');
+  let wrongCa = '';
   const storageRoot = join(tempRoot, 'documents');
   const appOldPassword = `old-app-${process.pid}`;
   const appNewPassword = `new-app-${process.pid}`;
@@ -267,6 +270,28 @@ export function createStep5BFixture() {
     expect(readRootFile(CANDIDATE_ENV_PATH)).not.toContain(secret);
   }
 
+  function databaseServiceLogs(): string {
+    const containerResult = spawnSync(
+      'docker',
+      ['ps', '--filter', 'ancestor=pgvector/pgvector:pg16', '--format', '{{.ID}}'],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    if (containerResult.error || containerResult.status !== 0) {
+      throw containerResult.error || new Error('unable to locate disposable PostgreSQL service');
+    }
+    const containerId = containerResult.stdout.trim().split(/\r?\n/)[0];
+    requirePrerequisite(Boolean(containerId), 'disposable PostgreSQL service container is unavailable');
+    const logResult = spawnSync(
+      'docker',
+      ['logs', containerId],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+    );
+    if (logResult.error || logResult.status !== 0) {
+      throw logResult.error || new Error('unable to read disposable PostgreSQL service logs');
+    }
+    return `${logResult.stdout || ''}${logResult.stderr || ''}`;
+  }
+
   function fileState(filePath: string): { exists: boolean; owner?: string; mode?: string } {
     try {
       return {
@@ -307,6 +332,23 @@ export function createStep5BFixture() {
     databaseHost,
     migratorNewPassword,
     migratorOldPassword,
+    databaseServiceLogs,
+    secretValues: (extraSecrets: string[] = []): string[] => [
+      adminPassword,
+      appOldPassword,
+      appNewPassword,
+      migratorOldPassword,
+      migratorNewPassword,
+      currentEnv?.ACADEMIC_SEARCH_CURSOR_SECRET,
+      candidateEnv?.ACADEMIC_SEARCH_CURSOR_SECRET,
+      currentEnv?.ZOTERO_CREDENTIAL_ENCRYPTION_KEY,
+      candidateEnv?.ZOTERO_CREDENTIAL_ENCRYPTION_KEY,
+      currentEnv?.DEEPSEEK_API_KEY,
+      candidateEnv?.DEEPSEEK_API_KEY,
+      currentEnv?.EMBEDDING_API_KEY,
+      candidateEnv?.EMBEDDING_API_KEY,
+      ...extraSecrets,
+    ].filter((secret): secret is string => Boolean(secret)),
     wrongCa,
     wrongPassword,
     markerPath: ROTATION_MARKER,
@@ -322,6 +364,15 @@ export function createStep5BFixture() {
       requirePrerequisite(existsSync(caPath), `CA file is missing: ${caPath}`);
       requirePrerequisite(existsSync(join(appRoot, 'server', 'config', 'production-config.js')), 'compiled production app root is missing');
       requirePrerequisite(!process.env.P3_DB_ADMIN_PASSWORD, 'P3_DB_ADMIN_PASSWORD must be absent from the initial test environment');
+      execFileSync('openssl', [
+        'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+        '-keyout', wrongCaKeyPath,
+        '-out', wrongCaPath,
+        '-days', '1',
+        '-subj', '/CN=P3 WP6 wrong disposable CA',
+      ], { stdio: 'ignore' });
+      execFileSync('openssl', ['x509', '-in', wrongCaPath, '-noout'], { stdio: 'ignore' });
+      wrongCa = readFileSync(wrongCaPath, 'utf8');
       currentEnv = buildEnv('old');
       candidateEnv = buildEnv('new');
       prepareFilesystem();

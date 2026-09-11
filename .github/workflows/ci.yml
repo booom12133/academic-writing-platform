@@ -166,6 +166,7 @@ jobs:
             -c "ALTER SYSTEM SET listen_addresses = '*';" \
             -c "ALTER SYSTEM SET ssl = 'on';" \
             -c "ALTER SYSTEM SET password_encryption = 'scram-sha-256';" \
+            -c "ALTER SYSTEM SET log_min_error_statement = 'PANIC';" \
             -c "ALTER SYSTEM SET ssl_cert_file = '/var/lib/postgresql/data/server.crt';" \
             -c "ALTER SYSTEM SET ssl_key_file = '/var/lib/postgresql/data/server.key';"
           docker restart "$service_id"
@@ -186,6 +187,8 @@ jobs:
           echo '127.0.0.1 db.academic-writing.internal' | sudo tee -a /etc/hosts >/dev/null
           test "$(docker exec -u postgres "$service_id" psql -At \
             -U postgres -d academic_writing -c "SHOW password_encryption")" = 'scram-sha-256'
+          test "$(docker exec -u postgres "$service_id" psql -At \
+            -U postgres -d academic_writing -c "SHOW log_min_error_statement")" = 'panic'
 
       - name: Build and stage compiled production app root
         run: |

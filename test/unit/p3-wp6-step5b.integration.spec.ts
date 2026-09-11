@@ -39,14 +39,43 @@ function combinedOutput(result: RotationResult): string {
   return `${result.stdout}${result.stderr}`;
 }
 
-function assertAdminSecretAbsent(
+function parseEnvText(text: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const line of text.split(/\r?\n/).filter(Boolean)) {
+    const separator = line.indexOf('=');
+    if (separator <= 0) throw new Error(`invalid production env line: ${line}`);
+    const key = line.slice(0, separator);
+    if (Object.prototype.hasOwnProperty.call(values, key)) {
+      throw new Error(`duplicate production env key: ${key}`);
+    }
+    values[key] = line.slice(separator + 1);
+  }
+  return values;
+}
+
+function assertNoSecretLeakage(
   fixture: ReturnType<typeof createStep5BFixture>,
   result: RotationResult,
+  extraSecrets: string[] = [],
 ): void {
-  expect(combinedOutput(result)).not.toContain(fixture.adminPassword);
-  expect(fixture.readFile(fixture.currentEnvPath)).not.toContain(fixture.adminPassword);
+  const secrets = fixture.secretValues(extraSecrets);
+  const serviceLogs = fixture.databaseServiceLogs();
+  for (const secret of secrets) {
+    expect(result.stdout).not.toContain(secret);
+    expect(result.stderr).not.toContain(secret);
+    expect(serviceLogs).not.toContain(secret);
+  }
+  const currentEnv = fixture.readFile(fixture.currentEnvPath);
+  expect(currentEnv).not.toContain(fixture.adminPassword);
+  for (const secret of extraSecrets) {
+    expect(currentEnv).not.toContain(secret);
+  }
   if (fixture.state(fixture.candidateEnvPath).exists) {
-    expect(fixture.readFile(fixture.candidateEnvPath)).not.toContain(fixture.adminPassword);
+    const candidateEnv = fixture.readFile(fixture.candidateEnvPath);
+    expect(candidateEnv).not.toContain(fixture.adminPassword);
+    for (const secret of extraSecrets) {
+      expect(candidateEnv).not.toContain(secret);
+    }
   }
 }
 
@@ -69,18 +98,15 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   it('S1 completes the real rotation chain and activates the candidate', async () => {
     const result = await fixture.runRotation();
     expect(result.code).toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
 
-    const finalEnv = fixture.readFile(fixture.currentEnvPath);
-    expect(finalEnv).toContain(fixture.candidateEnv().DATABASE_URL);
-    expect(finalEnv).toContain(fixture.candidateEnv().MIGRATION_DATABASE_URL);
-    expect(finalEnv).toContain('CORS_ALLOWED_ORIGINS=https://write.yingrenji.cn');
-    expect(finalEnv).toContain('EMBEDDING_BASE_URL=https://api.siliconflow.cn/v1');
-    expect(finalEnv).toContain('EMBEDDING_MODEL=BAAI/bge-m3');
-    expect(finalEnv).toContain('EMBEDDING_DIMENSIONS=1024');
-    expect(finalEnv).not.toContain(fixture.adminPassword);
-    expect(combinedOutput(result)).not.toContain(fixture.appNewPassword);
-    expect(combinedOutput(result)).not.toContain(fixture.migratorNewPassword);
+    const finalEnv = parseEnvText(fixture.readFile(fixture.currentEnvPath));
+    expect(finalEnv).toEqual(fixture.candidateEnv());
+    expect(finalEnv.CORS_ALLOWED_ORIGINS).toBe('https://write.yingrenji.cn');
+    expect(finalEnv.EMBEDDING_BASE_URL).toBe('https://api.siliconflow.cn/v1');
+    expect(finalEnv.EMBEDDING_MODEL).toBe('BAAI/bge-m3');
+    expect(finalEnv.EMBEDDING_DIMENSIONS).toBe('1024');
+    expect(finalEnv).not.toHaveProperty('P3_DB_ADMIN_PASSWORD');
     expect(fixture.state(fixture.currentEnvPath)).toEqual({
       exists: true,
       owner: 'root:academic-writing',
@@ -103,7 +129,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     fixture.chmodCandidate('644');
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath)).toMatchObject({
       exists: true,
@@ -126,10 +152,26 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
 
   it('S4 rejects the wrong admin password', async () => {
     await expect(fixture.connectAdmin({ password: fixture.wrongPassword })).rejects.toThrow();
+    const result = await fixture.runRotation({ adminPassword: fixture.wrongPassword });
+    expect(result.code).not.toBe(0);
+    assertNoSecretLeakage(fixture, result, [fixture.wrongPassword]);
+    expect(parseEnvText(fixture.readFile(fixture.currentEnvPath))).toEqual(fixture.currentEnv());
+    expect(fixture.state(fixture.markerPath).exists).toBe(false);
+    expect(fixture.state(fixture.candidateEnvPath)).toEqual({
+      exists: true,
+      owner: 'root:root',
+      mode: '600',
+    });
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
   });
 
   it('S5 rejects a wrong TLS CA before database authentication', async () => {
-    await expect(fixture.connectAdmin({ ca: fixture.wrongCa })).rejects.toThrow();
+    await expect(fixture.connectAdmin({ ca: fixture.wrongCa })).rejects.toThrow(
+      /certificate|self[- ]signed|issuer|unable to verify|unable to get local issuer/i,
+    );
   });
 
   it('S6 rejects the certificate hostname mismatch', async () => {
@@ -140,7 +182,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.insertZoteroRow();
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('encrypted Zotero credentials exist');
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
@@ -152,7 +194,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.dropRole('academic_writing_app');
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('required PostgreSQL role is missing');
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
@@ -162,7 +204,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.dropRole('academic_writing_migrator');
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('required PostgreSQL role is missing');
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
@@ -172,7 +214,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.revokeMigratorAdminOption();
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('permission denied');
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
@@ -188,7 +230,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.setCandidateEnv(nextCandidate);
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
@@ -202,7 +244,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.setCandidateEnv(nextCandidate);
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
@@ -214,7 +256,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     const faultBin = await fixture.createActivationFaultWrapper();
     const result = await fixture.runRotation({ pathPrefix: faultBin });
     expect(result.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, result);
+    assertNoSecretLeakage(fixture, result);
     expect(combinedOutput(result)).toContain('synthetic activation failure');
     expect(combinedOutput(result)).not.toContain(fixture.adminPassword);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
@@ -231,7 +273,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   it('S14 creates the marker only after success and retains candidate on failure', async () => {
     const success = await fixture.runRotation();
     expect(success.code).toBe(0);
-    assertAdminSecretAbsent(fixture, success);
+    assertNoSecretLeakage(fixture, success);
     expect(fixture.state(fixture.markerPath).exists).toBe(true);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(false);
 
@@ -239,7 +281,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     fixture.chmodCandidate('644');
     const failure = await fixture.runRotation();
     expect(failure.code).not.toBe(0);
-    assertAdminSecretAbsent(fixture, failure);
+    assertNoSecretLeakage(fixture, failure);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
   });
