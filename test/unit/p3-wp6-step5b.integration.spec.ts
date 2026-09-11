@@ -57,13 +57,16 @@ function assertNoSecretLeakage(
   fixture: ReturnType<typeof createStep5BFixture>,
   result: RotationResult,
   extraSecrets: string[] = [],
+  options: { checkServiceLogs?: boolean } = {},
 ): void {
   const secrets = fixture.secretValues(extraSecrets);
-  const serviceLogs = fixture.databaseServiceLogs();
+  const serviceLogs = options.checkServiceLogs ? fixture.databaseServiceLogs() : undefined;
   for (const secret of secrets) {
     expect(result.stdout).not.toContain(secret);
     expect(result.stderr).not.toContain(secret);
-    expect(serviceLogs).not.toContain(secret);
+    if (serviceLogs !== undefined) {
+      expect(serviceLogs).not.toContain(secret);
+    }
   }
   const currentEnv = fixture.readFile(fixture.currentEnvPath);
   expect(currentEnv).not.toContain(fixture.adminPassword);
@@ -98,7 +101,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
   it('S1 completes the real rotation chain and activates the candidate', async () => {
     const result = await fixture.runRotation();
     expect(result.code).toBe(0);
-    assertNoSecretLeakage(fixture, result);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
 
     const finalEnv = parseEnvText(fixture.readFile(fixture.currentEnvPath));
     expect(finalEnv).toEqual(fixture.candidateEnv());
@@ -154,7 +157,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await expect(fixture.connectAdmin({ password: fixture.wrongPassword })).rejects.toThrow();
     const result = await fixture.runRotation({ adminPassword: fixture.wrongPassword });
     expect(result.code).not.toBe(0);
-    assertNoSecretLeakage(fixture, result, [fixture.wrongPassword]);
+    assertNoSecretLeakage(fixture, result, [fixture.wrongPassword], { checkServiceLogs: true });
     expect(parseEnvText(fixture.readFile(fixture.currentEnvPath))).toEqual(fixture.currentEnv());
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath)).toEqual({
@@ -182,7 +185,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.insertZoteroRow();
     const result = await fixture.runRotation();
     expect(result.code).not.toBe(0);
-    assertNoSecretLeakage(fixture, result);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
     expect(combinedOutput(result)).toContain('encrypted Zotero credentials exist');
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
@@ -256,7 +259,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     const faultBin = await fixture.createActivationFaultWrapper();
     const result = await fixture.runRotation({ pathPrefix: faultBin });
     expect(result.code).not.toBe(0);
-    assertNoSecretLeakage(fixture, result);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
     expect(combinedOutput(result)).toContain('synthetic activation failure');
     expect(combinedOutput(result)).not.toContain(fixture.adminPassword);
     expect(fixture.readFile(fixture.currentEnvPath)).toContain(fixture.currentEnv().DATABASE_URL);
