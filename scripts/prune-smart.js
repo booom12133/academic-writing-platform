@@ -4,6 +4,7 @@
 const { nodeFileTrace } = require('@vercel/nft');
 const fs = require('fs');
 const path = require('path');
+const { copyDependencyTree } = require('./prune-smart-utils');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
@@ -56,38 +57,6 @@ function removeDir(dir) {
 }
 
 /**
- * 递归复制目录（优化版：优先使用硬链接）
- */
-function copyDir(src, dest, stats = { hardLinks: 0, copies: 0 }) {
-  if (!fs.existsSync(dest)) {
-    fs.mkdirSync(dest, { recursive: true });
-  }
-
-  const entries = fs.readdirSync(src, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const srcPath = path.join(src, entry.name);
-    const destPath = path.join(dest, entry.name);
-
-    if (entry.isDirectory()) {
-      copyDir(srcPath, destPath, stats);
-    } else {
-      try {
-        // 优先使用硬链接（CI 环境中安全，速度快，节省空间）
-        fs.linkSync(srcPath, destPath);
-        stats.hardLinks++;
-      } catch {
-        // 硬链接失败时回退到复制（如跨文件系统）
-        fs.copyFileSync(srcPath, destPath);
-        stats.copies++;
-      }
-    }
-  }
-
-  return stats;
-}
-
-/**
  * 选择性复制包
  */
 function copyPackagesSelectively(packages, rootNodeModules, outNodeModules) {
@@ -118,9 +87,10 @@ function copyPackagesSelectively(packages, rootNodeModules, outNodeModules) {
       }
 
       // 复制包目录，收集统计信息
-      copyDir(srcPath, destPath, fileStats);
+      copyDependencyTree(srcPath, destPath, fileStats);
       copiedCount.success++;
     } catch (err) {
+      if (err?.code === 'PRUNE_SYMLINK') throw err;
       console.error(`   ⚠️  复制失败: ${pkg} - ${err.message}`);
       copiedCount.failed++;
     }

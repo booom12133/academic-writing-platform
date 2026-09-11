@@ -7,7 +7,10 @@ import {
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-import { assertProductionArtifactLayout } from '../../scripts/test-production-artifact';
+import {
+  assertProductionArtifactLayout,
+  classifyArtifactEntry,
+} from '../../scripts/test-production-artifact';
 
 const migrationName = '0001_standard_postgres_baseline.sql';
 
@@ -43,6 +46,12 @@ function createArtifact(root: string, migrationContent = 'CREATE TABLE baseline 
 }
 
 describe('production artifact closure', () => {
+  it('classifies symlinks as artifact violations', () => {
+    expect(classifyArtifactEntry('app/node_modules/linked', {
+      isSymbolicLink: () => true,
+    })).toBe('symlink');
+  });
+
   it('accepts runtime, allow-listed DB scripts, and exact migrations', () => {
     const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
     const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));

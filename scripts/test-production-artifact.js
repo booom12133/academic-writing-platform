@@ -40,6 +40,27 @@ function toRelativePath(root, fullPath) {
   return path.relative(root, fullPath).split(path.sep).join('/');
 }
 
+function classifyArtifactEntry(relativePath, entry) {
+  return entry.isSymbolicLink() ? 'symlink' : null;
+}
+
+function findArtifactSymlinkViolations(root) {
+  const violations = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      const relativePath = toRelativePath(root, fullPath);
+      if (classifyArtifactEntry(relativePath, entry) === 'symlink') {
+        violations.push(relativePath);
+      } else if (entry.isDirectory()) {
+        visit(fullPath);
+      }
+    }
+  }
+  visit(root);
+  return violations.sort();
+}
+
 function collectFiles(root) {
   const files = [];
   function visit(directory) {
@@ -70,6 +91,14 @@ function assertProductionArtifactLayout(
   const violations = [];
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
     throw new Error('production artifact root is missing: ' + root);
+  }
+
+  const symlinkViolations = findArtifactSymlinkViolations(root);
+  if (symlinkViolations.length > 0) {
+    throw new Error(
+      'production artifact layout gate failed: symlink entries: ' +
+        symlinkViolations.join(', '),
+    );
   }
 
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
@@ -166,7 +195,10 @@ function findArtifactViolations(root, forbiddenValues = []) {
         violations.push(relativePath);
         continue;
       }
-      if (entry.isSymbolicLink()) continue;
+      if (classifyArtifactEntry(relativePath, entry) === 'symlink') {
+        violations.push(`${relativePath} is a symlink`);
+        continue;
+      }
       let content;
       try {
         content = fs.readFileSync(fullPath, 'utf8');
@@ -338,6 +370,8 @@ if (require.main === module) {
 
 module.exports = {
   assertProductionArtifactLayout,
+  classifyArtifactEntry,
+  findArtifactSymlinkViolations,
   findArtifactViolations,
   run,
 };
