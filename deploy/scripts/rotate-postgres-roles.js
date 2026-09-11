@@ -152,6 +152,57 @@ function connectionPassword(connectionString) {
   return decodeURIComponent(new URL(connectionString).password);
 }
 
+async function checkZoteroDatabaseSafety(adminClient) {
+  let relationResult;
+  try {
+    relationResult = await adminClient.query(
+      "SELECT to_regclass('public.zotero_connections') AS relation",
+    );
+  } catch {
+    return assertZoteroRotationAllowed({
+      keyChanged: true,
+      databaseCheckSucceeded: false,
+      encryptedCredentialCount: null,
+    });
+  }
+
+  const relation = relationResult.rows[0]?.relation;
+  if (relation === null) {
+    return assertZoteroRotationAllowed({
+      keyChanged: true,
+      databaseCheckSucceeded: true,
+      encryptedCredentialCount: 0,
+    });
+  }
+  if (typeof relation !== 'string' || relation.length === 0) {
+    return assertZoteroRotationAllowed({
+      keyChanged: true,
+      databaseCheckSucceeded: false,
+      encryptedCredentialCount: null,
+    });
+  }
+
+  let countResult;
+  try {
+    countResult = await adminClient.query(
+      'SELECT count(*)::int AS count FROM public.zotero_connections',
+    );
+  } catch {
+    return assertZoteroRotationAllowed({
+      keyChanged: true,
+      databaseCheckSucceeded: false,
+      encryptedCredentialCount: null,
+    });
+  }
+
+  const count = countResult.rows[0]?.count;
+  return assertZoteroRotationAllowed({
+    keyChanged: true,
+    databaseCheckSucceeded: count !== null && count !== undefined,
+    encryptedCredentialCount: count ?? null,
+  });
+}
+
 async function rotateRoles({ adminClient, plan, env }) {
   const roleEntries = Object.entries(ROLE_BY_ENV_KEY)
     .filter(([key]) => plan.rolesToRotate.includes(ROLE_BY_ENV_KEY[key]));
@@ -238,20 +289,7 @@ async function main() {
     try {
       await adminClient.connect();
       if (plan.zoteroKeyChanged) {
-        let count = null;
-        try {
-          const result = await adminClient.query(
-            'SELECT count(*)::int AS count FROM zotero_connections',
-          );
-          count = result.rows[0]?.count;
-        } catch {
-          count = null;
-        }
-        assertZoteroRotationAllowed({
-          keyChanged: true,
-          databaseCheckSucceeded: count !== null,
-          encryptedCredentialCount: count,
-        });
+        await checkZoteroDatabaseSafety(adminClient);
       }
       await rotateRoles({ adminClient, plan, env: candidateEnv });
     } finally {
@@ -277,6 +315,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  checkZoteroDatabaseSafety,
   createAdminClientConfig,
   loadPgClient,
   loadRotationInputs,

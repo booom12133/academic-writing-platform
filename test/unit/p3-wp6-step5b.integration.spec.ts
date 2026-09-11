@@ -121,7 +121,7 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await fixture.reset();
   });
 
-  it('S1 completes the real rotation chain and activates the candidate', async () => {
+  it('S1 existing-table path completes the real rotation chain and activates the candidate', async () => {
     const result = await fixture.runRotation();
     expect(result.code).toBe(0);
     assertNoSecretLeakage(fixture, result);
@@ -145,6 +145,23 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     });
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(false);
 
+    await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appOldPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
+  });
+
+  it('S1 pristine-database path treats the missing Zotero table as empty and activates the candidate', async () => {
+    await fixture.reset({ zoteroTable: 'pristine' });
+    expect(await fixture.zoteroTableExists()).toBe(false);
+
+    const result = await fixture.runRotation();
+    expect(result.code).toBe(0);
+    assertNoSecretLeakage(fixture, result);
+    expect(combinedOutput(result)).toContain('rotation=success');
+    expect(fixture.state(fixture.markerPath).exists).toBe(true);
+    expect(fixture.state(fixture.candidateEnvPath).exists).toBe(false);
+    expect(parseEnvText(fixture.readFile(fixture.currentEnvPath))).toEqual(fixture.candidateEnv());
     await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appOldPassword);
     await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
     await expectRoleLogin(fixture, 'academic_writing_app', fixture.appNewPassword);
@@ -212,6 +229,33 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
     await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
     await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+  });
+
+  it('S7b fails closed when the existing Zotero table is not readable by the rotation admin', async () => {
+    await fixture.revokeZoteroSelect();
+    const result = await fixture.runRotation();
+    expect(result.code).not.toBe(0);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    expect(combinedOutput(result)).toContain('Zotero database safety check failed');
+    expect(fixture.state(fixture.markerPath).exists).toBe(false);
+    expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
+  });
+
+  it('S7c fails closed on an unexpected existing-table count query failure', async () => {
+    const result = await fixture.runRotationWithZoteroCountFailure();
+    expect(result.code).not.toBe(0);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    expect(combinedOutput(result)).toContain('Zotero database safety check failed');
+    expect(fixture.state(fixture.markerPath).exists).toBe(false);
+    expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
   });
 
   it('S8 rejects a missing app role before beginning rotation', async () => {

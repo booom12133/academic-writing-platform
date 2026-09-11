@@ -24,6 +24,7 @@ const DATABASE_NAME = 'academic_writing';
 const DATABASE_PORT = 5432;
 
 type EnvValues = Record<string, string>;
+type ZoteroTableState = 'pristine' | 'existing-empty';
 
 export type RotationResult = {
   code: number | null;
@@ -195,8 +196,9 @@ export function createStep5BFixture() {
     );
   }
 
-  async function resetDatabase(): Promise<void> {
+  async function resetDatabase(zoteroTable: ZoteroTableState): Promise<void> {
     await withBootstrap(async (client) => {
+      await client.query('DROP TABLE IF EXISTS public.zotero_connections');
       const roleResult = await client.query(
         `SELECT rolname
          FROM pg_catalog.pg_roles
@@ -223,8 +225,16 @@ export function createStep5BFixture() {
       await setRolePassword(client, 'academic_writing_migrator', migratorOldPassword);
       await client.query('GRANT academic_writing_app TO p3_rotation_admin WITH ADMIN OPTION');
       await client.query('GRANT academic_writing_migrator TO p3_rotation_admin WITH ADMIN OPTION');
-      await client.query('GRANT SELECT ON TABLE public.zotero_connections TO p3_rotation_admin');
-      await client.query('TRUNCATE TABLE public.zotero_connections');
+      await client.query('ALTER ROLE p3_rotation_admin RESET statement_timeout');
+      if (zoteroTable === 'existing-empty') {
+        await client.query(`
+          CREATE TABLE public.zotero_connections (
+            id integer PRIMARY KEY,
+            encrypted_credentials text
+          )
+        `);
+        await client.query('GRANT SELECT ON TABLE public.zotero_connections TO p3_rotation_admin');
+      }
     });
   }
 
@@ -242,15 +252,8 @@ export function createStep5BFixture() {
         'LOGIN NOINHERIT CREATEROLE',
         adminPassword,
       );
-      await client.query(`
-        CREATE TABLE public.zotero_connections (
-          id integer PRIMARY KEY,
-          encrypted_credentials text
-        )
-      `);
       await client.query('GRANT academic_writing_app TO p3_rotation_admin WITH ADMIN OPTION');
       await client.query('GRANT academic_writing_migrator TO p3_rotation_admin WITH ADMIN OPTION');
-      await client.query('GRANT SELECT ON TABLE public.zotero_connections TO p3_rotation_admin');
     });
   }
 
@@ -442,11 +445,11 @@ export function createStep5BFixture() {
       await this.reset();
     },
 
-    async reset(): Promise<void> {
+    async reset(options: { zoteroTable?: ZoteroTableState } = {}): Promise<void> {
       currentEnv = buildEnv('old');
       candidateEnv = buildEnv('new');
       prepareFilesystem();
-      await resetDatabase();
+      await resetDatabase(options.zoteroTable || 'existing-empty');
     },
 
     async connectAdmin(overrides: ConnectionOverrides = {}): Promise<Client> {
@@ -462,6 +465,23 @@ export function createStep5BFixture() {
         await client.query(
           'REVOKE ADMIN OPTION FOR academic_writing_migrator FROM p3_rotation_admin',
         );
+      });
+    },
+
+    async revokeZoteroSelect(): Promise<void> {
+      await withBootstrap(async (client) => {
+        await client.query(
+          'REVOKE SELECT ON TABLE public.zotero_connections FROM p3_rotation_admin',
+        );
+      });
+    },
+
+    async zoteroTableExists(): Promise<boolean> {
+      return withBootstrap(async (client) => {
+        const result = await client.query(
+          "SELECT to_regclass('public.zotero_connections') AS relation",
+        );
+        return typeof result.rows[0]?.relation === 'string';
       });
     },
 
@@ -573,6 +593,27 @@ export function createStep5BFixture() {
           resolveResult({ code, signal, stdout, stderr });
         });
       });
+    },
+
+    async runRotationWithZoteroCountFailure(): Promise<RotationResult> {
+      await withBootstrap(async (client) => {
+        await client.query("ALTER ROLE p3_rotation_admin SET statement_timeout = '100ms'");
+      });
+      const blocker = new Client(postgresConfig('postgres', bootstrapPassword));
+      await blocker.connect();
+      try {
+        await blocker.query('BEGIN');
+        await blocker.query(
+          'LOCK TABLE public.zotero_connections IN ACCESS EXCLUSIVE MODE',
+        );
+        return await this.runRotation();
+      } finally {
+        await blocker.query('ROLLBACK').catch(() => undefined);
+        await blocker.end().catch(() => undefined);
+        await withBootstrap(async (client) => {
+          await client.query('ALTER ROLE p3_rotation_admin RESET statement_timeout');
+        });
+      }
     },
 
     async createActivationFaultWrapper(): Promise<string> {
