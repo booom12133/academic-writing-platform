@@ -283,10 +283,15 @@ export function createStep5BFixture() {
     requirePrerequisite(Boolean(containerId), 'disposable PostgreSQL service container is unavailable');
     const logResult = spawnSync(
       'docker',
-      ['logs', containerId],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+      ['logs', '--tail', '10000', containerId],
+      {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        timeout: 10_000,
+        killSignal: 'SIGKILL',
+      },
     );
-    if (logResult.error || logResult.status !== 0) {
+    if (logResult.error || logResult.status !== 0 || logResult.signal) {
       throw logResult.error || new Error('unable to read disposable PostgreSQL service logs');
     }
     return `${logResult.stdout || ''}${logResult.stderr || ''}`;
