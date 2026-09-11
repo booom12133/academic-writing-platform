@@ -377,6 +377,8 @@ export function createStep5BFixture() {
         '-out', wrongCaPath,
         '-days', '1',
         '-subj', '/CN=P3 WP6 wrong disposable CA',
+        '-addext', 'basicConstraints=critical,CA:TRUE,pathlen:0',
+        '-addext', 'keyUsage=critical,keyCertSign,cRLSign',
       ], { stdio: 'ignore' });
       execFileSync('openssl', ['x509', '-in', wrongCaPath, '-noout'], { stdio: 'ignore' });
       wrongCa = readFileSync(wrongCaPath, 'utf8');
