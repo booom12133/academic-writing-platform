@@ -217,7 +217,8 @@
     "testEnvironment": "node",
     "testMatch": [
       "<rootDir>/server/**/*.spec.ts",
-      "<rootDir>/test/unit/**/*.spec.ts"
+      "<rootDir>/test/unit/**/*.spec.ts",
+      "<rootDir>/test/integration/**/*.spec.ts"
     ],
     "moduleNameMapper": {
       "^@server/(.*)$": "<rootDir>/server/$1"

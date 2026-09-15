@@ -53,6 +53,7 @@ describe('P3 deployment contract', () => {
       'install-pm2-systemd.sh',
       'pm2-systemd-contract.js',
       'candidate-input-contract.js',
+      'first-deploy.js',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }
@@ -134,6 +135,7 @@ describe('P3 deployment contract', () => {
       );
       expect(document).toContain('existing OIDC/NeedLogin');
       expect(document).toContain('no automatic migration rollback');
+      expect(document).toContain('deploy/scripts/first-deploy.js');
       for (const script of databaseScripts) {
         expect(document).toContain(script);
       }

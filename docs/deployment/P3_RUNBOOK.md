@@ -66,6 +66,8 @@ installed release before changing `current`, performs the initial compromise
 rotation before any Node or PM2 process, migrates and verifies the production
 database, and only then prepares and activates PM2:
 
+    sudo node deploy/scripts/first-deploy.js <full-commit-sha> dist deploy
+
     sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
     sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
     sudo /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-activate.sh <commit-sha>
@@ -94,6 +96,14 @@ successful PM2/systemd, `/health/live`, and `/health/ready` gates.
 `/health/providers` is not a Part A activation gate; later provider acceptance
 uses the existing OIDC/NeedLogin authentication contract. There is no automatic
 migration rollback after any later PM2, systemd, live, or ready failure.
+
+`deploy/scripts/first-deploy.js` is the executable owner of the exact commands
+listed above. It accepts only the reviewed full commit SHA and artifact paths;
+secret input remains in the protected env/hidden TTY boundaries. It stops on
+the first failed step, performs no automatic database or release rollback, and
+prints only `P3_PART_A_ACTIVATION_PASS` after `verify-live.sh` has completed
+PM2/systemd, `/health/live`, and `/health/ready`. The activation result is not
+deployment acceptance and the helper never calls `/health/providers`.
 
 `systemctl cat` must show `User=academic-writing`,
 `Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`, and

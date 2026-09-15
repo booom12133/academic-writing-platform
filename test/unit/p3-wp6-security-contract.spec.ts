@@ -677,7 +677,12 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       );
       expect(document).toContain('PM2 startup may enable');
       expect(document).toContain('cleanup');
+      expect(document).toContain('deploy/scripts/first-deploy.js');
     }
+    const firstDeploy = readProjectFile('deploy/scripts/first-deploy.js');
+    expect(firstDeploy).toContain('P3_PART_A_ACTIVATION_PASS');
+    expect(firstDeploy).not.toContain('/health/providers');
+    expect(firstDeploy).not.toMatch(/migration down|DROP SCHEMA|pg_restore/iu);
     for (const document of [planSequence, runbookSequence]) {
       for (const helper of [
         'rotate-production-env.sh',

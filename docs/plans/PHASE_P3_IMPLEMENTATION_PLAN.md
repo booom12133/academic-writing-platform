@@ -492,6 +492,8 @@ Production env loading and rotation contract: Before any production Node or PM2 
 
 PM2 OS boot recovery: Reuse the dedicated academic-writing system user established by WP3 with home /nonexistent and shell /usr/sbin/nologin; never alter passwd metadata or grant the account a writable home. Run deploy/scripts/prepare-pm2-state.sh to establish /var/lib/academic-writing-platform/pm2, then use deploy/scripts/pm2-service-cli.sh for start, save, reload, status, and describe. The wrapper sets PM2_HOME=/var/lib/academic-writing-platform/pm2, HOME=/nonexistent, and the approved system PATH, and refuses lifecycle commands unless the rotation gate and root-only completion marker pass. Do not use that wrapper for startup installation: run deploy/scripts/install-pm2-systemd.sh as root. The helper validates the existing identity and state directory, resolves an approved PM2 binary, runs `env PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u academic-writing` directly as root without --hp, and parses the generated pm2-academic-writing.service immediately. PM2 startup may enable the generated service; on invalid User, PM2_HOME, PIDFile, or service registration, the helper disables the service, removes the unit created by this invocation, reloads systemd, confirms it is no longer enabled, and exits non-zero. The generated unit must contain User=academic-writing, Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2, and PIDFile=/var/lib/academic-writing-platform/pm2/pm2.pid. The saved PM2 process definition must retain cwd=current/app, script=server/main.js, node_args=--env-file=/etc/academic-writing-platform/production.env, and the single-fork settings. pm2 save is run through the same wrapper after validated startup; it is not the boot-recovery mechanism by itself.
 
+The executable owner of the frozen first-deploy sequence is `deploy/scripts/first-deploy.js`. Run it as `sudo node deploy/scripts/first-deploy.js <full-commit-sha> dist deploy` from the reviewed checkout. It accepts only the reviewed SHA and paths, leaves secret entry to the protected env and hidden TTY contracts, stops on the first failure, and performs no automatic migration or release rollback. Only after `verify-live.sh` completes PM2/systemd, `/health/live`, and `/health/ready` does it print `P3_PART_A_ACTIVATION_PASS`; that result is not deployment acceptance and does not call `/health/providers`.
+
 Commands after authorization [C: production host OS + B: production release app]:
 
     sudo getent passwd academic-writing
@@ -742,6 +744,7 @@ Out-of-Scope Guard: No enterprise DR, remote backup product, replication, HA, or
     deploy/scripts/release-manifest.js
     deploy/scripts/install-pm2-systemd.sh
     deploy/scripts/pm2-systemd-contract.js
+    deploy/scripts/first-deploy.js
     docs/deployment/P3_RUNBOOK.md
     docs/deployment/P3_ENVIRONMENT_MANIFEST.md
     docs/deployment/P3_ACCEPTANCE_EVIDENCE.md
