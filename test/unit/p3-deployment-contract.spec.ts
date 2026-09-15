@@ -29,7 +29,7 @@ describe('P3 deployment contract', () => {
     expect(config).toContain('server_name write.yingrenji.cn');
     expect(config).toContain('return 301 https://$host$request_uri;');
     expect(config).toContain('proxy_pass http://127.0.0.1:3000;');
-    expect(config).toContain('client_max_body_size 1m;');
+    expect(config).toContain('client_max_body_size 22m;');
     expect(config).toContain('ssl_certificate');
     expect(config).toContain('Strict-Transport-Security');
   });

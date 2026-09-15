@@ -7,6 +7,43 @@ on:
     branches: [main]
 
 jobs:
+  nginx-upload-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extract a disposable Nginx binary
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          package_dir="$RUNNER_TEMP/p3-a6-nginx-package"
+          mkdir -p "$package_dir"
+          cd "$package_dir"
+          apt-get download nginx
+          package_file="$(find . -maxdepth 1 -name 'nginx_*.deb' -print -quit)"
+          test -n "$package_file"
+          dpkg-deb --extract "$package_file" root
+          test -x "$package_dir/root/usr/sbin/nginx"
+          echo "$package_dir/root/usr/sbin" >> "$GITHUB_PATH"
+          "$package_dir/root/usr/sbin/nginx" -v
+
+      - name: Verify Nginx and application upload boundaries
+        env:
+          P3_NGINX_UPLOAD_INTEGRATION: YES
+        run: npx jest test/integration/p3-upload-boundary.integration.spec.ts test/unit/p3-deployment-contract.spec.ts --runInBand
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
