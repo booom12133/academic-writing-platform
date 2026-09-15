@@ -26,6 +26,13 @@ not an acceptance decision and does not authorize production mutation.
 
 ## Deployment and E2E
 
+- Part A remediation baseline before final A9 gates: `8d54b7357c232d44c13b2015e80de1a68c403577`
+- Required GitHub CI jobs: `verify`, `wp6-step5b`, `nginx-upload-boundary`,
+  `postgres-schema`, and their aggregate `production-gates`
+- Production-equivalent CI scope: synthetic PostgreSQL roles and credentials,
+  controlled migration, app-role verification/readiness, denial cases, pristine
+  rotation, Nginx upload boundaries, provider-auth regression, rollback
+  compatibility, artifact closure, and full baseline
 - PostgreSQL 16 and pgvector:
 - PostgreSQL certificate verification:
 - Migration and schema:
@@ -52,8 +59,11 @@ must not be promoted to PASS from GitHub/CI evidence alone.
 - Persistent document hash:
 - Representative database state:
 - Approved previous supported release SHA: `666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d`
-- Rollback compatibility integration: PENDING CONTROLLER REVIEW
-- Rollback compatibility CI run: PENDING CONTROLLER REVIEW
+- Rollback compatibility integration: CI_PASS at remediation baseline
+  `8d54b7357c232d44c13b2015e80de1a68c403577`; this is compatibility evidence,
+  not production rollback authorization
+- Rollback compatibility CI run: GitHub Actions run `34978478048`,
+  `postgres-schema` job `104412266657`: PASS
 - Production rollback authorized: NO
 - Controlled ECS reboot:
 - Post-reboot PostgreSQL/Nginx/PM2/Node/live/ready:

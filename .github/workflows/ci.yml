@@ -80,7 +80,7 @@ jobs:
         run: npm run build:client
 
   production-gates:
-    needs: [verify, wp6-step5b]
+    needs: [verify, wp6-step5b, nginx-upload-boundary, postgres-schema]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -98,6 +98,21 @@ jobs:
 
       - name: Validate production configuration and shutdown contracts
         run: npm test -- --runInBand test/unit/production-config.spec.ts test/unit/production-bootstrap.spec.ts test/unit/graceful-shutdown.spec.ts test/unit/reproducible-build.spec.ts test/unit/p3-wp6-security-contract.spec.ts
+
+      - name: Validate Part A remediation contracts
+        run: >-
+          npx jest
+          test/unit/db-migrate.spec.ts
+          test/unit/db-migration-schema-contract.spec.ts
+          test/unit/postgres-role-grants.spec.ts
+          test/unit/verify-production-database.spec.ts
+          test/integration/p3-first-deploy-composition.spec.ts
+          test/unit/p3-health-auth-contract.spec.ts
+          test/unit/p3-wp6-security-contract.spec.ts
+          test/unit/p3-deployment-contract.spec.ts
+          test/unit/p3-release-integrity.spec.ts
+          test/unit/production-artifact-closure.spec.ts
+          --runInBand
 
       - name: Validate production tooling is reproducible
         run: node scripts/test-reproducible-build.js
