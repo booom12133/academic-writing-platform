@@ -83,6 +83,7 @@ describe('P3 immutable release integrity contract', () => {
     expect(install).not.toMatch(/chown -R academic-writing:academic-writing/);
     expect(install).toMatch(/chmod 750/);
     expect(install).toMatch(/chmod 640/);
+    expect(install).toContain('app_artifact/scripts/verify-production-database.js');
     expect(activate.indexOf('release-manifest.js')).toBeGreaterThanOrEqual(0);
     expect(activate.indexOf('release-manifest.js')).toBeLessThan(
       activate.indexOf('ln -sfn'),

@@ -19,6 +19,7 @@ test -f "$app_artifact/run.sh"
 test -f "$app_artifact/scripts/db-migrate.js"
 test -f "$app_artifact/scripts/db-backup.js"
 test -f "$app_artifact/scripts/db-restore-verify.js"
+test -f "$app_artifact/scripts/verify-production-database.js"
 test -d "$app_artifact/drizzle/migrations"
 test ! -e "$release_root"
 

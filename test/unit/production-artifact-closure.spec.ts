@@ -1,6 +1,7 @@
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -33,6 +34,7 @@ function createArtifact(root: string, migrationContent = 'CREATE TABLE baseline 
     'db-migrate.js',
     'db-backup.js',
     'db-restore-verify.js',
+    'verify-production-database.js',
   ]) {
     writeFileSync(
       join(root, 'scripts', script),
@@ -66,6 +68,12 @@ describe('production artifact closure', () => {
       expect(() =>
         assertProductionArtifactLayout(root, migrationsRoot),
       ).not.toThrow();
+      expect(readdirSync(join(root, 'scripts')).sort()).toEqual([
+        'db-backup.js',
+        'db-migrate.js',
+        'db-restore-verify.js',
+        'verify-production-database.js',
+      ]);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(migrationsRoot, { recursive: true, force: true });

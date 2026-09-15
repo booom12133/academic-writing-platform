@@ -247,7 +247,7 @@ jobs:
 
   postgres-schema:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -273,6 +273,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build production artifact for database verification
+        run: npm run build
 
       - name: Configure verified TLS for disposable PostgreSQL service
         run: |
@@ -351,6 +354,7 @@ jobs:
         env:
           P3_POSTGRES_ROLE_INTEGRATION: YES
           P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
+          P3_PRODUCTION_DATABASE_VERIFY_SCRIPT: ${{ github.workspace }}/dist/scripts/verify-production-database.js
         run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts --runInBand
 
       - name: Verify accepted PostgreSQL feature regressions

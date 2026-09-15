@@ -29,11 +29,13 @@ const REQUIRED_ARTIFACT_PATHS = [
   'scripts/db-migrate.js',
   'scripts/db-backup.js',
   'scripts/db-restore-verify.js',
+  'scripts/verify-production-database.js',
 ];
 const ALLOWED_PRODUCTION_SCRIPTS = new Set([
   'db-migrate.js',
   'db-backup.js',
   'db-restore-verify.js',
+  'verify-production-database.js',
 ]);
 
 function toRelativePath(root, fullPath) {

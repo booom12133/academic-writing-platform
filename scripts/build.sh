@@ -156,7 +156,7 @@ else
 
   # 仅复制生产 DB 运维脚本；禁止把整个 repository scripts/ 带入产物
   mkdir -p "$DIST_DIR/scripts"
-  for production_script in db-migrate.js db-backup.js db-restore-verify.js; do
+  for production_script in db-migrate.js db-backup.js db-restore-verify.js verify-production-database.js; do
     cp "$ROOT_DIR/scripts/$production_script" "$DIST_DIR/scripts/$production_script"
   done
 
