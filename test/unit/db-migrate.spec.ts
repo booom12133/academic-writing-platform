@@ -1,32 +1,91 @@
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const { createMigrationPool, createMigrationPoolConfig, runMigrations } = require('../../scripts/db-migrate.js');
+const {
+  MIGRATION_LOCK_KEY,
+  applyPendingMigrations,
+  assertControlledMigrationPreconditions,
+  createMigrationPool,
+  createMigrationPoolConfig,
+  runMigrations,
+  sanitizeMigrationError,
+} = require('../../scripts/db-migrate.js');
 
-describe('standard PostgreSQL migration runner', () => {
-  it('fails closed when DATABASE_URL is missing', () => {
-    expect(() => createMigrationPool({})).toThrow(/DATABASE_URL/);
+interface FakeClientOptions {
+  currentUser?: string;
+  schemaExists?: boolean;
+  hasUsage?: boolean;
+  hasCreate?: boolean;
+  hasDatabaseCreate?: boolean;
+  latestCreatedAt?: number;
+  failOn?: string;
+}
+
+function createClient(options: FakeClientOptions = {}) {
+  const client = {
+    query: jest.fn(async (text: string) => {
+      if (options.failOn && text.includes(options.failOn)) {
+        throw new Error('synthetic migration failure');
+      }
+      if (text.includes('current_user AS current_user')) {
+        return { rows: [{ current_user: options.currentUser ?? 'academic_writing_migrator' }] };
+      }
+      if (text.includes('AS schema_exists')) {
+        return { rows: [{ schema_exists: options.schemaExists ?? true }] };
+      }
+      if (text.includes('AS has_usage')) {
+        return {
+          rows: [{
+            has_usage: options.hasUsage ?? true,
+            has_create: options.hasCreate ?? true,
+            has_database_create: options.hasDatabaseCreate ?? false,
+          }],
+        };
+      }
+      if (text.includes('ORDER BY created_at DESC LIMIT 1')) {
+        return {
+          rows: options.latestCreatedAt === undefined
+            ? []
+            : [{ created_at: options.latestCreatedAt }],
+        };
+      }
+      return { rows: [] };
+    }),
+    release: jest.fn(),
+  };
+  return client;
+}
+
+describe('controlled PostgreSQL migration runner', () => {
+  it('rejects a production DATABASE_URL fallback before pool creation', () => {
+    const sentinel = 'postgresql://app:do-not-echo@runtime.example/academic_writing';
+
+    expect(() =>
+      createMigrationPool({
+        NODE_ENV: 'production',
+        DATABASE_URL: sentinel,
+      }),
+    ).toThrow('MIGRATION_DATABASE_URL is required in production');
+
+    try {
+      createMigrationPoolConfig({ NODE_ENV: 'production', DATABASE_URL: sentinel });
+    } catch (error) {
+      expect(String(error)).not.toContain(sentinel);
+      expect(String(error)).not.toContain('do-not-echo');
+    }
   });
 
-  it('supports a separately scoped migration principal while retaining DATABASE_URL fallback', () => {
-    const config = createMigrationPoolConfig({
-      DATABASE_URL: 'postgresql://runtime.example/academic_writing',
-      MIGRATION_DATABASE_URL: 'postgresql://migration.example/academic_writing',
-    });
-
-    expect(config.connectionString).toBe(
-      'postgresql://migration.example/academic_writing',
-    );
-  });
-
-  it('loads the trusted CA file for production migration TLS', () => {
+  it('uses an explicit production migrator URL with verified TLS', () => {
     const config = createMigrationPoolConfig({
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://runtime.example/academic_writing',
+      MIGRATION_DATABASE_URL:
+        'postgresql://migration.example/academic_writing?sslmode=verify-full',
       DATABASE_SSL_CA_FILE: __filename,
     });
 
-    expect(config.ssl).toMatchObject({
-      rejectUnauthorized: true,
-      ca: expect.any(String),
+    expect(config).toMatchObject({
+      connectionString:
+        'postgresql://migration.example/academic_writing?sslmode=verify-full',
+      ssl: { rejectUnauthorized: true, ca: expect.any(String) },
     });
   });
 
@@ -34,7 +93,8 @@ describe('standard PostgreSQL migration runner', () => {
     expect(() =>
       createMigrationPoolConfig({
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://runtime.example/academic_writing',
+        MIGRATION_DATABASE_URL:
+          'postgresql://migration.example/academic_writing?sslmode=verify-full',
         DATABASE_SSL_CA_FILE: '/missing/postgres-ca.pem',
       }),
     ).toThrow(/DATABASE_SSL_CA_FILE/);
@@ -44,61 +104,128 @@ describe('standard PostgreSQL migration runner', () => {
     expect(() =>
       createMigrationPoolConfig({
         NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://migration.example/academic_writing?sslmode=require',
+        MIGRATION_DATABASE_URL:
+          'postgresql://migration.example/academic_writing?sslmode=require',
       }),
-    ).toThrow(/sslmode must be verify-full/);
+    ).toThrow(/MIGRATION_DATABASE_URL sslmode must be verify-full/);
   });
 
-  it('locks and migrates on one client before releasing it', async () => {
-    const client = {
-      query: jest.fn().mockResolvedValue({}),
-      release: jest.fn(),
-    };
+  it('retains DATABASE_URL fallback outside production only', () => {
+    expect(
+      createMigrationPoolConfig({
+        NODE_ENV: 'test',
+        DATABASE_URL: 'postgresql://localhost/academic_writing',
+      }).connectionString,
+    ).toBe('postgresql://localhost/academic_writing');
+  });
+
+  it('redacts configured URLs, passwords, and CA content from failures', () => {
+    const migrationUrl = 'postgresql://migrator:sentinel-password@db.example/academic_writing';
+    const ca = 'sentinel-ca-content';
+    const message = sanitizeMigrationError(
+      new Error(`failed ${migrationUrl} sentinel-password ${ca}`),
+      { MIGRATION_DATABASE_URL: migrationUrl, DATABASE_SSL_CA: ca },
+    );
+
+    expect(message).toContain('[REDACTED]');
+    expect(message).not.toContain(migrationUrl);
+    expect(message).not.toContain('sentinel-password');
+    expect(message).not.toContain(ca);
+  });
+
+  it.each([
+    ['wrong production role', { currentUser: 'academic_writing_app' }, true, /migration role/],
+    ['missing drizzle schema', { schemaExists: false }, false, /drizzle schema/],
+    ['missing schema usage', { hasUsage: false }, false, /USAGE and CREATE/],
+    ['missing schema create', { hasCreate: false }, false, /USAGE and CREATE/],
+    ['database create privilege', { hasDatabaseCreate: true }, false, /database CREATE/],
+  ])('rejects %s', async (_name, options, production, expected) => {
+    await expect(
+      assertControlledMigrationPreconditions(createClient(options), { production }),
+    ).rejects.toThrow(expected);
+  });
+
+  it('applies pending statements and metadata once in one transaction', async () => {
+    const client = createClient({ latestCreatedAt: 100 });
+    const migrations = [
+      { sql: ['FIRST STATEMENT', 'SECOND STATEMENT'], hash: 'hash-two', folderMillis: 200 },
+      { sql: ['THIRD STATEMENT'], hash: 'hash-three', folderMillis: 300 },
+    ];
+
+    await applyPendingMigrations(client, migrations);
+
+    expect(client.query.mock.calls).toEqual([
+      [expect.stringContaining('CREATE TABLE IF NOT EXISTS drizzle.__drizzle_migrations')],
+      [expect.stringContaining('ORDER BY created_at DESC LIMIT 1')],
+      ['BEGIN'],
+      ['FIRST STATEMENT'],
+      ['SECOND STATEMENT'],
+      [
+        expect.stringContaining('INSERT INTO drizzle.__drizzle_migrations'),
+        ['hash-two', 200],
+      ],
+      ['THIRD STATEMENT'],
+      [
+        expect.stringContaining('INSERT INTO drizzle.__drizzle_migrations'),
+        ['hash-three', 300],
+      ],
+      ['COMMIT'],
+    ]);
+  });
+
+  it('rolls back the complete pending set on statement failure', async () => {
+    const client = createClient({ failOn: 'BROKEN STATEMENT' });
+
+    await expect(
+      applyPendingMigrations(client, [
+        { sql: ['FIRST STATEMENT', 'BROKEN STATEMENT'], hash: 'hash', folderMillis: 100 },
+      ]),
+    ).rejects.toThrow('synthetic migration failure');
+
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(client.query).not.toHaveBeenCalledWith('COMMIT');
+  });
+
+  it('locks, reads migrations, and always unlocks and closes', async () => {
+    const client = createClient();
     const pool = {
       connect: jest.fn().mockResolvedValue(client),
       end: jest.fn().mockResolvedValue(undefined),
     };
-    const drizzleFn = jest.fn().mockReturnValue({ database: true });
-    const migrateFn = jest.fn().mockResolvedValue(undefined);
+    const readMigrationFilesFn = jest.fn().mockReturnValue([]);
 
-    await runMigrations({ pool, drizzleFn, migrateFn });
+    await runMigrations({ pool, readMigrationFilesFn });
 
-    expect(client.query.mock.calls).toEqual([
-      ['SELECT pg_advisory_lock($1)', [318104001]],
-      ['SELECT pg_advisory_unlock($1)', [318104001]],
+    expect(readMigrationFilesFn).toHaveBeenCalledWith({
+      migrationsFolder: expect.stringContaining('drizzle'),
+    });
+    expect(client.query.mock.calls[0]).toEqual([
+      'SELECT pg_advisory_lock($1)',
+      [MIGRATION_LOCK_KEY],
     ]);
-    expect(drizzleFn).toHaveBeenCalledWith(client);
-    expect(migrateFn).toHaveBeenCalledWith(
-      { database: true },
-      expect.objectContaining({
-        migrationsSchema: 'drizzle',
-        migrationsTable: '__drizzle_migrations',
-      }),
+    expect(client.query).toHaveBeenLastCalledWith(
+      'SELECT pg_advisory_unlock($1)',
+      [MIGRATION_LOCK_KEY],
     );
     expect(client.release).toHaveBeenCalledTimes(1);
     expect(pool.end).toHaveBeenCalledTimes(1);
   });
 
-  it('releases the advisory lock when migration fails', async () => {
-    const client = {
-      query: jest.fn().mockResolvedValue({}),
-      release: jest.fn(),
-    };
+  it('unlocks and closes when controlled migration fails', async () => {
+    const client = createClient({ schemaExists: false });
     const pool = {
       connect: jest.fn().mockResolvedValue(client),
       end: jest.fn().mockResolvedValue(undefined),
     };
-    const error = new Error('migration failed');
 
-    await expect(
-      runMigrations({
-        pool,
-        drizzleFn: () => ({}),
-        migrateFn: jest.fn().mockRejectedValue(error),
-      }),
-    ).rejects.toBe(error);
+    await expect(runMigrations({ pool, readMigrationFilesFn: () => [] })).rejects.toThrow(
+      /drizzle schema/,
+    );
 
-    expect(client.query).toHaveBeenLastCalledWith('SELECT pg_advisory_unlock($1)', [318104001]);
+    expect(client.query).toHaveBeenLastCalledWith(
+      'SELECT pg_advisory_unlock($1)',
+      [MIGRATION_LOCK_KEY],
+    );
     expect(client.release).toHaveBeenCalledTimes(1);
     expect(pool.end).toHaveBeenCalledTimes(1);
   });

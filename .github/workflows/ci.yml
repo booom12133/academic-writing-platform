@@ -347,20 +347,16 @@ jobs:
             echo 'DATABASE_SSL_CA_FILE=/etc/academic-writing-platform/postgres-ca.pem'
           } >> "$GITHUB_ENV"
 
-      - name: Validate standard PostgreSQL migrations
+      - name: Verify least-privilege grants and controlled migrations
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
-        run: npm run db:migrate
+          P3_POSTGRES_ROLE_INTEGRATION: YES
+          P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
+        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts --runInBand
 
-      - name: Verify standard PostgreSQL schema and pgvector
+      - name: Verify accepted PostgreSQL feature regressions
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
-        run: npm run test:integration:postgres
-
-      - name: Re-run migrations as an upgrade gate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
-        run: npm run db:migrate
+        run: npx jest test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts --runInBand
 
       - name: Create PostgreSQL backup
         env:
