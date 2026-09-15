@@ -13,7 +13,6 @@ import {
 } from '../support/p3-postgres-role-fixture';
 
 const {
-  assertControlledMigrationPreconditions,
   createMigrationPoolConfig,
   runMigrations,
 } = require('../../scripts/db-migrate.js');
@@ -272,11 +271,12 @@ describeCompatibility('P3 rollback compatibility integration', () => {
       const migrationEnvironment = {
         ...process.env,
         NODE_ENV: 'production',
-        DATABASE_URL: fixture.migratorUrl,
+        MIGRATION_DATABASE_URL: fixture.migratorUrl,
         DATABASE_SSL_CA_FILE: process.env.DATABASE_SSL_CA_FILE,
       };
-      assertControlledMigrationPreconditions(migrationEnvironment);
-      await runMigrations(createMigrationPoolConfig(migrationEnvironment));
+      await runMigrations({
+        pool: new Pool(createMigrationPoolConfig(migrationEnvironment)),
+      });
       await fixture.applyCanonicalGrants();
 
       const appPool = new Pool(
