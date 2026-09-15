@@ -156,6 +156,7 @@ describe('pre-start production database verification', () => {
     expect(statements[2]).toContain('current_user AS current_user');
     expect(statements[3]).toContain("extname = 'vector'");
     expect(statements[3]).toContain('drizzle.__drizzle_migrations');
+    expect(statements[3]).toContain('table_name::text');
     for (const table of RUNTIME_REQUIRED_TABLE_NAMES) {
       expect(statements[3]).toContain(`'${table}'`);
     }

@@ -150,7 +150,7 @@ async function verifyProductionDatabase({ pool = createVerificationPool() } = {}
             SELECT count(*) FROM drizzle.__drizzle_migrations
           ) AS applied_migrations,
           COALESCE((
-            SELECT array_agg(table_name ORDER BY table_name)
+            SELECT array_agg(table_name::text ORDER BY table_name::text)
             FROM information_schema.tables
             WHERE table_schema = 'public'
               AND table_name IN (${requiredTableSql})
