@@ -1,6 +1,6 @@
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { constants as fsConstants, existsSync, readFileSync } from 'node:fs';
+import { access, chmod, mkdir, mkdtemp, rm, stat } from 'node:fs/promises';
 import { get } from 'node:http';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -23,6 +23,41 @@ const CURRENT_MIGRATION_COUNT = 4;
 const REPOSITORY_ROOT = resolve(__dirname, '../..');
 const integrationEnabled = Boolean(process.env.P3_POSTGRES_ADMIN_URL);
 const describeCompatibility = integrationEnabled ? describe : describe.skip;
+const HEALTH_REASON_CODES = new Set([
+  'database_unreachable',
+  'vector_extension_missing',
+  'schema_version_missing',
+  'storage_root_invalid',
+  'storage_root_missing',
+  'storage_root_unreadable',
+  'storage_permissions_open',
+  'storage_permissions_unavailable',
+  'storage_capacity_low',
+  'storage_capacity_unavailable',
+]);
+
+interface SanitizedHealthResponse {
+  status: 'ok' | 'not_ready' | 'invalid_response';
+  reasonCode?: string;
+}
+
+function parseSanitizedHealthResponse(body: string): SanitizedHealthResponse {
+  try {
+    const parsed = JSON.parse(body) as Record<string, unknown>;
+    const status =
+      parsed.status === 'ok' || parsed.status === 'not_ready'
+        ? parsed.status
+        : 'invalid_response';
+    const reasonCode =
+      typeof parsed.reasonCode === 'string' &&
+      HEALTH_REASON_CODES.has(parsed.reasonCode)
+        ? parsed.reasonCode
+        : undefined;
+    return { status, ...(reasonCode ? { reasonCode } : {}) };
+  } catch {
+    return { status: 'invalid_response' };
+  }
+}
 
 function requireApprovedPreviousSha(candidate: string | undefined): string {
   if (candidate !== APPROVED_PREVIOUS_SHA) {
@@ -194,6 +229,21 @@ function applicationEnvironment(
 }
 
 describe('P3 rollback compatibility approval guard', () => {
+  it('retains only stable health fields in compatibility evidence', () => {
+    expect(
+      parseSanitizedHealthResponse(
+        JSON.stringify({
+          status: 'not_ready',
+          reasonCode: 'storage_permissions_open',
+          databaseUrl: 'must-not-be-recorded',
+        }),
+      ),
+    ).toEqual({
+      status: 'not_ready',
+      reasonCode: 'storage_permissions_open',
+    });
+  });
+
   it('pins the exact approved SHA and targeted command in reviewed CI configuration', () => {
     const ciWorkflow = readFileSync(
       join(REPOSITORY_ROOT, '.github', 'workflows', 'ci.yml'),
@@ -306,6 +356,16 @@ describeCompatibility('P3 rollback compatibility integration', () => {
       expect(migrationCount).toBe(CURRENT_MIGRATION_COUNT);
 
       await mkdir(storageRoot, { recursive: true });
+      await chmod(storageRoot, 0o700);
+      const storageStat = await stat(storageRoot);
+      expect(storageStat.isDirectory()).toBe(true);
+      expect(process.getuid?.()).toBeDefined();
+      expect(storageStat.uid).toBe(process.getuid?.());
+      expect(storageStat.mode & 0o777).toBe(0o700);
+      await access(
+        storageRoot,
+        fsConstants.R_OK | fsConstants.W_OK | fsConstants.X_OK,
+      );
       const port = await reserveLoopbackPort();
       previousServer = spawn(process.execPath, [previousEntry], {
         cwd: previousRoot,
@@ -316,10 +376,25 @@ describeCompatibility('P3 rollback compatibility integration', () => {
       await waitForLive(previousServer, port);
       const live = await requestHealth(port, '/health/live');
       const ready = await requestHealth(port, '/health/ready');
+      const liveHealth = parseSanitizedHealthResponse(live.body);
+      const readyHealth = parseSanitizedHealthResponse(ready.body);
+      if (ready.status !== 200) {
+        console.info(
+          'P3_ROLLBACK_COMPAT_READINESS_FAILURE',
+          JSON.stringify({
+            previousSha,
+            currentSha: activeHead,
+            liveStatus: live.status,
+            readyStatus: ready.status,
+            readyHealthStatus: readyHealth.status,
+            reasonCode: readyHealth.reasonCode ?? 'unavailable',
+          }),
+        );
+      }
       expect(live.status).toBe(200);
-      expect(JSON.parse(live.body)).toEqual({ status: 'ok' });
+      expect(liveHealth).toEqual({ status: 'ok' });
       expect(ready.status).toBe(200);
-      expect(JSON.parse(ready.body)).toEqual({ status: 'ok' });
+      expect(readyHealth).toEqual({ status: 'ok' });
 
       expect(runChecked('git', ['rev-parse', 'HEAD'], REPOSITORY_ROOT)).toBe(
         activeHead,
