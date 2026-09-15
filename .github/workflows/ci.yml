@@ -301,6 +301,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -393,6 +395,12 @@ jobs:
           P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
           P3_PRODUCTION_DATABASE_VERIFY_SCRIPT: ${{ github.workspace }}/dist/scripts/verify-production-database.js
         run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts --runInBand
+
+      - name: Verify approved previous-release rollback compatibility
+        env:
+          P3_ROLLBACK_COMPAT_PREVIOUS_SHA: 666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d
+          P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test?sslmode=verify-full&sslrootcert=/etc/academic-writing-platform/postgres-ca.pem
+        run: npx jest test/integration/p3-rollback-compatibility.integration.spec.ts --runInBand
 
       - name: Verify accepted PostgreSQL feature regressions
         env:

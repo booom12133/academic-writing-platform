@@ -242,6 +242,17 @@ copy grants from this Runbook. Migrations are forward-only. Rollback is an
 explicit operator action backed by reviewed compatibility evidence and performs
 no automatic migration rollback.
 
+### Previous-release compatibility gate
+
+The Controller-approved previous supported release is
+`666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d` (`phase-p2-accepted`). Approval of
+that SHA is not compatibility evidence and does not authorize a production
+rollback. Before any rollback, CI must build that exact commit in a disposable
+checkout and prove its `/health/live` and `/health/ready` endpoints return 200
+while it uses the application role against the current forward-migrated schema.
+Until the Controller reviews that run and records separate operator approval,
+the required decision is `STOP / NO ROLLBACK`.
+
 ## Boot recovery
 
 Use the dedicated `academic-writing` identity established by WP3. Its home

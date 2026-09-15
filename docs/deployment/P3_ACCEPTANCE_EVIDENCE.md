@@ -51,7 +51,10 @@ must not be promoted to PASS from GitHub/CI evidence alone.
 - Pre-release backup hash:
 - Persistent document hash:
 - Representative database state:
-- Rollback release:
+- Approved previous supported release SHA: `666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d`
+- Rollback compatibility integration: PENDING CONTROLLER REVIEW
+- Rollback compatibility CI run: PENDING CONTROLLER REVIEW
+- Production rollback authorized: NO
 - Controlled ECS reboot:
 - Post-reboot PostgreSQL/Nginx/PM2/Node/live/ready:
 - Post-reboot database and document hashes:
