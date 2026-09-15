@@ -19,6 +19,10 @@ Spec: Frozen P3 architecture and constraints supplied in the P3 transition reque
 - Public traffic is HTTPS through Nginx; Node and PostgreSQL ports remain private; PM2 is one fork and recovers through systemd on boot.
 - Production secrets remain outside Git, release artifacts, frontend bundles, screenshots, fixtures, and logs.
 - Reuse existing migrations, health, shutdown, backup, restore, storage, provider, ownership, and E1-E6 contracts; do not introduce excluded infrastructure.
+- `current = offline selected release`; `current != deployment accepted`.
+- The authoritative first-deploy order is release installation → release manifest verification → offline release selection → initial secret rotation → production.env verification → production migration → pre-start production DB verification → PM2 preparation → PM2 first start → systemd → pm2 save → /health/live → /health/ready.
+- `/health/providers` is outside the Part A activation gate and retains the existing OIDC/NeedLogin authentication contract.
+- Migrations are forward-only and there is no automatic migration rollback after PM2/systemd/live/ready failure.
 
 ## Decision Required Before Implementation
 
@@ -171,7 +175,7 @@ Out-of-Scope Guard: No package installation or firewall alteration.
 
 Goal: Add reviewable, non-secret deployment definitions and a reproducible browser-test contract around the accepted artifact.
 
-Existing Accepted Contract: scripts/build.sh owns artifact creation; scripts/run.sh starts server/main.js from dist; package.json owns Node/npm floors and baseline scripts. P3 must narrowly extend build.sh so the artifact also ships the three approved DB operational scripts and exact migrations without shipping npm scripts, Jest, devDependencies, or unrelated source tooling.
+Existing Accepted Contract: scripts/build.sh owns artifact creation; scripts/run.sh starts server/main.js from dist; package.json owns Node/npm floors and baseline scripts. P3 Part A must narrowly extend build.sh in WP-A4 so the final artifact ships the four approved DB operational scripts and exact migrations without shipping npm scripts, Jest, devDependencies, or unrelated source tooling.
 
 Files to Inspect: package.json, package-lock.json, scripts/build.sh, scripts/run.sh, scripts/test-production-artifact.js, scripts/test-reproducible-build.js, client/index.html, client/src/app.tsx, client/src/auth, and P2 client pages/components.
 
@@ -195,9 +199,10 @@ Server Changes: Use this one authoritative layout. The app directory is the exac
         package.json
         run.sh
         scripts/
-          db-migrate.js
-          db-backup.js
-          db-restore-verify.js
+              db-migrate.js
+              db-backup.js
+              db-restore-verify.js
+              verify-production-database.js
         drizzle/
           migrations/
       deploy/
@@ -250,7 +255,7 @@ Existing Accepted Contract: CI uses pgvector/pgvector:pg16; four migrations exis
 
 Files to Inspect: server/database/standard-postgres.module.ts, database-readiness.ts, schema.ts, drizzle/migrations/*, scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js, and PostgreSQL integration/config tests.
 
-Files Expected to Change: If the current Node pg code cannot consume a CA file safely, modify server/database/standard-postgres.module.ts, scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js, their tests, and .env.example to support DATABASE_SSL_CA_FILE while retaining the accepted DATABASE_SSL_CA content contract. Ensure the three shipped DB scripts fail closed unless libpq receives PGSSLMODE=verify-full and PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem, and ensure Node migration TLS uses the trusted CA with rejectUnauthorized=true. The authorized build closure must ship only scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js and the exact drizzle/migrations tree in app/. Add scripts/verify-production-database.js only if existing commands cannot express the safe check. No accepted TLS rejection rule may be relaxed.
+Files Expected to Change: Part A adds the frozen `scripts/verify-production-database.js` helper and modifies `scripts/db-migrate.js` under the controlled-runner design. The final build closure ships only scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js, scripts/verify-production-database.js, and the exact drizzle/migrations tree in app/. Existing TLS rejection rules remain unchanged.
 
 Server Changes after authorization: Use the PGDG apt repository for Ubuntu jammy as the approved PostgreSQL 16 package source. First verify the repository signature/key and package candidates; do not assume the stock Ubuntu repository contains PostgreSQL 16 or pgvector. Install PostgreSQL 16 and its PostgreSQL-16-compatible pgvector package from that approved source. If the approved repository has no matching pgvector package, stop and report instead of selecting an unapproved package, building an unpinned version, or switching to Docker. Create a private database, runtime application role, and separately approved migration role. Bind PostgreSQL privately, enable TLS, issue a certificate whose hostname/SAN matches the database host in DATABASE_URL, install the CA at /etc/academic-writing-platform/postgres-ca.pem, and verify pg_hba.conf does not allow public access.
 
@@ -300,9 +305,9 @@ Commands after authorization [B: production release app]:
     BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/schema-check.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-backup.js
     BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/schema-check.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-restore-verify.js --confirm-restore
 
-Production ECS does not run Jest, npm test scripts, or the full repository. The three B-context commands execute the allow-listed scripts shipped in current/app. The protected env file supplies DATABASE_URL or MIGRATION_DATABASE_URL, DATABASE_SSL_CA_FILE, PGSSLMODE=verify-full, and PGSSLROOTCERT; no command may downgrade to sslmode=require or disable certificate verification.
+Production ECS does not run Jest, npm test scripts, or the full repository. The four B-context database scripts execute directly from current/app. Migration uses MIGRATION_DATABASE_URL with no production DATABASE_URL fallback; runtime/pre-start verification uses DATABASE_URL. The protected env file also supplies DATABASE_SSL_CA_FILE, PGSSLMODE=verify-full, and PGSSLROOTCERT; no command may downgrade to sslmode=require or disable certificate verification.
 
-Tests Before Change [A: implementation worktree / CI]: Standard Postgres config/readiness tests, CI postgres-schema job, migration idempotency, and restore verification against disposable PostgreSQL 16 + pgvector. Add tests proving DATABASE_SSL_CA_FILE is loaded as CA content, PGSSLMODE=verify-full is required for libpq operations, sslmode=require alone is insufficient, the forbidden DATABASE_SSL flags fail, and the production artifact contains the three allow-listed scripts plus exact migrations.
+Tests Before Change [A: implementation worktree / CI]: Standard Postgres config/readiness tests, CI postgres-schema job, migration idempotency, and restore verification against disposable PostgreSQL 16 + pgvector. Add tests proving DATABASE_SSL_CA_FILE is loaded as CA content, PGSSLMODE=verify-full is required for libpq operations, sslmode=require alone is insufficient, the forbidden DATABASE_SSL flags fail, and the production artifact contains the four allow-listed scripts plus exact migrations.
 
 Implementation Steps: Verify the downloaded PGDG signing-key fingerprint against the approved PostgreSQL signing-key fingerprint recorded by the operator, then verify the signed repository and package candidates; install postgresql-16, postgresql-client-16, and the PostgreSQL-16-compatible postgresql-16-pgvector package; verify vector.control/vector SQL files with dpkg -L; run CREATE EXTENSION vector; query extversion; verify the exact migrations are present at current/app/drizzle/migrations; run the shipped current/app/scripts/db-migrate.js directly; rerun migrations for idempotency; and test all five connection paths with certificate verification. Node runtime and migration use DATABASE_SSL_CA_FILE or accepted DATABASE_SSL_CA with rejectUnauthorized=true. The shipped db-backup.js, db-restore-verify.js, pg_dump, pg_restore, and psql use PGSSLMODE=verify-full plus PGSSLROOTCERT. The DATABASE_URL host must match the PostgreSQL certificate SAN. Confirm runtime role cannot alter migrations unless approved.
 
@@ -479,7 +484,7 @@ Existing Accepted Contract: scripts/build.sh, scripts/run.sh, scripts/test-produ
 
 Files Expected to Change: Deployment files from WP1, scripts/build.sh, scripts/test-production-artifact.js, and focused artifact-closure tests from WP1 only. Do not copy the whole repository scripts/ directory or add production-only npm scripts.
 
-Server Changes after authorization: Reuse and verify the exact academic-writing service identity established by WP3; do not recreate or renumber it. Copy the exact reviewed build artifact contents into /opt/academic-writing-platform/releases/<commit-sha>/app/, copy deploy metadata from the same reviewed commit into /opt/academic-writing-platform/releases/<commit-sha>/deploy/, verify both manifests, point /opt/academic-writing-platform/current to that release directory, and start/reload PM2 with cwd=/opt/academic-writing-platform/current/app. The app artifact must contain server/, dist/, node_modules/, package.json, run.sh, only the three approved scripts under scripts/, and the exact drizzle/migrations tree from the reviewed commit.
+Server Changes after authorization: Reuse and verify the exact academic-writing service identity established by WP3; do not recreate or renumber it. Copy the exact reviewed build artifact contents into /opt/academic-writing-platform/releases/<commit-sha>/app/, copy deploy metadata from the same reviewed commit into /opt/academic-writing-platform/releases/<commit-sha>/deploy/, verify both manifests, and point /opt/academic-writing-platform/current to that release directory as offline selection. `current = offline selected release`; `current != deployment accepted`. The app artifact must contain server/, dist/, node_modules/, package.json, run.sh, only the four approved database scripts under scripts/, and the exact drizzle/migrations tree from the reviewed commit.
 
 Configuration / Env: PM2 starts server/main.js from cwd=/opt/academic-writing-platform/current/app with node_args=--env-file=/etc/academic-writing-platform/production.env. Node 22 reads this file before loading the application; PM2 is not assumed to understand or auto-load env files. The file is outside Git and the artifact, owned by root:academic-writing with mode 640, and readable by academic-writing through its group without being writable by the runtime. Its parent directory is root:root mode 755. The canonical PM2 state is /var/lib/academic-writing-platform/pm2, owned by academic-writing:academic-writing with mode 700; it is outside every release and current symlink. No watch mode, cluster mode, or multiple instances.
 
@@ -498,6 +503,9 @@ Commands after authorization [C: production host OS + B: production release app]
     sudo install -o root -g root -m 600 <operator-source-production.env> /etc/academic-writing-platform/rotation-input/production.env
     sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/current/deploy/scripts/rotate-production-env.sh /etc/academic-writing-platform/rotation-input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+    cd /opt/academic-writing-platform/current/app
+    sudo node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
+    sudo node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
     sudo /opt/academic-writing-platform/current/deploy/scripts/prepare-pm2-state.sh
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
     sudo /opt/academic-writing-platform/current/deploy/scripts/install-pm2-systemd.sh
@@ -505,22 +513,24 @@ Commands after authorization [C: production host OS + B: production release app]
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl is-enabled pm2-academic-writing.service
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-live.sh
+    # verify-live.sh gates /health/live before /health/ready.
     sudo systemctl is-enabled postgresql nginx
     sudo systemctl status pm2-academic-writing.service --no-pager
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
 
-The artifact must be built from the reviewed commit and its app/ and deploy/ manifests hashed before activation. The app manifest must cover runtime files, the three allow-listed DB scripts, and every exact migration file; the deploy manifest must cover same-commit deployment metadata. The canonical release is current/app plus current/deploy; no second dist or deployment layout is authoritative. Do not rebuild with floating production state on the host. Production DB operations use the shipped Node scripts directly; production does not depend on npm scripts, Jest, devDependencies, or the full repository.
+The artifact must be built from the reviewed commit and its app/ and deploy/ manifests hashed before offline selection. The app manifest must cover runtime files, the four allow-listed DB scripts, and every exact migration file; the deploy manifest must cover same-commit deployment metadata. The canonical selected release is current/app plus current/deploy; no second dist or deployment layout is authoritative. Admin/bootstrap privilege provisioning executes `deploy/postgres/production-role-grants.sql` as the sole grants source. Do not rebuild with floating production state on the host. Production DB operations use the shipped Node scripts directly; production does not depend on npm scripts, Jest, devDependencies, or the full repository.
 
 Tests Before Change: Full build, node scripts/test-reproducible-build.js, clean-artifact smoke, release manifest test, and PM2 config static test.
 
-Implementation Steps: In A-context, build once and verify node scripts/test-reproducible-build.js plus the production-artifact closure. scripts/build.sh must copy only the three approved DB scripts and exact drizzle/migrations into the app artifact, while retaining the reviewed runtime and pruned package files. On the host, provision the PM2 state directory without touching the WP3 service identity, rotate the four known exposed secret classes through the root-controlled env gate, and validate the candidate env with Node 22 and production config before any production Node or PM2 startup. Hash the exact app artifact and same-commit deploy metadata, copy them into one immutable release, atomically activate current, start one fork through the PM2 wrapper, inspect redacted logs, and send a controlled PM2 reload --update-env through that same wrapper. The manifest must include every regular file below both app/ and deploy/ and must itself be retained with the release evidence. B-context migration/backup/restore commands execute the shipped files directly with Node 22.
+Implementation Steps: In A-context, build once and verify node scripts/test-reproducible-build.js plus the production-artifact closure. scripts/build.sh must copy only the four approved DB scripts and exact drizzle/migrations into the app artifact, while retaining the reviewed runtime and pruned package files. On the host, install and verify the immutable release, select it offline as current, rotate the four known exposed secret classes, validate the candidate env, migrate with MIGRATION_DATABASE_URL, verify the database read-only with DATABASE_URL, and only then prepare/start PM2. Install systemd after first start, save PM2 state, and gate Part A activation on live then ready. The manifest must include every regular file below both app/ and deploy/ and must itself be retained with the release evidence.
 
 Verification: One online fork, PM2_HOME and PM2 state files resolve below /var/lib/academic-writing-platform/pm2, PM2 cwd is current/app, config path is current/deploy/pm2/ecosystem.config.cjs, node_args contains --env-file=/etc/academic-writing-platform/production.env, the env file is root:academic-writing mode 640 and outside the artifact, the rotation marker is root:root mode 600, pm2-academic-writing.service plus PostgreSQL/Nginx are enabled, Node only on 127.0.0.1:3000, live 200, shutdown drain log, reload healthy, unchanged current/storage roots, and the release manifest matches the reviewed app artifact and same-commit deploy metadata. A controlled ECS reboot is required for the P3 acceptance gate; after boot, verify PostgreSQL, Nginx, PM2, Node, /health/live, /health/ready, and persistent DB/file hashes.
 
 Failure Condition: Secret-bearing artifact, multiple forks, public bind, startup failure, crash loop, or unclean shutdown.
 
-Rollback: current/deploy/scripts/rollback.sh <previous-commit-sha> switches current to the previous complete release, reloads PM2 --update-env, and verifies live/ready. It does not reverse migrations or delete documents.
+Rollback: An operator may explicitly run current/deploy/scripts/rollback.sh <reviewed-previous-commit-sha> only with reviewed/test-backed compatibility evidence. It switches current to the reviewed previous complete release, reloads PM2, and verifies live/ready. There is no automatic migration rollback; it does not reverse migrations or delete documents.
 
 Evidence to Record: Commit SHA, artifact hash, PM2 status/describe, listeners, redacted logs, health responses.
 
@@ -603,13 +613,13 @@ Commands after authorization [C: host OS / PM2 and systemd]:
 
 Tests Before Change: app bootstrap, production config/bootstrap/shutdown, health, database/storage readiness, and all baseline CI jobs.
 
-Implementation Steps: Validate the protected env file and CA mode/path without printing values, migrate with verified Node TLS, start, query live/ready, authenticate to providers health, perform graceful PM2 reload --update-env as academic-writing, inspect sanitized logs, verify enabled systemd units, perform the controlled ECS reboot, and after boot check PostgreSQL, Nginx, PM2, Node, /health/live, /health/ready, and persistent DB/file hashes.
+Implementation Steps: Validate the protected env file and CA mode/path without printing values, migrate with verified Node TLS, run pre-start database verification as the app role, start, and query live/ready for Part A activation. Authenticated provider health remains a later acceptance gate through the existing OIDC/NeedLogin contract. Graceful reload, ECS reboot, and production evidence require their separate runtime authorization.
 
 Verification: Live is 200 independently, ready is 200 only with DB/storage, providers requires auth, restart drains cleanly, invalid config exits before serving, PM2 OS boot recovery is enabled, and post-reboot service/data/file checks pass.
 
 Failure Condition: False ready, secret-bearing provider errors, hung shutdown, unsafe TLS, or missing migrations.
 
-Rollback: Stop/restart known-good release; do not mark a release current until migration and health pass. Applied migrations receive forward-compatible fixes only.
+Rollback: `current` may identify an offline selected release before migration and health, but it must not be described as activated or deployment accepted. Applied migrations receive forward-compatible fixes only; there is no automatic migration rollback.
 
 Evidence to Record: Migration output, three health responses, PM2 lifecycle, redacted logs, uptime, and rejection tests.
 
@@ -781,12 +791,12 @@ Command context legend: [A] means implementation worktree or CI; [B] means the e
 3. Create service user, release root, private storage root, log root, and backup root with explicit owners/modes.
 4. Provision PostgreSQL roles/database/vector/TLS/private listener.
 5. Provision protected env file and validate it without printing values.
-6. Run ordered migrations and verify schema/vector/readiness.
-7. [A] Build and hash the exact artifact from the authorized commit. The build closure includes server/, dist/, node_modules/, package.json, run.sh, only scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js, and exact drizzle/migrations from that commit. Copy this artifact to releases/<commit-sha>/app/, copy same-commit deploy metadata to releases/<commit-sha>/deploy/, and record one release manifest/hash evidence covering both trees.
-8. [C/B] Activate current -> releases/<commit-sha>, start PM2 single fork with cwd=current/app, script=server/main.js, and node_args=--env-file=/etc/academic-writing-platform/production.env. Run production migrations, backup, and restore verification from the shipped B-context Node scripts, not npm scripts.
-9. Install/test Nginx and public HTTPS.
-10. Enable PM2 systemd startup for the academic-writing service user, run pm2 save, and verify PostgreSQL/Nginx/PM2 boot units.
-11. Execute provider health and real OIDC validation.
+6. [A] Build and hash the exact artifact from the authorized commit. The build closure includes server/, dist/, node_modules/, package.json, run.sh, only scripts/db-migrate.js, scripts/db-backup.js, scripts/db-restore-verify.js, scripts/verify-production-database.js, and exact drizzle/migrations from that commit. Install app/deploy from that same commit and verify the release manifest.
+7. [C] Select `current -> releases/<commit-sha>` offline; selection does not start Node and is not deployment acceptance.
+8. [C/B] Perform initial secret rotation and verify production.env, run production migration with MIGRATION_DATABASE_URL, then run pre-start production DB verification with DATABASE_URL/app role.
+9. [C/B] Prepare PM2 state, perform the first single-fork start, install/verify systemd, run pm2 save, then require /health/live and /health/ready.
+10. Install/test Nginx and public HTTPS as separately authorized runtime work.
+11. Execute authenticated provider health and real OIDC validation later through the existing authentication contract; this is not a Part A activation gate.
 12. Execute Playwright E2E and recovery rehearsal including the controlled ECS reboot.
 13. Record evidence and stop for ChatGPT review; do not self-declare acceptance.
 

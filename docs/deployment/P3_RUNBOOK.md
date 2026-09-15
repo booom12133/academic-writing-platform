@@ -9,7 +9,8 @@ academic-writing-platform at https://write.yingrenji.cn.
   Playwright, and the complete source checkout.
 - B: the exact production release app at
   /opt/academic-writing-platform/current/app. Production database operations
-  run the three shipped Node scripts directly.
+  run the four shipped Node scripts directly after the Part A artifact closure
+  is implemented.
 - C: production host OS or PostgreSQL administrative tooling.
 
 Production ECS must not depend on a full source checkout, Jest, test files,
@@ -31,6 +32,7 @@ Each release is immutable and has this layout:
           db-migrate.js
           db-backup.js
           db-restore-verify.js
+          verify-production-database.js
         drizzle/
           migrations/
       deploy/
@@ -40,7 +42,7 @@ Each release is immutable and has this layout:
       release-manifest.sha256
 
 The app artifact and deployment metadata come from the same reviewed commit.
-Only the three named scripts may exist directly under app/scripts. The exact
+Only the four named scripts may exist directly under app/scripts. The exact
 four migration files are copied into app/drizzle/migrations and are included
 in the release hash evidence. Persistent document data is never copied into a
 release. release-install.sh, release-activate.sh, and rollback.sh do not
@@ -55,16 +57,23 @@ every regular file below `app/` and `deploy/`. The release manifest helper
 rejects symlinks, path traversal, missing files, extra files, duplicate
 entries, and digest mismatches.
 
+`current = offline selected release` and
+`current != deployment accepted`. `release-activate.sh` may change the
+`current` symlink before database gates because it starts no Node/PM2 process.
+
 The first deployment command sequence is frozen as follows. It verifies the
 installed release before changing `current`, performs the initial compromise
-rotation before any Node or PM2 process, and only then prepares and activates
-PM2:
+rotation before any Node or PM2 process, migrates and verifies the production
+database, and only then prepares and activates PM2:
 
     sudo deploy/scripts/release-install.sh <commit-sha> dist deploy
     sudo node /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-manifest.js /opt/academic-writing-platform/releases/<commit-sha>
     sudo /opt/academic-writing-platform/releases/<commit-sha>/deploy/scripts/release-activate.sh <commit-sha>
     sudo env P3_SECURITY_SECRET_ROTATION_REQUIRED=YES P3_DB_ADMIN_URL='postgresql://rotation-admin@db.example/academic_writing' /opt/academic-writing-platform/current/deploy/scripts/rotate-production-env.sh /etc/academic-writing-platform/rotation-input/production.env /opt/academic-writing-platform/current/app INITIAL_COMPROMISE_ROTATION
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-production-env.sh /etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app
+    cd /opt/academic-writing-platform/current/app
+    sudo node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
+    sudo node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
     sudo /opt/academic-writing-platform/current/deploy/scripts/prepare-pm2-state.sh
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
     sudo /opt/academic-writing-platform/current/deploy/scripts/install-pm2-systemd.sh
@@ -72,8 +81,19 @@ PM2:
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl is-enabled pm2-academic-writing.service
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
+    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-live.sh
+    # verify-live.sh gates /health/live before /health/ready.
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh describe academic-writing-platform
+
+The admin/bootstrap process executes
+`deploy/postgres/production-role-grants.sql` as the only grants source; this
+Runbook does not copy its SQL. Any migration or pre-start database verification
+failure stops before PM2 preparation and first start. Part A activation ends at
+successful PM2/systemd, `/health/live`, and `/health/ready` gates.
+`/health/providers` is not a Part A activation gate; later provider acceptance
+uses the existing OIDC/NeedLogin authentication contract. There is no automatic
+migration rollback after any later PM2, systemd, live, or ready failure.
 
 `systemctl cat` must show `User=academic-writing`,
 `Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2`, and
@@ -191,6 +211,7 @@ From the current B release app:
 
     cd /opt/academic-writing-platform/current/app
     node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
+    node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
     BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-backup.js
     BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/<dump>.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-restore-verify.js --confirm-restore
 
@@ -202,6 +223,14 @@ sslmode=require alone or disable certificate verification.
 
 Restore only into an isolated recovery database. Never restore destructively
 over the live database.
+
+Production migration uses `MIGRATION_DATABASE_URL` only; it has no
+`DATABASE_URL` fallback. Pre-start verification uses `DATABASE_URL` only as
+`academic_writing_app`. Role/schema/grant provisioning must execute the
+repository's `deploy/postgres/production-role-grants.sql`; operators must not
+copy grants from this Runbook. Migrations are forward-only. Rollback is an
+explicit operator action backed by reviewed compatibility evidence and performs
+no automatic migration rollback.
 
 ## Boot recovery
 

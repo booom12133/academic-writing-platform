@@ -109,6 +109,51 @@ describe('P3 deployment contract', () => {
     expect(runbook).toContain('shell remains `/usr/sbin/nologin`');
   });
 
+  it('defines offline selection, four database scripts, and separated acceptance gates', () => {
+    const plan = readProjectFile('docs/plans/PHASE_P3_IMPLEMENTATION_PLAN.md');
+    const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
+    const environment = readProjectFile(
+      'docs/deployment/P3_ENVIRONMENT_MANIFEST.md',
+    );
+    const evidence = readProjectFile(
+      'docs/deployment/P3_ACCEPTANCE_EVIDENCE.md',
+    );
+    const rollback = readProjectFile('deploy/scripts/rollback.sh');
+    const databaseScripts = [
+      'db-migrate.js',
+      'db-backup.js',
+      'db-restore-verify.js',
+      'verify-production-database.js',
+    ];
+
+    for (const document of [plan, runbook]) {
+      expect(document).toContain('current = offline selected release');
+      expect(document).toContain('current != deployment accepted');
+      expect(document).toContain(
+        'deploy/postgres/production-role-grants.sql',
+      );
+      expect(document).toContain('existing OIDC/NeedLogin');
+      expect(document).toContain('no automatic migration rollback');
+      for (const script of databaseScripts) {
+        expect(document).toContain(script);
+      }
+    }
+
+    expect(environment).toContain(
+      'DATABASE_URL authenticates academic_writing_app',
+    );
+    expect(environment).toContain(
+      'MIGRATION_DATABASE_URL authenticates academic_writing_migrator',
+    );
+    expect(environment).toContain('production migration has no DATABASE_URL fallback');
+    expect(evidence).toContain('PART_A_ACTIVATION');
+    expect(evidence).toContain('AUTHENTICATED_PROVIDER_ACCEPTANCE');
+    expect(evidence).toContain('RUNTIME_UNKNOWN');
+    expect(rollback).not.toMatch(
+      /db-migrate|migration down|DROP SCHEMA|pg_restore/iu,
+    );
+  });
+
   it('defines an external-state Playwright contract without credentials', () => {
     const config = readProjectFile('playwright.config.ts');
     const authHelper = readProjectFile('test/e2e/support/p3-auth.ts');

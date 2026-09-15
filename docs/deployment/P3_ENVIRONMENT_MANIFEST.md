@@ -36,6 +36,13 @@ hostname must match the PostgreSQL certificate SAN. Node uses the trusted CA
 and rejectUnauthorized=true. pg_dump, pg_restore, and psql require libpq
 verify-full with PGSSLROOTCERT.
 
+`DATABASE_URL authenticates academic_writing_app` and is used by the runtime
+and the read-only `scripts/verify-production-database.js` pre-start gate.
+`MIGRATION_DATABASE_URL authenticates academic_writing_migrator` and is used
+only by the production migration runner. `production migration has no DATABASE_URL fallback`;
+a missing migration URL fails closed before any database connection or PM2
+start. Neither URL value may appear in logs or deployment evidence.
+
 ## Auth0 public configuration
 
     OIDC_PROVIDER=Auth0

@@ -29,15 +29,22 @@ not an acceptance decision and does not authorize production mutation.
 - PostgreSQL 16 and pgvector:
 - PostgreSQL certificate verification:
 - Migration and schema:
+- Pre-start app-role database verification:
 - Persistent storage:
 - PM2 single-fork lifecycle:
 - PM2 systemd boot recovery:
 - Nginx HTTPS boundary:
 - Auth0 OIDC:
-- Provider health:
+- PART_A_ACTIVATION (PM2/systemd + live + ready): RUNTIME_UNKNOWN
+- AUTHENTICATED_PROVIDER_ACCEPTANCE (existing OIDC/NeedLogin): RUNTIME_UNKNOWN
 - Workflow A:
 - Workflow B:
 - Owner isolation:
+
+`current` records only the offline selected release. It is not deployment
+acceptance. Until an authorized operator supplies runtime evidence, production
+database, PM2/systemd, Nginx, and provider results remain `RUNTIME_UNKNOWN` and
+must not be promoted to PASS from GitHub/CI evidence alone.
 
 ## Recovery
 

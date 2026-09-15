@@ -643,10 +643,14 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       'release-activate.sh',
       'INITIAL_COMPROMISE_ROTATION',
       'verify-production-env.sh',
+      'scripts/db-migrate.js',
+      'scripts/verify-production-database.js',
       'prepare-pm2-state.sh',
       'pm2-service-cli.sh start',
       'install-pm2-systemd.sh',
       'pm2-service-cli.sh save',
+      '/health/live',
+      '/health/ready',
     ];
 
     const planSequence = plan.slice(
@@ -655,15 +659,18 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     );
     const runbookSequence = runbook.slice(
       runbook.indexOf('The first deployment command sequence is frozen'),
-      runbook.indexOf('`systemctl cat` must show'),
+      runbook.indexOf('The admin/bootstrap process executes'),
     );
 
     for (const document of [planSequence, runbookSequence]) {
       const positions = requiredOrder.map((token) => document.indexOf(token));
       expect(positions.every((position) => position >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a, b) => a - b));
+      expect(document).not.toContain('/health/providers');
     }
     for (const document of [plan, runbook]) {
+      expect(document).toContain('current = offline selected release');
+      expect(document).toContain('current != deployment accepted');
       expect(document).toContain('systemctl cat pm2-academic-writing.service');
       expect(document).toContain(
         'Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2',
