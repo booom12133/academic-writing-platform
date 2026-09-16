@@ -5,7 +5,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import {
@@ -15,7 +15,10 @@ import {
 
 const migrationName = '0001_standard_postgres_baseline.sql';
 
-function createArtifact(root: string, migrationContent = 'CREATE TABLE baseline ();') {
+function createArtifact(
+  root: string,
+  migrationContent = 'CREATE TABLE baseline ();',
+) {
   mkdirSync(join(root, 'server'), { recursive: true });
   mkdirSync(join(root, 'dist', 'client'), { recursive: true });
   mkdirSync(join(root, 'client'), { recursive: true });
@@ -49,14 +52,18 @@ function createArtifact(root: string, migrationContent = 'CREATE TABLE baseline 
 
 describe('production artifact closure', () => {
   it('classifies symlinks as artifact violations', () => {
-    expect(classifyArtifactEntry('app/node_modules/linked', {
-      isSymbolicLink: () => true,
-    })).toBe('symlink');
+    expect(
+      classifyArtifactEntry('app/node_modules/linked', {
+        isSymbolicLink: () => true,
+      }),
+    ).toBe('symlink');
   });
 
   it('accepts runtime, allow-listed DB scripts, and exact migrations', () => {
     const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
-    const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
     try {
       createArtifact(root);
       mkdirSync(migrationsRoot, { recursive: true });
@@ -82,7 +89,9 @@ describe('production artifact closure', () => {
 
   it('rejects a non-approved production script', () => {
     const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
-    const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
     try {
       createArtifact(root);
       writeFileSync(join(root, 'scripts', 'lint.js'), 'not production');
@@ -101,9 +110,101 @@ describe('production artifact closure', () => {
     }
   });
 
+  it.each([
+    'server/modules/health/health.spec.js',
+    'server/modules/health/health.spec.d.ts',
+    'server/modules/health/health.spec.js.map',
+    'server/modules/health/health.test.js',
+    'server/modules/health/health.test.d.ts',
+    'server/modules/health/health.test.js.map',
+    'server/modules/health/health.e2e-spec.js',
+    'server/modules/health/health.e2e-spec.d.ts',
+    'server/modules/health/health.e2e-spec.js.map',
+    'server/modules/health/__tests__/health.js',
+  ])('rejects application-owned compiled test artifact %s', (relativePath) => {
+    const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
+    try {
+      createArtifact(root);
+      mkdirSync(join(root, dirname(relativePath)), { recursive: true });
+      writeFileSync(join(root, relativePath), 'compiled test artifact');
+      mkdirSync(migrationsRoot, { recursive: true });
+      writeFileSync(
+        join(migrationsRoot, migrationName),
+        'CREATE TABLE baseline ();',
+      );
+
+      expect(() =>
+        assertProductionArtifactLayout(root, migrationsRoot),
+      ).toThrow(relativePath);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(migrationsRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an empty application-owned __tests__ directory', () => {
+    const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
+    try {
+      createArtifact(root);
+      mkdirSync(join(root, 'server', 'modules', 'health', '__tests__'), {
+        recursive: true,
+      });
+      mkdirSync(migrationsRoot, { recursive: true });
+      writeFileSync(
+        join(migrationsRoot, migrationName),
+        'CREATE TABLE baseline ();',
+      );
+
+      expect(() =>
+        assertProductionArtifactLayout(root, migrationsRoot),
+      ).toThrow('server/modules/health/__tests__');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(migrationsRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('does not treat third-party node_modules test files as application artifacts', () => {
+    const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
+    try {
+      createArtifact(root);
+      const thirdPartyTests = join(
+        root,
+        'node_modules',
+        'dependency',
+        '__tests__',
+      );
+      mkdirSync(thirdPartyTests, { recursive: true });
+      writeFileSync(join(thirdPartyTests, 'dependency.spec.js'), 'third party');
+      mkdirSync(migrationsRoot, { recursive: true });
+      writeFileSync(
+        join(migrationsRoot, migrationName),
+        'CREATE TABLE baseline ();',
+      );
+
+      expect(() =>
+        assertProductionArtifactLayout(root, migrationsRoot),
+      ).not.toThrow();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(migrationsRoot, { recursive: true, force: true });
+    }
+  });
+
   it('rejects an unrelated top-level artifact entry', () => {
     const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
-    const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
     try {
       createArtifact(root);
       mkdirSync(join(root, 'tests'), { recursive: true });
@@ -125,7 +226,9 @@ describe('production artifact closure', () => {
 
   it('rejects a migration that differs from the reviewed source', () => {
     const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
-    const migrationsRoot = mkdtempSync(join(tmpdir(), 'academic-writing-migrations-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
     try {
       createArtifact(root, 'ALTER TABLE drifted ();');
       mkdirSync(migrationsRoot, { recursive: true });

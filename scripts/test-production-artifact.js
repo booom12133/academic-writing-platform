@@ -37,6 +37,9 @@ const ALLOWED_PRODUCTION_SCRIPTS = new Set([
   'db-restore-verify.js',
   'verify-production-database.js',
 ]);
+const COMPILED_APPLICATION_TEST_PATTERN =
+  /(?:^|\/)[^/]+(?:\.spec|\.test|\.e2e-spec)\.(?:js|d\.ts|js\.map)$/u;
+const APPLICATION_TEST_DIRECTORY_PATTERN = /(?:^|\/)__tests__(?:\/|$)/u;
 
 function toRelativePath(root, fullPath) {
   return path.relative(root, fullPath).split(path.sep).join('/');
@@ -56,6 +59,31 @@ function findArtifactSymlinkViolations(root) {
         violations.push(relativePath);
       } else if (entry.isDirectory()) {
         visit(fullPath);
+      }
+    }
+  }
+  visit(root);
+  return violations.sort();
+}
+
+function findCompiledTestArtifactViolations(root) {
+  const violations = [];
+  function visit(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      const relativePath = toRelativePath(root, fullPath);
+      if (entry.isDirectory()) {
+        if (entry.name === 'node_modules') continue;
+        if (APPLICATION_TEST_DIRECTORY_PATTERN.test(relativePath)) {
+          violations.push(relativePath);
+        }
+        visit(fullPath);
+      } else if (
+        !entry.isSymbolicLink() &&
+        (COMPILED_APPLICATION_TEST_PATTERN.test(relativePath) ||
+          APPLICATION_TEST_DIRECTORY_PATTERN.test(relativePath))
+      ) {
+        violations.push(relativePath);
       }
     }
   }
@@ -88,7 +116,12 @@ function sha256File(filePath) {
 
 function assertProductionArtifactLayout(
   root,
-  expectedMigrationsRoot = path.resolve(__dirname, '..', 'drizzle', 'migrations'),
+  expectedMigrationsRoot = path.resolve(
+    __dirname,
+    '..',
+    'drizzle',
+    'migrations',
+  ),
 ) {
   const violations = [];
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
@@ -101,6 +134,10 @@ function assertProductionArtifactLayout(
       'production artifact layout gate failed: symlink entries: ' +
         symlinkViolations.join(', '),
     );
+  }
+
+  for (const relativePath of findCompiledTestArtifactViolations(root)) {
+    violations.push('compiled application test artifact: ' + relativePath);
   }
 
   for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
@@ -130,10 +167,7 @@ function assertProductionArtifactLayout(
   const scriptsRoot = path.join(root, 'scripts');
   if (fs.existsSync(scriptsRoot) && fs.statSync(scriptsRoot).isDirectory()) {
     for (const entry of fs.readdirSync(scriptsRoot, { withFileTypes: true })) {
-      if (
-        !entry.isFile() ||
-        !ALLOWED_PRODUCTION_SCRIPTS.has(entry.name)
-      ) {
+      if (!entry.isFile() || !ALLOWED_PRODUCTION_SCRIPTS.has(entry.name)) {
         violations.push(
           'unexpected production script: ' +
             toRelativePath(root, path.join(scriptsRoot, entry.name)),
@@ -373,6 +407,7 @@ if (require.main === module) {
 module.exports = {
   assertProductionArtifactLayout,
   classifyArtifactEntry,
+  findCompiledTestArtifactViolations,
   findArtifactSymlinkViolations,
   findArtifactViolations,
   run,
