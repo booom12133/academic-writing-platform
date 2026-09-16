@@ -96,6 +96,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate production shell syntax
+        run: npx jest test/unit/p3-deployment-shell-syntax.spec.ts --runInBand
+
       - name: Validate production configuration and shutdown contracts
         run: npm test -- --runInBand test/unit/production-config.spec.ts test/unit/production-bootstrap.spec.ts test/unit/graceful-shutdown.spec.ts test/unit/reproducible-build.spec.ts test/unit/p3-wp6-security-contract.spec.ts
 

@@ -22,11 +22,7 @@ resolved_root="$(readlink -f -- "$storage_root")"
 test "$resolved_root" = "$storage_root" ||
   fail "storage root does not resolve to the canonical path"
 case "$resolved_root" in
-  /opt/academic-writing-platform/releases/*|
-  /opt/academic-writing-platform/current|
-  /opt/academic-writing-platform/current/*|
-  /tmp/*|
-  /var/tmp/*)
+  /opt/academic-writing-platform/releases/*|/opt/academic-writing-platform/current|/opt/academic-writing-platform/current/*|/tmp/*|/var/tmp/*)
     fail "storage root is inside a release, current, or temporary directory"
     ;;
 esac

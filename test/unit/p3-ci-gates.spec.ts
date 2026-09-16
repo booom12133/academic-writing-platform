@@ -56,6 +56,11 @@ describe('P3 Part A remediation CI gates', () => {
   it('runs the remediation contract, failure-composition, health-auth, and artifact suites explicitly', () => {
     const gates = job('production-gates');
 
+    expect(gates).toContain('- name: Validate production shell syntax');
+    expect(gates).toContain(
+      'test/unit/p3-deployment-shell-syntax.spec.ts',
+    );
+
     for (const suite of [
       'test/unit/db-migrate.spec.ts',
       'test/unit/db-migration-schema-contract.spec.ts',

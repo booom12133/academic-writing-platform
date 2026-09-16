@@ -22,6 +22,12 @@ describe('P3 persistent storage deployment boundary', () => {
     expect(script).toContain('test "$mode" = "700"');
     expect(script).toContain('test ! -L "$storage_root"');
     expect(script).toContain('readlink -f -- "$storage_root"');
+    expect(script).toMatch(
+      /case "\$resolved_root" in\s*\/opt\/academic-writing-platform\/releases\/\*\|\s*\/opt\/academic-writing-platform\/current\|\s*\/opt\/academic-writing-platform\/current\/\*\|\s*\/tmp\/\*\|\s*\/var\/tmp\/\*\)/u,
+    );
+    expect(script).toContain(
+      'fail "storage root is inside a release, current, or temporary directory"',
+    );
     expect(script).toContain('sudo -u "$service_user" -- test -w');
     expect(script).not.toMatch(/^\s*(?:sudo\s+)?(?:rm|cp|mv|ln)\b/mu);
   });
