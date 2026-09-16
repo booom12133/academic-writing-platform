@@ -22,6 +22,13 @@ const REQUIRED_TABLE_NAMES = Object.freeze([
   'zotero_connections',
 ]);
 const VERIFICATION_QUERY_TIMEOUT_MS = 5_000;
+const POSTGRES_SSL_QUERY_PARAMETERS = [
+  'ssl',
+  'sslmode',
+  'sslcert',
+  'sslkey',
+  'sslrootcert',
+];
 
 class ProductionDatabaseVerificationError extends Error {
   constructor(reasonCode) {
@@ -77,8 +84,14 @@ function createVerificationPoolConfig(env = process.env) {
   if (env.NODE_ENV !== 'production') {
     throw new Error('Production database verification requires NODE_ENV=production.');
   }
-  if (parsed.searchParams.get('sslmode') !== 'verify-full') {
-    throw new Error('DATABASE_URL sslmode must be verify-full in production.');
+  if (
+    POSTGRES_SSL_QUERY_PARAMETERS.some((parameter) =>
+      parsed.searchParams.has(parameter),
+    )
+  ) {
+    throw new Error(
+      'DATABASE_URL must not include PostgreSQL SSL query parameters in production.',
+    );
   }
   if (env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');

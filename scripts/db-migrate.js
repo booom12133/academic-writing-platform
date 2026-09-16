@@ -6,6 +6,13 @@ const { Pool } = require('pg');
 const MIGRATION_LOCK_KEY = 318104001;
 const MIGRATIONS_FOLDER = path.resolve(__dirname, '..', 'drizzle', 'migrations');
 const MIGRATION_ROLE = 'academic_writing_migrator';
+const POSTGRES_SSL_QUERY_PARAMETERS = [
+  'ssl',
+  'sslmode',
+  'sslcert',
+  'sslkey',
+  'sslrootcert',
+];
 
 function boundedInteger(env, name, fallback, minimum, maximum) {
   const raw = env[name];
@@ -63,9 +70,15 @@ function createMigrationPoolConfig(env = process.env) {
     throw new Error(`${variableName} must use a PostgreSQL connection URL.`);
   }
   const production = env.NODE_ENV === 'production';
-  const sslMode = parsed.searchParams.get('sslmode');
-  if (production && sslMode && sslMode !== 'verify-full') {
-    throw new Error(`${variableName} sslmode must be verify-full in production.`);
+  if (
+    production &&
+    POSTGRES_SSL_QUERY_PARAMETERS.some((parameter) =>
+      parsed.searchParams.has(parameter),
+    )
+  ) {
+    throw new Error(
+      `${variableName} must not include PostgreSQL SSL query parameters in production.`,
+    );
   }
   if (production && env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');

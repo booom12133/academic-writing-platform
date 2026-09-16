@@ -8,6 +8,8 @@ const {
   runMigrations,
   sanitizeMigrationError,
 } = require('../../scripts/db-migrate.js');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { Client } = require('pg');
 
 interface FakeClientOptions {
   currentUser?: string;
@@ -78,14 +80,19 @@ describe('controlled PostgreSQL migration runner', () => {
       NODE_ENV: 'production',
       DATABASE_URL: 'postgresql://runtime.example/academic_writing',
       MIGRATION_DATABASE_URL:
-        'postgresql://migration.example/academic_writing?sslmode=verify-full',
+        'postgresql://migration.example/academic_writing',
       DATABASE_SSL_CA_FILE: __filename,
     });
 
     expect(config).toMatchObject({
       connectionString:
-        'postgresql://migration.example/academic_writing?sslmode=verify-full',
+        'postgresql://migration.example/academic_writing',
       ssl: { rejectUnauthorized: true, ca: expect.any(String) },
+    });
+    const client = new Client(config);
+    expect(client.connectionParameters.ssl).toMatchObject({
+      rejectUnauthorized: true,
+      ca: expect.any(String),
     });
   });
 
@@ -94,21 +101,37 @@ describe('controlled PostgreSQL migration runner', () => {
       createMigrationPoolConfig({
         NODE_ENV: 'production',
         MIGRATION_DATABASE_URL:
-          'postgresql://migration.example/academic_writing?sslmode=verify-full',
+          'postgresql://migration.example/academic_writing',
         DATABASE_SSL_CA_FILE: '/missing/postgres-ca.pem',
       }),
     ).toThrow(/DATABASE_SSL_CA_FILE/);
   });
 
-  it('rejects sslmode=require in a production migration URL', () => {
-    expect(() =>
-      createMigrationPoolConfig({
-        NODE_ENV: 'production',
-        MIGRATION_DATABASE_URL:
-          'postgresql://migration.example/academic_writing?sslmode=require',
-      }),
-    ).toThrow(/MIGRATION_DATABASE_URL sslmode must be verify-full/);
-  });
+  it.each(['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert'])(
+    'rejects the conflicting %s parameter in the production migrator URL',
+    (parameter) => {
+      const migrationUrl =
+        `postgresql://academic_writing_migrator:sentinel-password@migration.example/academic_writing?${parameter}=sentinel-value`;
+      expect(() =>
+        createMigrationPoolConfig({
+          NODE_ENV: 'production',
+          MIGRATION_DATABASE_URL: migrationUrl,
+          DATABASE_SSL_CA: 'sentinel-ca-content',
+        }),
+      ).toThrow(/MIGRATION_DATABASE_URL must not include PostgreSQL SSL query parameters/);
+      try {
+        createMigrationPoolConfig({
+          NODE_ENV: 'production',
+          MIGRATION_DATABASE_URL: migrationUrl,
+          DATABASE_SSL_CA: 'sentinel-ca-content',
+        });
+      } catch (error) {
+        expect(String(error)).not.toContain(migrationUrl);
+        expect(String(error)).not.toContain('sentinel-password');
+        expect(String(error)).not.toContain('sentinel-ca-content');
+      }
+    },
+  );
 
   it('retains DATABASE_URL fallback outside production only', () => {
     expect(

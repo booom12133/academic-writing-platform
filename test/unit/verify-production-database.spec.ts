@@ -6,6 +6,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Client } from 'pg';
 
 import {
   REQUIRED_MIGRATION_COUNT as RUNTIME_REQUIRED_MIGRATION_COUNT,
@@ -66,7 +67,7 @@ function createPool(client: ReturnType<typeof createClient>) {
 }
 
 describe('pre-start production database verification', () => {
-  it('uses only DATABASE_URL and requires verified production TLS with a readable CA', () => {
+  it('uses only a manifest-style DATABASE_URL and preserves the explicit CA in pg', () => {
     const directory = mkdtempSync(join(tmpdir(), 'p3-db-verifier-'));
     const caFile = join(directory, 'postgres-ca.pem');
     const emptyCaFile = join(directory, 'empty.pem');
@@ -83,21 +84,12 @@ describe('pre-start production database verification', () => {
         }),
       ).toThrow(/DATABASE_URL is required/);
 
-      expect(() =>
-        createVerificationPoolConfig({
-          NODE_ENV: 'production',
-          DATABASE_URL:
-            'postgresql://academic_writing_app@db.example/academic_writing?sslmode=require',
-          DATABASE_SSL_CA_FILE: caFile,
-        }),
-      ).toThrow(/verify-full/);
-
       for (const invalidCaFile of [join(directory, 'missing.pem'), emptyCaFile]) {
         expect(() =>
           createVerificationPoolConfig({
             NODE_ENV: 'production',
             DATABASE_URL:
-              'postgresql://academic_writing_app@db.example/academic_writing?sslmode=verify-full',
+              'postgresql://academic_writing_app@db.example/academic_writing',
             DATABASE_SSL_CA_FILE: invalidCaFile,
           }),
         ).toThrow(/readable non-empty/);
@@ -107,35 +99,65 @@ describe('pre-start production database verification', () => {
         createVerificationPoolConfig({
           NODE_ENV: 'production',
           DATABASE_URL:
-            'postgresql://academic_writing_app@db.example/academic_writing?sslmode=verify-full',
+            'postgresql://academic_writing_app@db.example/academic_writing',
           DATABASE_SSL_CA_FILE: caFile,
           DATABASE_SSL_REJECT_UNAUTHORIZED: 'false',
         }),
       ).toThrow(/cannot be false/);
 
-      expect(
-        createVerificationPoolConfig({
-          NODE_ENV: 'production',
-          DATABASE_URL:
-            'postgresql://academic_writing_app@db.example/academic_writing?sslmode=verify-full',
-          MIGRATION_DATABASE_URL:
-            'postgresql://academic_writing_migrator@other.example/ignored',
-          DATABASE_SSL_CA_FILE: caFile,
-          DATABASE_CONNECTION_TIMEOUT_MS: '2500',
-        }),
-      ).toMatchObject({
+      const config = createVerificationPoolConfig({
+        NODE_ENV: 'production',
+        DATABASE_URL:
+          'postgresql://academic_writing_app@db.example/academic_writing',
+        MIGRATION_DATABASE_URL:
+          'postgresql://academic_writing_migrator@other.example/ignored',
+        DATABASE_SSL_CA_FILE: caFile,
+        DATABASE_CONNECTION_TIMEOUT_MS: '2500',
+      });
+      expect(config).toMatchObject({
         connectionString:
-          'postgresql://academic_writing_app@db.example/academic_writing?sslmode=verify-full',
+          'postgresql://academic_writing_app@db.example/academic_writing',
         connectionTimeoutMillis: 2500,
         ssl: {
           ca: 'sentinel-ca-content',
           rejectUnauthorized: true,
         },
       });
+      const client = new Client(config);
+      expect(client.connectionParameters.ssl).toEqual({
+        ca: 'sentinel-ca-content',
+        rejectUnauthorized: true,
+      });
     } finally {
       rmSync(directory, { recursive: true, force: true });
     }
   });
+
+  it.each(['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert'])(
+    'rejects the conflicting %s query parameter without exposing the URL',
+    (parameter) => {
+      const databaseUrl =
+        `postgresql://academic_writing_app:sentinel-password@db.example/academic_writing?${parameter}=sentinel-value`;
+      expect(() =>
+        createVerificationPoolConfig({
+          NODE_ENV: 'production',
+          DATABASE_URL: databaseUrl,
+          DATABASE_SSL_CA: 'sentinel-ca-content',
+        }),
+      ).toThrow(/must not include PostgreSQL SSL query parameters/);
+      try {
+        createVerificationPoolConfig({
+          NODE_ENV: 'production',
+          DATABASE_URL: databaseUrl,
+          DATABASE_SSL_CA: 'sentinel-ca-content',
+        });
+      } catch (error) {
+        expect(String(error)).not.toContain(databaseUrl);
+        expect(String(error)).not.toContain('sentinel-password');
+        expect(String(error)).not.toContain('sentinel-ca-content');
+      }
+    },
+  );
 
   it('keeps count and exact table semantics aligned with runtime readiness', () => {
     expect(REQUIRED_MIGRATION_COUNT).toBe(RUNTIME_REQUIRED_MIGRATION_COUNT);

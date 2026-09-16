@@ -6,6 +6,13 @@ import { validateProductionExternalProviderConfig } from './external-provider-va
 
 const SUPPORTED_JWT_ALGORITHMS = new Set(['RS256', 'RS384', 'RS512']);
 const MAX_TRUST_PROXY_HOPS = 10;
+const POSTGRES_SSL_QUERY_PARAMETERS = [
+  'ssl',
+  'sslmode',
+  'sslcert',
+  'sslkey',
+  'sslrootcert',
+] as const;
 
 function requireConfiguredValue(value: string | undefined, name: string): string {
   if (!value) {
@@ -14,6 +21,29 @@ function requireConfiguredValue(value: string | undefined, name: string): string
     );
   }
   return value;
+}
+
+export function assertNoProductionPostgresSslQueryParameters(
+  connectionString: string,
+  variableName: string,
+): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(connectionString);
+  } catch {
+    throw new RuntimeProfileConfigurationError(
+      `${variableName} must be a valid PostgreSQL connection URL.`,
+    );
+  }
+  if (
+    POSTGRES_SSL_QUERY_PARAMETERS.some((parameter) =>
+      parsed.searchParams.has(parameter),
+    )
+  ) {
+    throw new RuntimeProfileConfigurationError(
+      `${variableName} must not include PostgreSQL SSL query parameters in production.`,
+    );
+  }
 }
 
 export function validateRuntimeConfig(
@@ -85,7 +115,15 @@ export function validateRuntimeConfig(
     );
   }
 
-  requireConfiguredValue(config.database.url, 'DATABASE_URL');
+  const databaseUrl = requireConfiguredValue(config.database.url, 'DATABASE_URL');
+  assertNoProductionPostgresSslQueryParameters(databaseUrl, 'DATABASE_URL');
+  const migrationDatabaseUrl = _env.MIGRATION_DATABASE_URL?.trim();
+  if (migrationDatabaseUrl) {
+    assertNoProductionPostgresSslQueryParameters(
+      migrationDatabaseUrl,
+      'MIGRATION_DATABASE_URL',
+    );
+  }
   const storageRoot = requireConfiguredValue(
     config.storage.root,
     'DOCUMENT_STORAGE_ROOT',

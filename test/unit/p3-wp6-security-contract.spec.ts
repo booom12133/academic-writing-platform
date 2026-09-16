@@ -150,6 +150,35 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(client.connectionParameters.password).toBe(runtimeAdminPassword);
   });
 
+  it('preserves explicit TLS for manifest-style role connectivity URLs and rejects URL TLS settings', () => {
+    const { Client } = require('pg');
+    const { clientConfig } = require('../../deploy/scripts/rotate-postgres-roles.js');
+    const env = { DATABASE_SSL_CA: 'sentinel-ca-content' };
+    const manifestUrl =
+      'postgresql://academic_writing_app:sentinel-password@db.example/academic_writing';
+    const config = clientConfig(manifestUrl, env);
+    const client = new Client(config);
+
+    expect(client.connectionParameters.ssl).toEqual({
+      ca: 'sentinel-ca-content',
+      rejectUnauthorized: true,
+    });
+
+    for (const parameter of ['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert']) {
+      const secretUrl = `${manifestUrl}?${parameter}=sentinel-value`;
+      expect(() => clientConfig(secretUrl, env)).toThrow(
+        /database connection URL must not include PostgreSQL SSL query parameters/,
+      );
+      try {
+        clientConfig(secretUrl, env);
+      } catch (error) {
+        expect(String(error)).not.toContain(secretUrl);
+        expect(String(error)).not.toContain('sentinel-password');
+        expect(String(error)).not.toContain('sentinel-ca-content');
+      }
+    }
+  });
+
   it('rejects an administrative password when it is present in the candidate env file', () => {
     const { createRotationPlan } = require('../../deploy/scripts/rotation-contract.js');
     const { loadRotationInputs } = require('../../deploy/scripts/rotate-postgres-roles.js');

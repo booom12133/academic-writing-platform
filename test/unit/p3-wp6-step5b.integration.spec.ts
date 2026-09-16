@@ -132,6 +132,8 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     expect(finalEnv.EMBEDDING_BASE_URL).toBe('https://api.siliconflow.cn/v1');
     expect(finalEnv.EMBEDDING_MODEL).toBe('BAAI/bge-m3');
     expect(finalEnv.EMBEDDING_DIMENSIONS).toBe('1024');
+    expect([...new URL(finalEnv.DATABASE_URL).searchParams]).toEqual([]);
+    expect([...new URL(finalEnv.MIGRATION_DATABASE_URL).searchParams]).toEqual([]);
     expect(finalEnv).not.toHaveProperty('P3_DB_ADMIN_PASSWORD');
     expect(fixture.state(fixture.currentEnvPath)).toEqual({
       exists: true,
@@ -182,6 +184,26 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
     await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
   });
+
+  it.each(['DATABASE_URL', 'MIGRATION_DATABASE_URL'] as const)(
+    'S2 rejects %s SSL query configuration before database mutation',
+    async (variableName) => {
+      const nextCandidate = fixture.candidateEnv();
+      nextCandidate[variableName] = `${nextCandidate[variableName]}?sslmode=verify-full`;
+      await fixture.setCandidateEnv(nextCandidate);
+
+      const result = await fixture.runRotation();
+
+      expect(result.code).not.toBe(0);
+      assertNoSecretLeakage(fixture, result);
+      expect(fixture.state(fixture.markerPath).exists).toBe(false);
+      expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
+      await expectRoleLogin(fixture, 'academic_writing_app', fixture.appOldPassword);
+      await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorOldPassword);
+      await expectRoleLoginFailure(fixture, 'academic_writing_app', fixture.appNewPassword);
+      await expectRoleLoginFailure(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
+    },
+  );
 
   it('S3 authenticates the admin over verified TLS with the correct hostname and CA', async () => {
     const client = await fixture.connectAdmin();

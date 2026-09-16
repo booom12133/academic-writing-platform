@@ -13,6 +13,13 @@ const ROLE_BY_ENV_KEY = {
   DATABASE_URL: 'academic_writing_app',
   MIGRATION_DATABASE_URL: 'academic_writing_migrator',
 };
+const POSTGRES_SSL_QUERY_PARAMETERS = [
+  'ssl',
+  'sslmode',
+  'sslcert',
+  'sslkey',
+  'sslrootcert',
+];
 
 function lstatOrFail(targetPath, description) {
   let stats;
@@ -120,6 +127,21 @@ function readDatabaseCa(env) {
 }
 
 function clientConfig(connectionString, env) {
+  let parsed;
+  try {
+    parsed = new URL(connectionString);
+  } catch {
+    throw new Error('database connection URL must be a valid PostgreSQL URL');
+  }
+  if (
+    POSTGRES_SSL_QUERY_PARAMETERS.some((parameter) =>
+      parsed.searchParams.has(parameter),
+    )
+  ) {
+    throw new Error(
+      'database connection URL must not include PostgreSQL SSL query parameters',
+    );
+  }
   return {
     connectionString,
     ssl: { ca: readDatabaseCa(env), rejectUnauthorized: true },
@@ -316,6 +338,7 @@ if (require.main === module) {
 
 module.exports = {
   checkZoteroDatabaseSafety,
+  clientConfig,
   createAdminClientConfig,
   loadPgClient,
   loadRotationInputs,

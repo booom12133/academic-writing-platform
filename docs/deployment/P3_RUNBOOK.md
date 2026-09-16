@@ -227,9 +227,13 @@ From the current B release app:
 
 The protected environment provides DATABASE_SSL_CA_FILE,
 PGSSLMODE=verify-full, and PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem.
-Node connections use the trusted CA with rejectUnauthorized=true. libpq
-connections used by pg_dump, pg_restore, and psql use verify-full. Never use
-sslmode=require alone or disable certificate verification.
+`DATABASE_URL` and `MIGRATION_DATABASE_URL` contain no `ssl`, `sslmode`,
+`sslcert`, `sslkey`, or `sslrootcert` query parameters. Node connections use
+`DATABASE_SSL_CA_FILE` (or `DATABASE_SSL_CA`) as the explicit trusted CA with
+`rejectUnauthorized=true`. libpq connections used by `pg_dump`, `pg_restore`,
+and `psql` use the separate `PGSSLMODE=verify-full` and `PGSSLROOTCERT`
+contract. Never mix libpq TLS parameters into a node-postgres URL, use
+`sslmode=require` alone, or disable certificate verification.
 
 Restore only into an isolated recovery database. Never restore destructively
 over the live database.

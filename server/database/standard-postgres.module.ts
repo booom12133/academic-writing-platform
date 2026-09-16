@@ -5,6 +5,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, type PoolConfig } from 'pg';
 import * as schema from './schema';
 import { DRIZZLE_DATABASE, type AppDatabase } from './database.types';
+import { assertNoProductionPostgresSslQueryParameters } from '../config/config-validation';
 
 export interface StandardPostgresConfig extends PoolConfig {
   connectionString: string;
@@ -62,9 +63,8 @@ export function createStandardPostgresConfig(
   }
 
   const isProduction = env.NODE_ENV === 'production';
-  const sslMode = parsed.searchParams.get('sslmode');
-  if (isProduction && sslMode && sslMode !== 'verify-full') {
-    throw new Error('DATABASE_URL sslmode must be verify-full in production.');
+  if (isProduction) {
+    assertNoProductionPostgresSslQueryParameters(connectionString, 'DATABASE_URL');
   }
   if (isProduction && env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');

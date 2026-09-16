@@ -32,9 +32,13 @@ completion marker created by the atomic rotation helper.
     DATABASE_CONNECTION_TIMEOUT_MS=5000
 
 The displayed password markers are placeholders, not credentials. The database
-hostname must match the PostgreSQL certificate SAN. Node uses the trusted CA
-and rejectUnauthorized=true. pg_dump, pg_restore, and psql require libpq
-verify-full with PGSSLROOTCERT.
+hostname must match the PostgreSQL certificate SAN. The Node PostgreSQL URLs
+must not contain `ssl`, `sslmode`, `sslcert`, `sslkey`, or `sslrootcert` query
+parameters. Node uses `DATABASE_SSL_CA_FILE` (or `DATABASE_SSL_CA`) to set the
+explicit trusted CA with `rejectUnauthorized=true`. `pg_dump`, `pg_restore`,
+and `psql` use the separate libpq contract: `PGSSLMODE=verify-full` with
+`PGSSLROOTCERT`. Do not mix libpq TLS parameters into a node-postgres
+connection string because they override the explicit Node TLS configuration.
 
 `DATABASE_URL authenticates academic_writing_app` and is used by the runtime
 and the read-only `scripts/verify-production-database.js` pre-start gate.

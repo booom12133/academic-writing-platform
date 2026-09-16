@@ -55,11 +55,8 @@ function encode(value: string): string {
   return encodeURIComponent(value);
 }
 
-function databaseUrl(role: string, password: string, host: string, caPath: string): string {
-  return [
-    `postgresql://${role}:${encode(password)}@${host}:${DATABASE_PORT}/${DATABASE_NAME}`,
-    `?sslmode=verify-full&sslrootcert=${encode(caPath)}`,
-  ].join('');
+function databaseUrl(role: string, password: string, host: string): string {
+  return `postgresql://${role}:${encode(password)}@${host}:${DATABASE_PORT}/${DATABASE_NAME}`;
 }
 
 function envText(values: EnvValues): string {
@@ -106,13 +103,11 @@ export function createStep5BFixture() {
         'academic_writing_app',
         isNew ? appNewPassword : appOldPassword,
         appHost,
-        caPath,
       ),
       MIGRATION_DATABASE_URL: databaseUrl(
         'academic_writing_migrator',
         isNew ? migratorNewPassword : migratorOldPassword,
         databaseHost,
-        caPath,
       ),
       DOCUMENT_STORAGE_ROOT: storageRoot,
       DATABASE_SSL_CA_FILE: caPath,
