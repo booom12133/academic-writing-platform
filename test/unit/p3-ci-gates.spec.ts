@@ -93,4 +93,17 @@ describe('P3 Part A remediation CI gates', () => {
     expect(baseline).toContain('run: npm run build:server');
     expect(baseline).toContain('run: npm run build:client');
   });
+
+  it('uses manifest-style PostgreSQL URLs with separate Node and libpq TLS settings', () => {
+    const postgres = job('postgres-schema');
+
+    expect(postgres).toContain('DATABASE_SSL_CA_FILE=/etc/academic-writing-platform/postgres-ca.pem');
+    expect(postgres).toContain("PGSSLMODE=verify-full");
+    expect(postgres).toContain(
+      'PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem',
+    );
+    expect(postgres).not.toMatch(
+      /postgresql:\/\/[^\s'"]*[?&](?:ssl|sslmode|sslcert|sslkey|sslrootcert)=/u,
+    );
+  });
 });
