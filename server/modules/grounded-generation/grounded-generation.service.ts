@@ -3,6 +3,7 @@ import { GroundedGenerationError } from './grounded-generation.errors';
 import type {
   GroundedGenerationRequest,
   GroundedGenerationResult,
+  GroundedModelOutput,
 } from './grounded-generation.types';
 import type { EvidenceSet } from '../knowledge/retrieval/evidence-assembly';
 import type { KnowledgeRetrievalInput } from '../knowledge/retrieval/knowledge-retrieval.service';
@@ -64,21 +65,12 @@ export class GroundedGenerationService {
       );
     }
 
-    this.ensureBeforeDeadline(deadline);
-    const generationRequest: TextGenerationRequest = {
-      messages: this.promptBuilder.build(validatedRequest.instructions, evidenceSet),
-      temperature: 0,
-      jsonMode: true,
-    };
-    let generated: TextGenerationResult;
-    try {
-      generated = await this.withDeadline(this.llm.generate(generationRequest), deadline);
-    } catch (error) {
-      if (error instanceof GroundedGenerationError) throw error;
-      throw this.mapProviderError(error, 'GROUNDED_GENERATION_PROVIDER_UNAVAILABLE');
-    }
-    this.ensureBeforeDeadline(deadline);
-    const modelOutput = parseGroundedModelOutput(generated.content);
+    const { generated, modelOutput } = await this.generateValidModelOutput(
+      validatedRequest.instructions,
+      validatedRequest.queryText,
+      evidenceSet,
+      deadline,
+    );
     const validation = this.validator.validate(modelOutput, evidenceSet);
     const onUnbound = validatedRequest.grounding?.onUnbound ?? 'block';
     if (validation.groundingCoverage !== 'complete' && onUnbound === 'block') {
@@ -125,6 +117,53 @@ export class GroundedGenerationService {
 
   private validateRequest(request: GroundedGenerationRequest): GroundedGenerationRequest {
     return parseGroundedGenerationRequest(request);
+  }
+
+  private async generateValidModelOutput(
+    instructions: string,
+    queryText: string,
+    evidenceSet: EvidenceSet,
+    deadline: number,
+  ): Promise<{ generated: TextGenerationResult; modelOutput: GroundedModelOutput }> {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      this.ensureBeforeDeadline(deadline);
+      const generationRequest: TextGenerationRequest = {
+        messages: this.promptBuilder.build(
+          instructions,
+          queryText,
+          evidenceSet,
+          attempt === 0 ? 'initial' : 'corrective',
+        ),
+        temperature: 0,
+        jsonMode: true,
+      };
+
+      let generated: TextGenerationResult;
+      try {
+        generated = await this.withDeadline(this.llm.generate(generationRequest), deadline);
+      } catch (error) {
+        if (error instanceof GroundedGenerationError) throw error;
+        throw this.mapProviderError(error, 'GROUNDED_GENERATION_PROVIDER_UNAVAILABLE');
+      }
+
+      this.ensureBeforeDeadline(deadline);
+      try {
+        return {
+          generated,
+          modelOutput: parseGroundedModelOutput(generated.content),
+        };
+      } catch (error) {
+        const retryable = error instanceof GroundedGenerationError
+          && error.code === 'GROUNDED_GENERATION_INVALID_RESPONSE';
+        if (!retryable || attempt === 1) throw error;
+      }
+    }
+
+    throw new GroundedGenerationError(
+      'GROUNDED_GENERATION_INVALID_RESPONSE',
+      'The generation provider returned an invalid grounded response.',
+      502,
+    );
   }
 
   private ensureBeforeDeadline(deadline: number): void {

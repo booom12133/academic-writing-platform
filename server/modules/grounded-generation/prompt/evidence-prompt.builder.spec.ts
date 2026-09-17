@@ -31,6 +31,7 @@ describe('EvidencePromptBuilder', () => {
     expect(system).toContain('"segmentId":"segment-1"');
     expect(system).toContain('"evidenceRefs":[{"evidenceId":"<copy one exact evidenceId from the payload>"}]');
     expect(system).toContain('unique');
+    expect(system).toContain('Within each unit, each evidenceId may appear only once');
     expect(system).toContain('Use only evidence ids supplied in the evidence blocks');
   });
 
