@@ -3,22 +3,13 @@ import type { Response } from 'express';
 
 import { RuntimeConfigService } from './runtime-config.service';
 
+@Controller('api/runtime-config')
 export class RuntimeConfigController {
   constructor(private readonly runtimeConfig: RuntimeConfigService) {}
 
-  getOidcConfig(response?: Response) {
+  @Get('oidc')
+  getOidcConfig(@Res({ passthrough: true }) response?: Response) {
     response?.setHeader('Cache-Control', 'no-store');
     return this.runtimeConfig.getOidcConfig();
   }
 }
-
-Controller('api/runtime-config')(RuntimeConfigController);
-Get('oidc')(
-  RuntimeConfigController.prototype,
-  'getOidcConfig',
-  Object.getOwnPropertyDescriptor(
-    RuntimeConfigController.prototype,
-    'getOidcConfig',
-  )!,
-);
-Res({ passthrough: true })(RuntimeConfigController.prototype, 'getOidcConfig', 0);
