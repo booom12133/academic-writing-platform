@@ -21,6 +21,30 @@ describe('parseGroundedModelOutput', () => {
     expect(() => parseGroundedModelOutput(JSON.stringify({ content: 'free form', segments: [] }))).toThrow();
   });
 
+  it('rejects the production-observed flat segment shape', () => {
+    const raw = JSON.stringify({
+      segments: [{
+        type: 'claim',
+        text: 'Generated text.',
+        evidenceIds: ['chunk:one'],
+      }],
+    });
+
+    try {
+      parseGroundedModelOutput(raw);
+      throw new Error('expected parser rejection');
+    } catch (error) {
+      expect(error).toMatchObject({
+        code: 'GROUNDED_GENERATION_INVALID_RESPONSE',
+        httpStatus: 502,
+      });
+    }
+  });
+
+  it('maps invalid JSON to an invalid provider response', () => {
+    expect(() => parseGroundedModelOutput('{"segments":')).toThrow('invalid JSON');
+  });
+
   it('rejects units without evidence bindings', () => {
     expect(() => parseGroundedModelOutput(JSON.stringify({
       segments: [{ segmentId: 'segment-1', units: [{ unitId: 'unit-1', unitType: 'transition', text: 'No source.', evidenceRefs: [] }] }],
