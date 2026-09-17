@@ -21,7 +21,7 @@ const FIRST_DEPLOY_STEPS = Object.freeze([
   'pm2-prepare',
   'pm2-start',
   'systemd-install',
-  'pm2-save',
+  'pm2-systemd-handoff',
   'live-ready-verify',
 ]);
 
@@ -159,9 +159,9 @@ async function runFirstDeploy(options, execute = executeFile) {
     path.posix.join(currentScriptsRoot, 'install-pm2-systemd.sh'),
   );
   await run(
-    'pm2-save',
-    path.posix.join(currentScriptsRoot, 'pm2-service-cli.sh'),
-    ['save'],
+    'pm2-systemd-handoff',
+    process.execPath,
+    [path.posix.join(currentScriptsRoot, 'pm2-systemd-handoff.js')],
     { env: rotationEnvironment },
   );
   await run(

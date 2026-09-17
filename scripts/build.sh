@@ -135,16 +135,18 @@ echo ""
 echo "📦 [5/6] 准备产物"
 STEP_START=$(node -e "console.log(Date.now())")
 
-# 移动 client 下的 HTML 文件到 dist/dist/client，保证 views 路径在 dev/prod 下一致
-# 使用 mv 而非 cp：HTML 不能上传到公网 CDN，移走后 dist/client 中不再包含 HTML
+# 将完整 Vite client 树放到 server 的生产前端根 dist/dist/client。
+# index.html 中的 hashed /assets 引用必须与 assets/ 保持在同一 runtime root；
+# 不保留第二份顶层 client 树，避免 release 安装后 HTML 与 assets 分离。
 if [ -d "$DIST_DIR/client" ]; then
   mkdir -p "$DIST_DIR/dist/client"
   # public 先进（顶层 client 打包被排除；server setBaseViewsDir + 中间件同源 serve）
   if [ -d "$ROOT_DIR/client/public" ]; then
     cp -R "$ROOT_DIR/client/public/." "$DIST_DIR/dist/client/"
   fi
-  # 构建产物 HTML 随后 move，覆盖 public 里的同名文件（保证入口页是构建版，不被 public 静默覆盖）
-  find "$DIST_DIR/client" -maxdepth 1 -name "*.html" -exec mv {} "$DIST_DIR/dist/client/" \;
+  # Vite 构建树随后覆盖 public 同名文件，保留动态 hashed 文件名和目录结构。
+  cp -R "$DIST_DIR/client/." "$DIST_DIR/dist/client/"
+  rm -rf "$DIST_DIR/client"
 fi
 
 # server 相关产物准备（only_frontend_change=true 时跳过）

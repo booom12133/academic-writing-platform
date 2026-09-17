@@ -1,6 +1,13 @@
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+} from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 
 const root = join(__dirname, '..', '..');
 
@@ -66,6 +73,34 @@ describe('P3 production shell syntax gate', () => {
         .join('\n')
         .trim();
       throw new Error(`${shellScript} failed bash -n${detail ? `:\n${detail}` : ''}`);
+    }
+  });
+
+  it('moves the PM2 wrapper to a deterministic cwd before privilege drop', () => {
+    const wrapperPath = join(root, 'deploy', 'scripts', 'pm2-service-cli.sh');
+    const privateCallerRoot = join(tmpdir(), 'p3-private-caller-cwd');
+    const fixture = [
+      `source "${wrapperPath.replaceAll('\\', '/')}"`,
+      `cd "${privateCallerRoot.replaceAll('\\', '/')}"`,
+      'enter_pm2_safe_cwd',
+      'pwd -P',
+    ].join('\n');
+    mkdirSync(privateCallerRoot, { recursive: true });
+    try {
+      const result = spawnSync(bash, ['-c', fixture], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(0);
+      expect(result.stdout.trim()).toBe('/');
+
+      const wrapper = readFileSync(wrapperPath, 'utf8');
+      expect(wrapper).toMatch(
+        /enter_pm2_safe_cwd\s+exec sudo -u "\$service_user"/u,
+      );
+    } finally {
+      rmSync(privateCallerRoot, { recursive: true, force: true });
     }
   });
 

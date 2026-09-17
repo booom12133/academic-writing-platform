@@ -52,6 +52,7 @@ describe('P3 deployment contract', () => {
       'release-manifest.js',
       'install-pm2-systemd.sh',
       'pm2-systemd-contract.js',
+      'pm2-systemd-handoff.js',
       'candidate-input-contract.js',
       'first-deploy.js',
     ]) {

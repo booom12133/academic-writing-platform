@@ -25,6 +25,9 @@ Each release is immutable and has this layout:
       app/
         server/
         dist/
+          client/
+            index.html
+            assets/
         node_modules/
         package.json
         run.sh
@@ -42,6 +45,14 @@ Each release is immutable and has this layout:
       release-manifest.sha256
 
 The app artifact and deployment metadata come from the same reviewed commit.
+`app/dist/client` is the one production frontend runtime root used by
+`server/main.js`. Every local same-origin JavaScript or stylesheet reference
+in `app/dist/client/index.html`, including root-relative `/assets/...` URLs,
+must resolve to a regular file below that same root. Hashed Vite filenames are
+discovered from the built HTML; they are never hardcoded. The artifact gate
+rejects missing references and path traversal, and the startup smoke fetches
+`/` plus every discovered local JS/CSS asset, requiring JavaScript/CSS MIME
+types rather than the SPA `text/html` fallback.
 Only the four named scripts may exist directly under app/scripts. The exact
 four migration files are copied into app/drizzle/migrations and are included
 in the release hash evidence. Persistent document data is never copied into a
@@ -82,7 +93,10 @@ database, and only then prepares and activates PM2:
     # The root-only helper executes env PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u academic-writing.
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl is-enabled pm2-academic-writing.service
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
+    sudo node /opt/academic-writing-platform/current/deploy/scripts/pm2-systemd-handoff.js
+    # The handoff requires an inactive service, then runs pm2-service-cli.sh save,
+    # pm2-service-cli.sh kill, systemctl reset-failed, and systemctl start in that order.
+    sudo systemctl show pm2-academic-writing.service --property=ActiveState --property=SubState --property=Result --property=ControlGroup
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/verify-live.sh
     # verify-live.sh gates /health/live before /health/ready.
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
@@ -112,6 +126,15 @@ installation as root and parses the generated `pm2-academic-writing.service`
 immediately. On mismatch its cleanup disables the service, removes the unit, reloads
 systemd, verifies the service is no longer enabled, and exits non-zero. It is
 not run through `pm2-service-cli.sh`, and it never uses `--hp`.
+The manually created first-start daemon is never adopted by systemd.
+`pm2-systemd-handoff.js` first saves the reviewed process list, cleanly kills
+that session-owned daemon, resets any prior failed unit state, and only then
+starts `pm2-academic-writing.service`, which resurrects the saved list inside
+`ControlGroup=/system.slice/pm2-academic-writing.service`. Success requires
+`ActiveState=active`, `SubState=running`, `Result=success`, the exact system
+control group, and a reachable PM2 status. A pre-existing active service,
+failed save/kill/reset/start, lingering PM2 PID file, or mismatched systemd
+state stops activation.
 `release-activate.sh` and `rollback.sh` both fail closed if their selected
 release manifest or release ownership contract does not verify.
 
@@ -264,20 +287,22 @@ remains `/nonexistent` and its shell remains `/usr/sbin/nologin`; do not create
 `/home/academic-writing`, recreate the user, or alter passwd metadata. The
 canonical PM2 state is `/var/lib/academic-writing-platform/pm2`, owned by
 `academic-writing:academic-writing`, mode `700`, outside all releases and the
-`current` symlink. Prepare it once, then use the same wrapper for every PM2
-CLI operation:
+`current` symlink. Prepare it once. On the initial deployment, the only
+allowed ownership transition is the first-deploy sequence above. After
+systemd owns the daemon, use the wrapper for PM2 application operations and
+systemctl for the service; do not run the handoff helper again:
 
     sudo /opt/academic-writing-platform/current/deploy/scripts/prepare-pm2-state.sh
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh start /opt/academic-writing-platform/current/deploy/pm2/ecosystem.config.cjs --only academic-writing-platform
-    sudo /opt/academic-writing-platform/current/deploy/scripts/install-pm2-systemd.sh
     sudo systemctl cat pm2-academic-writing.service
     sudo systemctl is-enabled pm2-academic-writing.service
-    sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh save
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh reload academic-writing-platform --update-env
     sudo P3_SECURITY_SECRET_ROTATION_REQUIRED=YES /opt/academic-writing-platform/current/deploy/scripts/pm2-service-cli.sh status
+    sudo systemctl show pm2-academic-writing.service --property=ActiveState --property=SubState --property=Result --property=ControlGroup
 
-The wrapper sets `PM2_HOME=/var/lib/academic-writing-platform/pm2`,
-`HOME=/nonexistent`, and the approved system PATH, and refuses to run unless
+The wrapper first changes to deterministic cwd `/`, then sets
+`PM2_HOME=/var/lib/academic-writing-platform/pm2`, `HOME=/nonexistent`, and
+the approved system PATH before dropping privileges. It therefore never
+inherits an operator-only cwd such as `/home/<operator>`. It refuses to run unless
 the rotation gate and root-only completion marker pass. Startup installation
 is performed directly as root by `install-pm2-systemd.sh` using
 `PM2_HOME=/var/lib/academic-writing-platform/pm2 pm2 startup systemd -u

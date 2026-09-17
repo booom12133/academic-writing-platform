@@ -677,7 +677,11 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       'prepare-pm2-state.sh',
       'pm2-service-cli.sh start',
       'install-pm2-systemd.sh',
+      'pm2-systemd-handoff.js',
       'pm2-service-cli.sh save',
+      'pm2-service-cli.sh kill',
+      'systemctl reset-failed',
+      'systemctl start',
       '/health/live',
       '/health/ready',
     ];
@@ -701,6 +705,9 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
       expect(document).toContain('current = offline selected release');
       expect(document).toContain('current != deployment accepted');
       expect(document).toContain('systemctl cat pm2-academic-writing.service');
+      expect(document).toContain(
+        'ControlGroup=/system.slice/pm2-academic-writing.service',
+      );
       expect(document).toContain(
         'Environment=PM2_HOME=/var/lib/academic-writing-platform/pm2',
       );

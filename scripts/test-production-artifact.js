@@ -7,6 +7,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const { Parser } = require('htmlparser2');
 
 const REQUIRED_ARTIFACT_ENTRIES = new Set([
   'api-routes.json',
@@ -114,6 +115,112 @@ function sha256File(filePath) {
     .digest('hex');
 }
 
+function extractFrontendAssetReferences(html) {
+  const references = [];
+  const parser = new Parser(
+    {
+      onopentag(name, attributes) {
+        if (name === 'script' && attributes.src) {
+          references.push({ kind: 'script', url: attributes.src.trim() });
+        }
+        if (
+          name === 'link' &&
+          attributes.href &&
+          (attributes.rel || '')
+            .toLowerCase()
+            .split(/\s+/u)
+            .includes('stylesheet')
+        ) {
+          references.push({
+            kind: 'stylesheet',
+            url: attributes.href.trim(),
+          });
+        }
+      },
+    },
+    { decodeEntities: true },
+  );
+  parser.end(html);
+  return references.filter(({ url }) => url.length > 0);
+}
+
+function resolveLocalFrontendAsset(runtimeRoot, reference) {
+  const rawUrl = reference.url;
+  if (rawUrl.startsWith('//')) return null;
+
+  let parsed;
+  try {
+    parsed = new URL(rawUrl, 'http://artifact.local/');
+  } catch {
+    throw new Error(`frontend asset URL is invalid: ${rawUrl}`);
+  }
+  if (parsed.origin !== 'http://artifact.local') return null;
+
+  const rawPath = rawUrl.split(/[?#]/u, 1)[0];
+  let decodedRawPath;
+  let decodedPathname;
+  try {
+    decodedRawPath = decodeURIComponent(rawPath);
+    decodedPathname = decodeURIComponent(parsed.pathname);
+  } catch {
+    throw new Error(`frontend asset URL encoding is invalid: ${rawUrl}`);
+  }
+  if (
+    decodedRawPath.includes('\\') ||
+    decodedRawPath.split('/').includes('..')
+  ) {
+    throw new Error(`frontend asset path traversal is forbidden: ${rawUrl}`);
+  }
+
+  const relativePath = decodedPathname.replace(/^\/+/, '');
+  const resolvedPath = path.resolve(runtimeRoot, ...relativePath.split('/'));
+  const relativeToRoot = path.relative(runtimeRoot, resolvedPath);
+  if (
+    relativeToRoot === '..' ||
+    relativeToRoot.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativeToRoot)
+  ) {
+    throw new Error(`frontend asset resolves outside runtime root: ${rawUrl}`);
+  }
+  return {
+    ...reference,
+    requestPath: `${parsed.pathname}${parsed.search}`,
+    resolvedPath,
+  };
+}
+
+function localFrontendAssetReferences(runtimeRoot, html) {
+  return extractFrontendAssetReferences(html)
+    .map((reference) => resolveLocalFrontendAsset(runtimeRoot, reference))
+    .filter(Boolean);
+}
+
+function findFrontendLayoutViolations(root) {
+  const runtimeRoot = path.join(root, 'dist', 'client');
+  const indexPath = path.join(runtimeRoot, 'index.html');
+  if (!fs.existsSync(indexPath) || !fs.statSync(indexPath).isFile()) {
+    return ['missing production frontend index: dist/client/index.html'];
+  }
+
+  let references;
+  try {
+    references = localFrontendAssetReferences(
+      runtimeRoot,
+      fs.readFileSync(indexPath, 'utf8'),
+    );
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+  return references.flatMap((reference) =>
+    fs.existsSync(reference.resolvedPath) &&
+    fs.statSync(reference.resolvedPath).isFile()
+      ? []
+      : [
+          `frontend index references missing runtime asset: ${reference.url} (expected ${toRelativePath(root, reference.resolvedPath)})`,
+        ],
+  );
+}
+
 function assertProductionArtifactLayout(
   root,
   expectedMigrationsRoot = path.resolve(
@@ -175,6 +282,8 @@ function assertProductionArtifactLayout(
       }
     }
   }
+
+  violations.push(...findFrontendLayoutViolations(root));
 
   const actualMigrationsRoot = path.join(root, 'drizzle', 'migrations');
   if (
@@ -264,7 +373,7 @@ function reservePort() {
   });
 }
 
-function requestHealth(port, pathname) {
+function requestPath(port, pathname) {
   return new Promise((resolve, reject) => {
     const request = http.get(
       { host: '127.0.0.1', port, path: pathname },
@@ -275,13 +384,17 @@ function requestHealth(port, pathname) {
           body += chunk;
         });
         response.on('end', () =>
-          resolve({ statusCode: response.statusCode, body }),
+          resolve({
+            statusCode: response.statusCode,
+            headers: response.headers,
+            body,
+          }),
         );
       },
     );
     request.once('error', reject);
     request.setTimeout(2_000, () =>
-      request.destroy(new Error('health request timed out')),
+      request.destroy(new Error(`request timed out: ${pathname}`)),
     );
   });
 }
@@ -298,7 +411,7 @@ async function waitForLive(port, child, getStderr = () => '') {
         `artifact exited before health check (${child.exitCode}): ${getStderr().slice(-10_000)}`,
       );
     try {
-      const result = await requestHealth(port, '/health/live');
+      const result = await requestPath(port, '/health/live');
       if (result.statusCode === 200 && result.body.includes('"status":"ok"'))
         return;
       lastError = new Error(`unexpected health response: ${result.statusCode}`);
@@ -308,6 +421,67 @@ async function waitForLive(port, child, getStderr = () => '') {
     await wait(250);
   }
   throw lastError || new Error('artifact health check timed out');
+}
+
+function normalizedContentType(response) {
+  return String(response.headers['content-type'] || '')
+    .split(';', 1)[0]
+    .trim()
+    .toLowerCase();
+}
+
+async function verifyFrontendOverHttp(port) {
+  const index = await requestPath(port, '/');
+  if (index.statusCode !== 200) {
+    throw new Error(`frontend index returned HTTP ${index.statusCode}`);
+  }
+  if (normalizedContentType(index) !== 'text/html') {
+    throw new Error(
+      `frontend index must return text/html, received ${normalizedContentType(index) || 'missing content-type'}`,
+    );
+  }
+
+  const runtimeRoot = path.resolve('/artifact-runtime-root');
+  const references = localFrontendAssetReferences(runtimeRoot, index.body);
+  const kinds = new Set(references.map(({ kind }) => kind));
+  for (const requiredKind of ['script', 'stylesheet']) {
+    if (!kinds.has(requiredKind)) {
+      throw new Error(
+        `frontend index has no local ${requiredKind} asset reference`,
+      );
+    }
+  }
+
+  for (const reference of references) {
+    const response = await requestPath(port, reference.requestPath);
+    if (response.statusCode !== 200) {
+      throw new Error(
+        `frontend asset ${reference.requestPath} returned HTTP ${response.statusCode}`,
+      );
+    }
+    const contentType = normalizedContentType(response);
+    if (contentType === 'text/html') {
+      throw new Error(
+        `frontend asset ${reference.requestPath} returned text/html instead of ${reference.kind === 'script' ? 'JavaScript' : 'CSS'}`,
+      );
+    }
+    if (
+      reference.kind === 'script' &&
+      !/^(?:application|text)\/(?:javascript|ecmascript|x-javascript)$/u.test(
+        contentType,
+      )
+    ) {
+      throw new Error(
+        `frontend JavaScript asset ${reference.requestPath} has invalid MIME type: ${contentType || 'missing content-type'}`,
+      );
+    }
+    if (reference.kind === 'stylesheet' && contentType !== 'text/css') {
+      throw new Error(
+        `frontend CSS asset ${reference.requestPath} has invalid MIME type: ${contentType || 'missing content-type'}`,
+      );
+    }
+  }
+  return references.map(({ requestPath }) => requestPath).sort();
 }
 
 async function run() {
@@ -375,6 +549,7 @@ async function run() {
   });
   try {
     await waitForLive(port, child, () => stderr);
+    const frontendAssets = await verifyFrontendOverHttp(port);
     child.kill('SIGTERM');
     const exitCode = await new Promise((resolve, reject) => {
       child.once('error', reject);
@@ -390,7 +565,9 @@ async function run() {
       throw new Error(
         `artifact shutdown hook did not report a drain start: ${stdout.slice(-500)} ${stderr.slice(-500)}`,
       );
-    console.log('Production artifact startup/health/shutdown PASS.');
+    console.log(
+      `Production artifact startup/frontend/health/shutdown PASS (${frontendAssets.length} frontend assets).`,
+    );
   } finally {
     if (child.exitCode === null) child.kill('SIGKILL');
     fs.rmSync(storageRoot, { recursive: true, force: true });
@@ -410,5 +587,8 @@ module.exports = {
   findCompiledTestArtifactViolations,
   findArtifactSymlinkViolations,
   findArtifactViolations,
+  findFrontendLayoutViolations,
+  localFrontendAssetReferences,
   run,
+  verifyFrontendOverHttp,
 };

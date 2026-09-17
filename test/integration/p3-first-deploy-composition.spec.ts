@@ -55,7 +55,7 @@ describe('P3 first-deploy executable composition', () => {
       'pm2-prepare',
       'pm2-start',
       'systemd-install',
-      'pm2-save',
+      'pm2-systemd-handoff',
       'live-ready-verify',
     ]);
 
@@ -104,7 +104,10 @@ describe('P3 first-deploy executable composition', () => {
       '--only',
       'academic-writing-platform',
     ]);
-    expect(call('pm2-save').args).toEqual(['save']);
+    expect(call('pm2-systemd-handoff')).toMatchObject({
+      command: process.execPath,
+      args: [`${currentRoot}/deploy/scripts/pm2-systemd-handoff.js`],
+    });
     expect(call('live-ready-verify').command).toBe(
       `${currentRoot}/deploy/scripts/verify-live.sh`,
     );
@@ -153,7 +156,7 @@ describe('P3 first-deploy executable composition', () => {
     );
   });
 
-  it.each(['systemd-install', 'pm2-save', 'live-ready-verify'])(
+  it.each(['systemd-install', 'pm2-systemd-handoff', 'live-ready-verify'])(
     'does not emit an accepted result when %s fails',
     async (failStep) => {
       const { execute } = createRecordingExecutor(failStep);

@@ -72,6 +72,8 @@ describe('P3 Part A remediation CI gates', () => {
       'test/unit/p3-deployment-contract.spec.ts',
       'test/unit/p3-release-integrity.spec.ts',
       'test/unit/production-artifact-closure.spec.ts',
+      'test/unit/production-artifact-frontend-smoke.spec.ts',
+      'test/unit/p3-pm2-systemd-handoff.spec.ts',
     ]) {
       expect(gates).toContain(suite);
     }
