@@ -22,6 +22,13 @@ function connectionFor(source: string, database: string): string {
   return url.toString();
 }
 
+function verifiedPool(connectionString: string, caFile?: string): Pool {
+  return new Pool({
+    connectionString,
+    ...(caFile ? { ssl: { ca: readFileSync(caFile, 'utf8'), rejectUnauthorized: true } } : {}),
+  });
+}
+
 describeIfEnabled('P3 dedicated backup and isolated restore', () => {
   let fixture: P3PostgresRoleFixture;
   let maintenance: Pool;
@@ -35,15 +42,15 @@ describeIfEnabled('P3 dedicated backup and isolated restore', () => {
 
   beforeAll(async () => {
     fixture = await createP3PostgresRoleFixture();
-    const migrator = new Pool({ connectionString: fixture.migratorUrl });
+    const migrator = verifiedPool(fixture.migratorUrl, fixture.caFile);
     await migrate(drizzle(migrator), { migrationsFolder: 'drizzle/migrations' });
     await migrator.end();
     await fixture.applyCanonicalGrants();
-    const app = new Pool({ connectionString: fixture.appUrl });
+    const app = verifiedPool(fixture.appUrl, fixture.caFile);
     await app.query("INSERT INTO app_users (user_id, username) VALUES ('p3-backup-user', 'Backup Fixture')");
     await app.end();
     recoveryName = `p3_recovery_${randomUUID().replaceAll('-', '')}`;
-    maintenance = new Pool({ connectionString: connectionFor(fixture.adminUrl, 'postgres') });
+    maintenance = verifiedPool(connectionFor(fixture.adminUrl, 'postgres'), fixture.caFile);
     await maintenance.query(`CREATE DATABASE "${recoveryName}"`);
   });
 
@@ -71,7 +78,7 @@ describeIfEnabled('P3 dedicated backup and isolated restore', () => {
     });
     expect(backup.backupSizeBytes).toBeGreaterThan(0);
 
-    const backupPool = new Pool({ connectionString: fixture.backupUrl });
+    const backupPool = verifiedPool(fixture.backupUrl, fixture.caFile);
     await expect(backupPool.query("INSERT INTO app_users (user_id) VALUES ('denied')")).rejects.toThrow();
     await expect(backupPool.query('CREATE TABLE backup_role_must_not_create(id int)')).rejects.toThrow();
     await backupPool.end();
@@ -90,7 +97,7 @@ describeIfEnabled('P3 dedicated backup and isolated restore', () => {
 
     const receipt = JSON.parse(readFileSync(restoreReceiptPath, 'utf8'));
     expect(receipt).toMatchObject({ isolatedTarget: true, migrationCount: 4, tableCount: 14 });
-    const recovery = new Pool({ connectionString: restoreUrl });
+    const recovery = verifiedPool(restoreUrl, fixture.caFile);
     const restored = await recovery.query("SELECT count(*)::int AS count FROM app_users WHERE user_id = 'p3-backup-user'");
     expect(restored.rows[0].count).toBe(1);
     await recovery.end();
