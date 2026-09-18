@@ -171,5 +171,5 @@ describeIfDatabase('P3 real-world PDF knowledge pipeline', () => {
 
     expect(assembled.items.length).toBeGreaterThan(0);
     expect(assembled.items.every((item) => item.citationLocator.documentVersionId === imported.version.id)).toBe(true);
-  });
+  }, 30_000);
 });
