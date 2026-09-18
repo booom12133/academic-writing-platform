@@ -2,8 +2,8 @@
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
 and closed. E4, E5, and E6 are retained as historical accepted phases. P1 is
-accepted and merged. P2 is accepted and merged; its final main CI and accepted
-tag are pending post-merge closeout.
+accepted and merged. P2 is accepted and merged. P3 is accepted and merged; its
+post-merge governance closeout and accepted tag are pending.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -25,7 +25,7 @@ tag are pending post-merge closeout.
 | E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
-| P3 | Deployment / Production E2E | Production deployment and revalidation for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning; full-text direct import deferred | ACCEPTED / MERGE PENDING | No |
+| P3 | Deployment / Production E2E | Production deployment and revalidation for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning; full-text direct import deferred | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -96,15 +96,18 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 ## Phase P3 current record
 
 - Branch: `phase/p3-deployment-e2e`.
-- PR: [#16 P3 WP6 Step5B real deployment E2E validation](https://github.com/booom12133/academic-writing-platform/pull/16), OPEN.
+- PR: [#16 P3 WP6 Step5B real deployment E2E validation](https://github.com/booom12133/academic-writing-platform/pull/16), MERGED with merge commit `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`.
 - Production implementation and deployed release SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`.
 - Final Acceptance governance HEAD: `17e7a463773d52e1dc9e562e06a0203fc54f4ae9`; it contains only governance evidence and contract synchronization after the production release.
+- Accepted PR HEAD: `382ca1aab8dc10b50821563dc5f62d085383243a`.
 - Review: `P3_REMEDIATION_CODE_REVIEW_PASS`.
 - Production status: `P3_PRODUCTION_REVALIDATION_COMPLETE_WITH_ONE_DEFERRED_ITEM`.
 - Deferred item: `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`; it is non-blocking for governance closure and remains follow-up backlog.
 - Final Acceptance: `PHASE_P3_ACCEPTED`; Controller Acceptance comment `5733219396`.
 - Authoritative CI: run `35369858150` at the governance HEAD; all five required jobs passed.
+- Post-merge `main` HEAD: `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`.
+- Final main CI: run `35372830024`; `verify`, `wp6-step5b`, `nginx-upload-boundary`, `postgres-schema`, and `production-gates` all passed.
 - Final Acceptance Report: [PHASE_P3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P3_FINAL_ACCEPTANCE_REPORT.md).
-- Governance status: `ACCEPTED / MERGE PENDING`; `P3_ACCEPTED=YES`; `P3_ACCEPTED_CLOSED=NO`.
-- Merge and tag remain unauthorized; P3 is accepted but not closed, merged, or tagged.
+- Governance status: `ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING`; `P3_ACCEPTED=YES`; `P3_ACCEPTED_CLOSED=NO`.
+- Merge is complete. The annotated `phase-p3-accepted` tag remains unauthorized and pending; P3 is not closed.
 - Rollback, reboot, and production migration rerun remain unauthorized.

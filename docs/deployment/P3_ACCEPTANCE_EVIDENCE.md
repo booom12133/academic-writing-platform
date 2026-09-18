@@ -2,20 +2,26 @@
 
 This document records the authorized P3 production deployment and revalidation
 evidence. Controller Final Acceptance was subsequently granted as
-`PHASE_P3_ACCEPTED`; acceptance does not authorize merge, tag, or any further
-production mutation.
+`PHASE_P3_ACCEPTED`. PR #16 was subsequently merged under separate Controller
+authorization; acceptance and merge do not authorize the accepted tag or any
+further production mutation.
 
 ## Identity
 
 - Repository: `booom12133/academic-writing-platform`
 - Phase branch: `phase/p3-deployment-e2e`
-- PR: `#16` (OPEN)
+- PR: `#16` (MERGED)
 - Base SHA: `666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d`
 - Candidate commit: `40d83f351ad5b42b1b1849919b0bc231098aa75f`
 - Production release SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`
 - Final Acceptance governance HEAD: `17e7a463773d52e1dc9e562e06a0203fc54f4ae9`
+- Accepted PR HEAD: `382ca1aab8dc10b50821563dc5f62d085383243a`
 - Controller Acceptance comment ID: `5733219396`
 - Authoritative CI run: `35369858150` — all five required jobs `SUCCESS`
+- Merge commit: `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`
+- Post-merge `main` HEAD: `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`
+- Final main CI run: `35372830024` — all five required jobs `SUCCESS`
+- Controller post-merge governance authorization comment ID: `5733599170`
 - Release package: `academic-writing-platform-p3-40d83f351ad5b42b1b1849919b0bc231098aa75f.tar.gz`
 - Package size: `54,986,604 bytes`
 - Package SHA-256: `8b6a1f05b4c7830581a26f62be46c86868ef524f8bbdca92aaf4dd670d6b2e1f`
@@ -178,12 +184,13 @@ PDF upload
 PRODUCTION_ROLLBACK_AUTHORIZED = NO
 DATABASE_MIGRATION_RERUN_AUTHORIZED = NO
 REBOOT_AUTHORIZED = NO
-MERGE_AUTHORIZED = NO
+MERGE_COMPLETED = YES
 TAG_AUTHORIZED = NO
+TAG_PENDING = YES
 ```
 
-No rollback, reboot, migration rerun, merge, tag, or new production mutation is
-authorized by this evidence update.
+The repository merge is complete. No rollback, reboot, migration rerun, tag, or
+new production mutation is authorized by this evidence update.
 
 ## Final remediation code evidence
 
@@ -211,11 +218,18 @@ P3_ACCEPTED_CLOSED=NO
 FINAL_ACCEPTANCE_GOVERNANCE_HEAD=17e7a463773d52e1dc9e562e06a0203fc54f4ae9
 CONTROLLER_ACCEPTANCE_COMMENT_ID=5733219396
 AUTHORITATIVE_CI_RUN=35369858150
-MERGE_PENDING=YES
+PR_MERGED=YES
+MERGE_COMMIT=ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb
+POST_MERGE_MAIN_HEAD=ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb
+FINAL_MAIN_CI_RUN=35372830024
+FINAL_MAIN_CI_RESULT=SUCCESS
+TAG_AUTHORIZED=NO
+TAG_PENDING=YES
 ```
 
 The only deferred item is `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`. It is
 non-blocking for P3 acceptance and remains follow-up backlog; it is not a
-`PASS`. P3 is accepted but not closed. Merge, final main CI, post-merge
-governance closeout, annotated tag creation, and tag-target verification remain
-outstanding and separately gated.
+`PASS`. P3 is accepted and merged but not closed. The remaining sequence is the
+post-merge governance closeout commit, governance main CI, separately
+authorized annotated tag creation, and verification that the tag points to the
+final post-closeout `main` HEAD.

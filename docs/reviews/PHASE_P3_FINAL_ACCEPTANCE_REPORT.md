@@ -6,14 +6,15 @@
 PHASE_P3_ACCEPTED
 P3_ACCEPTED=YES
 P3_ACCEPTED_CLOSED=NO
-MERGED=NO
-MERGE_AUTHORIZED=NO
+MERGED=YES
+MERGE_COMPLETED=YES
 TAG_AUTHORIZED=NO
+TAG_PENDING=YES
 ```
 
 Controller Final Acceptance was granted in PR #16 comment `5733219396`.
-Acceptance does not authorize merge or tag. P3 remains accepted but not merged,
-tagged, or closed.
+PR #16 was then merged under Controller authorization, and the resulting main
+CI passed. P3 remains accepted and merged but not tagged or closed.
 
 ## Phase goal
 
@@ -33,8 +34,12 @@ It also records accurate product positioning for Academic Search and Zotero.
 | PR | [#16 P3 WP6 Step5B real deployment E2E validation](https://github.com/booom12133/academic-writing-platform/pull/16) |
 | Production implementation / deployed release | `40d83f351ad5b42b1b1849919b0bc231098aa75f` |
 | Final Acceptance governance HEAD | `17e7a463773d52e1dc9e562e06a0203fc54f4ae9` |
+| Accepted PR HEAD | `382ca1aab8dc10b50821563dc5f62d085383243a` |
 | Controller Acceptance comment | [5733219396](https://github.com/booom12133/academic-writing-platform/pull/16#issuecomment-5733219396) |
 | Authoritative CI | [run 35369858150](https://github.com/booom12133/academic-writing-platform/actions/runs/35369858150) — `SUCCESS` |
+| Merge commit / post-merge main HEAD | `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb` |
+| Final main CI | [run 35372830024](https://github.com/booom12133/academic-writing-platform/actions/runs/35372830024) — `SUCCESS` |
+| Post-merge governance authorization | [5733599170](https://github.com/booom12133/academic-writing-platform/pull/16#issuecomment-5733599170) |
 
 The production release SHA and Final Acceptance governance HEAD intentionally
 differ. Release `40d83f351ad5b42b1b1849919b0bc231098aa75f` is the exact
@@ -86,6 +91,25 @@ The CI run confirms the governance-evidence contract synchronization and the
 existing production-readiness gates. It is not a new production deployment or
 production revalidation run.
 
+## Merge and final main CI
+
+PR #16 was merged with accepted PR HEAD
+`382ca1aab8dc10b50821563dc5f62d085383243a` using normal merge commit
+`ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`. That merge commit became the
+post-merge `main` HEAD. GitHub Actions run `35372830024` completed successfully
+at that exact commit.
+
+| Required job | Result |
+|---|---|
+| `verify` | `SUCCESS` |
+| `wp6-step5b` | `SUCCESS` |
+| `nginx-upload-boundary` | `SUCCESS` |
+| `postgres-schema` | `SUCCESS` |
+| `production-gates` | `SUCCESS` |
+
+The merge and final main CI did not change or rerun the deployed production
+release. This post-merge closeout is governance-only.
+
 ## Known deferred and non-blocking items
 
 - `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED` is the sole known deferred P3
@@ -99,38 +123,42 @@ production revalidation run.
 
 ## Frozen and authorization boundaries
 
-Final Acceptance records the accepted evidence; it does not authorize further
-production mutation or repository integration. The following boundaries remain
-in force:
+Final Acceptance records the accepted evidence. The repository merge is now a
+completed historical fact; it does not authorize further production mutation
+or the accepted tag. The following boundaries remain in force:
 
 ```text
 PRODUCTION_ROLLBACK_AUTHORIZED = NO
 DATABASE_MIGRATION_RERUN_AUTHORIZED = NO
 REBOOT_AUTHORIZED = NO
-MERGE_AUTHORIZED = NO
+MERGE_COMPLETED = YES
 TAG_AUTHORIZED = NO
+TAG_PENDING = YES
 ```
 
 No reboot, rollback, production migration rerun, new production E2E execution,
-merge, or tag was performed during this governance closeout preparation.
+or tag was performed during this governance closeout. The only repository
+integration was the separately authorized PR #16 merge recorded above.
 
 ## Final status and remaining closeout
 
 ```text
-PHASE_P3_ACCEPTED / MERGE PENDING
+PHASE_P3_ACCEPTED / MERGED / TAG PENDING
 P3_ACCEPTED=YES
 P3_ACCEPTED_CLOSED=NO
 ```
 
-P3 can become closed only after a separately authorized closeout completes:
+P3 can become closed only after the remaining separately gated sequence
+completes:
 
 ```text
-merge PR #16
-→ final main CI
-→ post-merge governance closeout
+post-merge governance closeout commit
+→ governance main CI
 → annotated phase-p3-accepted tag
 → verify tag points to final main HEAD
 ```
 
-None of those steps is authorized by this report. No next Phase is authorized;
-Phase F remains `PLANNED / NOT AUTHORIZED`.
+The accepted tag must point to the final post-closeout governance `main` HEAD,
+not merge commit `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`. This report does not
+authorize tag creation. No next Phase is authorized; Phase F remains
+`PLANNED / NOT AUTHORIZED`.

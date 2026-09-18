@@ -13,17 +13,17 @@ Last Updated: 2026-09-19
 
 ## Stable state
 
-- Current Stable Phase: Phase P2 — Product Integration / UX Completion
-- Stable Status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`
+- Current Stable Phase: Phase P3 — Production Deployment / End-to-End Validation
+- Stable Status: `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: `171dcac876cf097c010b00ebf39aa7abc9231caf` (P2 merge commit; governance closeout commit follows)
-- Latest Final Acceptance Report: [PHASE_P2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P2_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, and Phase P2 are completed/frozen by project records
+- Stable Main Commit: this P3 post-merge governance closeout commit; its parent is merge commit `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`, which was the post-merge `main` HEAD verified by final main CI
+- Latest Final Acceptance Report: [PHASE_P3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P3_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, Phase P2, and Phase P3 are completed/frozen by project records; P3 remains tag-pending and not closed
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase P3 has received explicit Controller Final Acceptance on `phase/p3-deployment-e2e`, PR #16. Current status is `PHASE_P3_ACCEPTED / MERGE PENDING`; merge and tag remain separately gated and unauthorized.
+- Current Development: Phase P3 has received explicit Controller Final Acceptance and PR #16 has been merged. Current status is `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`; the accepted tag remains separately gated and unauthorized.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
 - P2 PR: [#15 Phase P2: complete product integration and MVP UX flows](https://github.com/booom12133/academic-writing-platform/pull/15), MERGED with merge commit `171dcac876cf097c010b00ebf39aa7abc9231caf`.
@@ -31,14 +31,17 @@ Last Updated: 2026-09-19
 - P2 Final Acceptance Preparation: `f19af1434300113acb096f141b843ce2e0cf1127`; Review-Pass CI run `34235018088` and final preparation CI run `34236991699` passed `verify`, `postgres-schema`, and `production-gates`.
 - P3 candidate SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`; production release uses the same SHA.
 - P3 Final Acceptance governance HEAD: `17e7a463773d52e1dc9e562e06a0203fc54f4ae9`; commits after the production release contain governance evidence and contract synchronization only and do not change the deployed production implementation.
+- P3 accepted PR HEAD: `382ca1aab8dc10b50821563dc5f62d085383243a`; Controller post-merge governance authorization comment `5733599170` confirms the closeout scope is governance-docs-only.
 - P3 remediation review: `P3_REMEDIATION_CODE_REVIEW_PASS`.
 - P3 production status: `P3_PRODUCTION_REVALIDATION_COMPLETE_WITH_ONE_DEFERRED_ITEM`; the only deferred item is `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`, retained as non-blocking follow-up backlog.
 - P3 Final Acceptance: `PHASE_P3_ACCEPTED`; `P3_ACCEPTED=YES`; Controller Acceptance comment `5733219396`.
 - P3 authoritative CI: GitHub Actions run `35369858150` at governance HEAD `17e7a463773d52e1dc9e562e06a0203fc54f4ae9`; `verify`, `wp6-step5b`, `nginx-upload-boundary`, `postgres-schema`, and `production-gates` all passed.
 - P3 Final Acceptance Report: [PHASE_P3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P3_FINAL_ACCEPTANCE_REPORT.md).
-- P3 governance status: `PHASE_P3_ACCEPTED / MERGE PENDING`; `P3_ACCEPTED_CLOSED=NO`; PR #16 remains OPEN, unmerged, and untagged.
-- P3 authorization boundary: `PRODUCTION_ROLLBACK_AUTHORIZED = NO`; `DATABASE_MIGRATION_RERUN_AUTHORIZED = NO`; `REBOOT_AUTHORIZED = NO`; `MERGE_AUTHORIZED = NO`; `TAG_AUTHORIZED = NO`; `E2E-10 rollback = BLOCKED_BY_AUTHORIZATION`.
-- P3 production mutation boundary: `NO PRODUCTION MIGRATION RERUN`; no rollback, reboot, merge, tag, or new production mutation is authorized by the governance evidence update.
+- P3 merge: PR #16 `MERGED`; merge commit and post-merge `main` HEAD `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`.
+- P3 final main CI: GitHub Actions run `35372830024` at merge commit `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`; `verify`, `wp6-step5b`, `nginx-upload-boundary`, `postgres-schema`, and `production-gates` all passed.
+- P3 governance status: `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`; `P3_ACCEPTED=YES`; `P3_ACCEPTED_CLOSED=NO`; PR #16 is merged and the accepted tag has not been created.
+- P3 authorization boundary: `PRODUCTION_ROLLBACK_AUTHORIZED = NO`; `DATABASE_MIGRATION_RERUN_AUTHORIZED = NO`; `REBOOT_AUTHORIZED = NO`; `MERGE_COMPLETED = YES`; `TAG_AUTHORIZED = NO`; `TAG_PENDING = YES`; `E2E-10 rollback = BLOCKED_BY_AUTHORIZATION`.
+- P3 production mutation boundary: `NO PRODUCTION MIGRATION RERUN`; no rollback, reboot, tag, or new production mutation is authorized by this governance closeout.
 - P1 status: `PHASE_P1_ACCEPTED`; `P1_ACCEPTED_CLOSED=NO` until final `main` CI succeeds and the annotated `phase-p1-accepted` tag is verified.
 - P1 branch: `phase-p1`.
 - P1 PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14), MERGED with merge commit `03b730454edc1b22add8af527eac8c08e9ef301e`.
@@ -238,6 +241,7 @@ Last Updated: 2026-09-19
 - Phase D2: ACCEPTED / FROZEN / CLOSED (`PHASE_D2_ACCEPTED_CLOSED`)
 - Phase D3: ACCEPTED / FROZEN / CLOSED (`PHASE_D3_ACCEPTED_CLOSED`)
 - Phase E2: ACCEPTED / FROZEN / CLOSED (`PHASE_E2_ACCEPTED_CLOSED`)
+- Phase P3: ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING (`P3_ACCEPTED_CLOSED=NO`)
 
 ## Previous accepted Phase goal (C3)
 
@@ -351,6 +355,6 @@ file mode. C4 self-hosted acceptance uses filesystem storage.
 
 ## Next Phase
 
-- Next Phase: P2 — Product Integration / UX
-- Next Phase Status: `NOT_STARTED / NOT AUTHORIZED`; no implementation branch or code is authorized.
-- Next Phase Goal: product integration and UX design only after separate P2 architecture/design approval and implementation authorization.
+- Next Phase: Phase F — Queue / Redis / BullMQ
+- Next Phase Status: `PLANNED / NOT AUTHORIZED`; no implementation branch or code is authorized.
+- Next Phase Goal: record only; implementation requires a separate accepted-main audit, design approval, and implementation authorization.
