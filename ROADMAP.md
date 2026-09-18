@@ -92,7 +92,6 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 - Final Acceptance Preparation: `f19af1434300113acb096f141b843ce2e0cf1127`.
 - Candidate CI run `34236991699`: `verify`, `postgres-schema`, and `production-gates` all SUCCESS.
 - Status: `PHASE_P2_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required for `P2_ACCEPTED_CLOSED`.
-- P3: `NOT_STARTED / NOT AUTHORIZED`.
 
 ## Phase P3 current record
 

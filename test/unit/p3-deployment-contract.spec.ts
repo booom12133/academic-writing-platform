@@ -153,9 +153,12 @@ describe('P3 deployment contract', () => {
       'MIGRATION_DATABASE_URL authenticates academic_writing_migrator',
     );
     expect(environment).toContain('production migration has no DATABASE_URL fallback');
-    expect(evidence).toContain('PART_A_ACTIVATION');
-    expect(evidence).toContain('AUTHENTICATED_PROVIDER_ACCEPTANCE');
-    expect(evidence).toContain('RUNTIME_UNKNOWN');
+    expect(evidence).toContain('PART_A_ACTIVATION=PASS');
+    expect(evidence).toContain('AUTHENTICATED_PROVIDER_ACCEPTANCE=PASS');
+    expect(evidence).not.toContain('RUNTIME_UNKNOWN');
+    expect(evidence).toContain('ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED');
+    expect(evidence).toContain('P3_ACCEPTED=NO');
+    expect(evidence).toContain('P3_ACCEPTED_CLOSED=NO');
     expect(rollback).not.toMatch(
       /db-migrate|migration down|DROP SCHEMA|pg_restore/iu,
     );
