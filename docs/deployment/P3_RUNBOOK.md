@@ -238,6 +238,15 @@ requires the existing initial marker. Follow future rotations by the
 controlled PM2 reload below. Verify PM2 status and live/ready health using
 redacted output only.
 
+After canonical grants have created `academic_writing_backup`, bootstrap its
+first credential exactly once with
+`NORMAL_FUTURE_ROTATION --bootstrap-backup-credential`. The current environment
+may omit `BACKUP_DATABASE_URL` only for this controlled transition. The helper
+validates the candidate role and verified-TLS connectivity before atomically
+installing the protected environment. Initial-compromise semantics and its
+four existing keys remain unchanged; later normal rotations treat the backup
+credential as an existing required credential.
+
 ## Database operations
 
 From the current B release app:
@@ -245,8 +254,8 @@ From the current B release app:
     cd /opt/academic-writing-platform/current/app
     node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
     node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
-    BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-backup.js
-    BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/<dump>.dump node --env-file=/etc/academic-writing-platform/production.env scripts/db-restore-verify.js --confirm-restore
+    BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump BACKUP_EVIDENCE_PATH=/var/backups/academic-writing-platform/<timestamp>.receipt.json node --env-file=/etc/academic-writing-platform/production.env scripts/db-backup.js
+    RESTORE_DATABASE_NAME_CONFIRM=<isolated-db> BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/<dump>.dump RESTORE_EVIDENCE_PATH=/var/backups/academic-writing-platform/<restore>.receipt.json node --env-file=/etc/academic-writing-platform/production.env scripts/db-restore-verify.js --confirm-isolated-restore
 
 The protected environment provides DATABASE_SSL_CA_FILE,
 PGSSLMODE=verify-full, and PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem.
@@ -268,6 +277,21 @@ repository's `deploy/postgres/production-role-grants.sql`; operators must not
 copy grants from this Runbook. Migrations are forward-only. Rollback is an
 explicit operator action backed by reviewed compatibility evidence and performs
 no automatic migration rollback.
+
+Rollback remains blocked until backup PASS and isolated restore verification
+PASS receipts exist. Even then, `rollback.sh` requires the separate
+`PRODUCTION_ROLLBACK_AUTHORIZED=YES` authorization and reviewed target SHA. It
+does not run `pg_restore`, a migration, or any migration-down operation.
+
+## ACME webroot renewal
+
+The only plain-HTTP exception is
+`/.well-known/acme-challenge/`, rooted at `/var/lib/letsencrypt`; all other HTTP
+paths retain the HTTPS redirect. In a separately authorized production phase,
+run `prepare-acme-webroot.sh`, write a harmless probe token, validate with
+`nginx -t`, reload only after validation, verify exact token bytes and ordinary
+redirects, remove the probe, then run Certbot's webroot dry-run. The present
+implementation authorization does not permit these production commands.
 
 ### Previous-release compatibility gate
 

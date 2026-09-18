@@ -15,11 +15,13 @@ const canonicalGrantsPath = resolve(
 const OWNER_ROLE = 'academic_writing_db_owner';
 const MIGRATOR_ROLE = 'academic_writing_migrator';
 const APP_ROLE = 'academic_writing_app';
+const BACKUP_ROLE = 'academic_writing_backup';
 
 export interface P3PostgresRoleFixture {
   adminUrl: string;
   migratorUrl: string;
   appUrl: string;
+  backupUrl: string;
   caFile?: string;
   databaseName: string;
   applyCanonicalGrants(): Promise<void>;
@@ -81,6 +83,7 @@ export async function createP3PostgresRoleFixture(
   const targetAdminUrl = databaseUrl(sourceAdminUrl, databaseName);
   const migratorPassword = `p3-ci-migrator-${randomUUID()}`;
   const appPassword = `p3-ci-app-${randomUUID()}`;
+  const backupPassword = `p3-ci-backup-${randomUUID()}`;
   const maintenancePool = new Pool(poolConfig(maintenanceUrl, caFile));
 
   await maintenancePool.query(`CREATE DATABASE "${databaseName}"`);
@@ -100,8 +103,10 @@ export async function createP3PostgresRoleFixture(
     }
     const migratorLiteral = await quotedLiteral(targetPool, migratorPassword);
     const appLiteral = await quotedLiteral(targetPool, appPassword);
+    const backupLiteral = await quotedLiteral(targetPool, backupPassword);
     await targetPool.query(`ALTER ROLE ${MIGRATOR_ROLE} PASSWORD ${migratorLiteral}`);
     await targetPool.query(`ALTER ROLE ${APP_ROLE} PASSWORD ${appLiteral}`);
+    await targetPool.query(`ALTER ROLE ${BACKUP_ROLE} PASSWORD ${backupLiteral}`);
   } catch (error) {
     await targetPool.end();
     throw error;
@@ -111,6 +116,7 @@ export async function createP3PostgresRoleFixture(
     adminUrl: targetAdminUrl,
     migratorUrl: roleUrl(sourceAdminUrl, databaseName, MIGRATOR_ROLE, migratorPassword),
     appUrl: roleUrl(sourceAdminUrl, databaseName, APP_ROLE, appPassword),
+    backupUrl: roleUrl(sourceAdminUrl, databaseName, BACKUP_ROLE, backupPassword),
     caFile,
     databaseName,
     applyCanonicalGrants,
@@ -124,6 +130,7 @@ export async function createP3PostgresRoleFixture(
         );
         await cleanupPool.query(`DROP DATABASE IF EXISTS "${databaseName}"`);
         await cleanupPool.query(`DROP ROLE IF EXISTS ${APP_ROLE}`);
+        await cleanupPool.query(`DROP ROLE IF EXISTS ${BACKUP_ROLE}`);
         await cleanupPool.query(`DROP ROLE IF EXISTS ${MIGRATOR_ROLE}`);
         await cleanupPool.query(`DROP ROLE IF EXISTS ${OWNER_ROLE}`);
       } finally {

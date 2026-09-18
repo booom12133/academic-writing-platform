@@ -13,6 +13,7 @@ const ROLE_BY_ENV_KEY = {
   DATABASE_URL: 'academic_writing_app',
   MIGRATION_DATABASE_URL: 'academic_writing_migrator',
 };
+const BACKUP_DATABASE_ROLE = 'academic_writing_backup';
 const POSTGRES_SSL_QUERY_PARAMETERS = [
   'ssl',
   'sslmode',
@@ -228,6 +229,9 @@ async function checkZoteroDatabaseSafety(adminClient) {
 async function rotateRoles({ adminClient, plan, env }) {
   const roleEntries = Object.entries(ROLE_BY_ENV_KEY)
     .filter(([key]) => plan.rolesToRotate.includes(ROLE_BY_ENV_KEY[key]));
+  if (plan.backupCredentialPlan.action === 'bootstrap' || plan.backupCredentialPlan.action === 'rotate') {
+    roleEntries.push(['BACKUP_DATABASE_URL', BACKUP_DATABASE_ROLE]);
+  }
   if (roleEntries.length === 0) return;
 
   const expectedRoles = roleEntries.map(([, role]) => role);
@@ -288,10 +292,11 @@ function loadRotationInputs(currentEnvPath, candidateEnvPath, runtimeEnv = proce
 }
 
 async function main() {
-  const [, , currentEnvPath, candidateEnvPath, mode, appRoot] = process.argv;
+  const [, , currentEnvPath, candidateEnvPath, mode, appRoot, flag] = process.argv;
   if (!currentEnvPath || !candidateEnvPath || !mode || !appRoot) {
     throw new Error('rotation helper arguments are invalid');
   }
+  if (flag && flag !== '--bootstrap-backup-credential') throw new Error('rotation flag is invalid');
   const {
     currentEnv,
     candidateEnv,
@@ -299,8 +304,13 @@ async function main() {
     adminPassword,
   } = loadRotationInputs(currentEnvPath, candidateEnvPath);
   const Client = loadPgClient(appRoot);
-  const plan = createRotationPlan({ mode, currentEnv, candidateEnv });
-  const needsAdmin = plan.rolesToRotate.length > 0 || plan.zoteroKeyChanged;
+  const plan = createRotationPlan({
+    mode,
+    currentEnv,
+    candidateEnv,
+    allowBackupCredentialBootstrap: flag === '--bootstrap-backup-credential',
+  });
+  const needsAdmin = plan.rolesToRotate.length > 0 || plan.zoteroKeyChanged || plan.backupCredentialPlan.action !== 'none';
   if (needsAdmin) {
     if (!adminUrl || !adminPassword) {
       throw new Error('interactive PostgreSQL administrative credentials are required');
@@ -322,8 +332,17 @@ async function main() {
   for (const [key, role] of Object.entries(ROLE_BY_ENV_KEY)) {
     await checkConnectivity(key, role, candidateEnv, Client);
   }
+  const shouldValidateBackupCredential = mode === 'NORMAL_FUTURE_ROTATION' && (
+    Boolean(currentEnv.BACKUP_DATABASE_URL) || plan.backupCredentialPlan.action !== 'none'
+  );
+  if (shouldValidateBackupCredential) {
+    await checkConnectivity('BACKUP_DATABASE_URL', BACKUP_DATABASE_ROLE, candidateEnv, Client);
+  }
   for (const role of plan.rolesToRotate) {
     process.stdout.write(`role=${role} rotation=success\n`);
+  }
+  if (plan.backupCredentialPlan.action !== 'none') {
+    process.stdout.write(`role=${BACKUP_DATABASE_ROLE} credential=${plan.backupCredentialPlan.action} success\n`);
   }
 }
 

@@ -17,21 +17,42 @@ The runner acquires a PostgreSQL advisory lock, applies the ordered files in `dr
 Create a custom-format dump before an upgrade or destructive recovery operation:
 
 ```bash
-BACKUP_OUTPUT_PATH=/secure/backups/academic-writing-platform.dump npm run db:backup
+BACKUP_DATABASE_URL=postgresql://academic_writing_backup:...@db.example/live \
+BACKUP_OUTPUT_PATH=/secure/backups/academic-writing-platform.dump \
+BACKUP_EVIDENCE_PATH=/secure/evidence/backup.json \
+npm run db:backup
 ```
 
-The wrapper invokes the PostgreSQL-maintained `pg_dump` tool. It does not encrypt, upload, rotate, or otherwise replace the deployment's backup system. Protect the output path and database credentials according to the deployment policy.
+The wrapper reads only `BACKUP_DATABASE_URL`, which authenticates the dedicated
+read-only `academic_writing_backup` role. Set `BACKUP_EVIDENCE_PATH` to a
+protected receipt path; a successful run records a sanitized database identity,
+size, and SHA-256 without printing credentials. The wrapper invokes the
+PostgreSQL-maintained `pg_dump` tool. It does not encrypt, upload, rotate, or
+otherwise replace the deployment's backup system.
 
 ## Restore and verify
 
-Restore only into an explicitly selected recovery target. The command requires the explicit `--confirm-restore` flag through the npm script:
+Restore only into an explicitly selected recovery target. The command requires
+a distinct `RESTORE_DATABASE_URL`, an exact database-name confirmation, and
+the explicit `--confirm-isolated-restore` flag:
 
 ```bash
-DATABASE_URL=postgresql://... \
+DATABASE_URL=postgresql://academic_writing_app:...@db.example/live \
+RESTORE_DATABASE_URL=postgresql://operator:...@db.example/isolated_recovery \
+RESTORE_DATABASE_NAME_CONFIRM=isolated_recovery \
 BACKUP_INPUT_PATH=/secure/backups/academic-writing-platform.dump \
-npm run db:restore:verify -- --confirm-restore
+RESTORE_EVIDENCE_PATH=/secure/evidence/isolated-restore.json \
+npm run db:restore:verify -- --confirm-isolated-restore
 ```
 
-The wrapper invokes `pg_restore` and then `psql` to verify the `vector` extension, the required application tables, and the expected migration count. Test restores should use an isolated database; restoring over a live application database requires an approved maintenance procedure.
+Before spawning `pg_restore`, the wrapper compares sanitized host/port/database
+identities and fails if the target is live or does not match the confirmation.
+It then verifies `vector`, required tables, current database, and the unchanged
+migration count. Do not run migrations on the recovery database.
+
+Real rollback remains separately gated by
+`PRODUCTION_ROLLBACK_AUTHORIZED=YES`, a Controller-reviewed target SHA, and
+matching protected backup/isolated-restore receipts. Rollback never reverses a
+database migration.
 
 Filesystem document storage is a separate backup concern. The standalone persistent volume must be covered by the same deployment backup policy; independent disks on multiple application nodes are unsupported in P1.

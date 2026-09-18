@@ -9,6 +9,9 @@ fi
 previous_sha="$1"
 previous_root="/opt/academic-writing-platform/releases/$previous_sha"
 manifest_script="$(dirname "$0")/release-manifest.js"
+preflight_script="$(dirname "$0")/rollback-preflight.js"
+sudo --preserve-env=PRODUCTION_ROLLBACK_AUTHORIZED,P3_REVIEWED_ROLLBACK_SHA,BACKUP_EVIDENCE_PATH,RESTORE_EVIDENCE_PATH,BACKUP_INPUT_PATH \
+  node "$preflight_script" "$previous_sha" >/dev/null
 test -d "$previous_root/app"
 test -d "$previous_root/deploy"
 test -s "$previous_root/release-manifest.sha256"

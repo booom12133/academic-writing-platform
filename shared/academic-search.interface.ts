@@ -53,3 +53,8 @@ export interface AcademicDiscoverySet {
     retrievedAt: string;
   };
 }
+
+export interface AcademicSearchImportRequest {
+  provider: 'openalex';
+  externalRecordId: string;
+}

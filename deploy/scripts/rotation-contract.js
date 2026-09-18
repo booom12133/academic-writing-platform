@@ -56,12 +56,20 @@ function databasePassword(key, value, expectedRole) {
   }
 }
 
-function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
+function createRotationPlan({
+  mode,
+  currentEnv = {},
+  candidateEnv = {},
+  allowBackupCredentialBootstrap = false,
+}) {
   if (!['INITIAL_COMPROMISE_ROTATION', 'NORMAL_FUTURE_ROTATION'].includes(mode)) {
     throw new Error('rotation mode is invalid');
   }
   if (Object.hasOwn(candidateEnv, 'P3_DB_ADMIN_PASSWORD')) {
     throw new Error('P3_DB_ADMIN_PASSWORD must not be stored in production.env');
+  }
+  if (allowBackupCredentialBootstrap && mode !== 'NORMAL_FUTURE_ROTATION') {
+    throw new Error('--bootstrap-backup-credential is only valid for NORMAL_FUTURE_ROTATION');
   }
   for (const key of INITIAL_SECRET_KEYS) {
     if (!candidateEnv[key]) throw new Error(`${key} is required`);
@@ -111,7 +119,35 @@ function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
     .filter((key) => databasePasswordChanged.includes(key))
     .map((key) => ROLE_BY_DATABASE_KEY[key]);
 
-  if (mode === 'NORMAL_FUTURE_ROTATION' && changedKeys.length === 0) {
+  const backupCredentialPlan = {
+    key: 'BACKUP_DATABASE_URL',
+    role: 'academic_writing_backup',
+    action: 'none',
+  };
+  if (mode === 'NORMAL_FUTURE_ROTATION') {
+    const currentHasBackup = Boolean(currentEnv.BACKUP_DATABASE_URL);
+    const candidateHasBackup = Boolean(candidateEnv.BACKUP_DATABASE_URL);
+    if (!currentHasBackup) {
+      if (!allowBackupCredentialBootstrap) {
+        throw new Error('missing current BACKUP_DATABASE_URL requires --bootstrap-backup-credential');
+      }
+      if (!candidateHasBackup) throw new Error('BACKUP_DATABASE_URL is required for backup credential bootstrap');
+      assertDatabaseRole('BACKUP_DATABASE_URL', candidateEnv.BACKUP_DATABASE_URL, 'academic_writing_backup');
+      backupCredentialPlan.action = 'bootstrap';
+    } else {
+      if (allowBackupCredentialBootstrap) throw new Error('backup credential bootstrap is already complete');
+      if (!candidateHasBackup) throw new Error('BACKUP_DATABASE_URL is required after bootstrap');
+      const currentPassword = databasePassword('BACKUP_DATABASE_URL', currentEnv.BACKUP_DATABASE_URL, 'academic_writing_backup');
+      const candidatePassword = databasePassword('BACKUP_DATABASE_URL', candidateEnv.BACKUP_DATABASE_URL, 'academic_writing_backup');
+      if (currentPassword !== candidatePassword) backupCredentialPlan.action = 'rotate';
+    }
+  }
+
+  if (
+    mode === 'NORMAL_FUTURE_ROTATION' &&
+    changedKeys.length === 0 &&
+    backupCredentialPlan.action === 'none'
+  ) {
     throw new Error('normal future rotation requires at least one changed secret');
   }
 
@@ -120,6 +156,7 @@ function createRotationPlan({ mode, currentEnv = {}, candidateEnv = {} }) {
     changedKeys,
     databasePasswordChanged,
     rolesToRotate,
+    backupCredentialPlan,
     zoteroKeyChanged: changedKeys.includes('ZOTERO_CREDENTIAL_ENCRYPTION_KEY'),
     createsInitialMarker: mode === 'INITIAL_COMPROMISE_ROTATION',
   };
@@ -141,15 +178,18 @@ function assertZoteroRotationAllowed({
 
 if (require.main === module) {
   try {
-    const [, , currentPath, candidatePath, mode] = process.argv;
+    const [, , currentPath, candidatePath, mode, flag] = process.argv;
+    if (flag && flag !== '--bootstrap-backup-credential') throw new Error('rotation flag is invalid');
     const plan = createRotationPlan({
       mode,
       currentEnv: parseEnvFile(currentPath),
       candidateEnv: parseEnvFile(candidatePath),
+      allowBackupCredentialBootstrap: flag === '--bootstrap-backup-credential',
     });
     process.stdout.write(`mode=${plan.mode}\n`);
     process.stdout.write(`changed_keys=${plan.changedKeys.join(',')}\n`);
     process.stdout.write(`roles_to_rotate=${plan.rolesToRotate.join(',')}\n`);
+    process.stdout.write(`backup_credential_action=${plan.backupCredentialPlan.action}\n`);
     process.stdout.write(`zotero_key_changed=${plan.zoteroKeyChanged ? 'YES' : 'NO'}\n`);
     process.stdout.write(`creates_initial_marker=${plan.createsInitialMarker ? 'YES' : 'NO'}\n`);
   } catch (error) {

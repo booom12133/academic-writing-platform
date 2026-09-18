@@ -25,6 +25,7 @@ tag are pending post-merge closeout.
 | E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
+| P3 | Deployment / Production E2E | Final remediation candidate for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning | IMPLEMENTATION / CONTROLLER CODE REVIEW PENDING | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings

@@ -1,7 +1,9 @@
 import type {
   AcademicDiscoverySet,
   AcademicSearchRequest,
+  AcademicSearchImportRequest,
 } from '@shared/academic-search.interface';
+import type { AcademicSearchImportResult } from '@shared/knowledge-product.interface';
 import { productHttpClient } from './http';
 import { normalizeProductIntegrationError } from './integration-error';
 
@@ -26,8 +28,19 @@ export async function search(request: AcademicSearchRequest): Promise<AcademicDi
   }
 }
 
+export async function importToWorkspace(request: AcademicSearchImportRequest): Promise<AcademicSearchImportResult> {
+  try {
+    const response = await productHttpClient.post<AcademicSearchImportResult>('/api/academic-search/import', request);
+    return response.data;
+  } catch (error) {
+    throw normalizeProductIntegrationError(error, 'academic-search');
+  }
+}
+
 export type {
   AcademicDiscoverySet,
   AcademicSearchRequest,
   AcademicSearchResult,
+  AcademicSearchImportRequest,
 } from '@shared/academic-search.interface';
+export type { AcademicSearchImportResult } from '@shared/knowledge-product.interface';

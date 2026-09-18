@@ -6,6 +6,7 @@ import { ACADEMIC_SEARCH_PROVIDER, type AcademicSearchProvider } from './academi
 import { AcademicSearchService } from './academic-search.service';
 import { OpenAlexClient } from './openalex.client';
 import { OpenAlexProvider } from './openalex.provider';
+import { OpenAlexImportGateway } from './openalex-import.gateway';
 
 @Module({
   controllers: [AcademicSearchController],
@@ -35,11 +36,16 @@ import { OpenAlexProvider } from './openalex.provider';
       useExisting: OpenAlexProvider,
     },
     {
+      provide: OpenAlexImportGateway,
+      useFactory: (client: OpenAlexClient) => new OpenAlexImportGateway(client),
+      inject: [OpenAlexClient],
+    },
+    {
       provide: AcademicSearchService,
       useFactory: (provider: AcademicSearchProvider, cursorCodec: HmacAcademicSearchCursorCodec, config: ReturnType<typeof resolveAcademicSearchConfig>) => new AcademicSearchService(provider, cursorCodec, config),
       inject: [ACADEMIC_SEARCH_PROVIDER, HmacAcademicSearchCursorCodec, ACADEMIC_SEARCH_CONFIG],
     },
   ],
-  exports: [ACADEMIC_SEARCH_PROVIDER, AcademicSearchService],
+  exports: [ACADEMIC_SEARCH_PROVIDER, AcademicSearchService, OpenAlexImportGateway],
 })
 export class AcademicSearchModule {}

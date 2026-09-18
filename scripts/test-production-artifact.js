@@ -31,6 +31,9 @@ const REQUIRED_ARTIFACT_PATHS = [
   'scripts/db-backup.js',
   'scripts/db-restore-verify.js',
   'scripts/verify-production-database.js',
+  'node_modules/pdfjs-dist/package.json',
+  'node_modules/pdfjs-dist/legacy/build/pdf.js',
+  'node_modules/pdfjs-dist/standard_fonts/FoxitSerif.pfb',
 ];
 const ALLOWED_PRODUCTION_SCRIPTS = new Set([
   'db-migrate.js',

@@ -4,7 +4,10 @@
 const { nodeFileTrace } = require('@vercel/nft');
 const fs = require('fs');
 const path = require('path');
-const { copyDependencyTree } = require('./prune-smart-utils');
+const {
+  addMandatoryRuntimePackages,
+  copyDependencyTree,
+} = require('./prune-smart-utils');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(ROOT_DIR, 'dist');
@@ -231,6 +234,10 @@ async function smartPrune() {
 
     console.log(`   ✅ 插件: ${actionPluginNames.join(', ')}`);
   }
+
+  // PdfParser loads pdfjs-dist through createRequire after installing its
+  // Node globals, so static tracing cannot discover this runtime dependency.
+  addMandatoryRuntimePackages(requiredPackages, ROOT_NODE_MODULES);
 
   console.log(`📦 总共需要 ${requiredPackages.size} 个 npm 包\n`);
 

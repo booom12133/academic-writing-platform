@@ -8,7 +8,7 @@ import { DocumentUploadFlow } from '@client/src/components/documents/DocumentUpl
 import { Badge } from '@client/src/components/ui/badge';
 import { Button } from '@client/src/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@client/src/components/ui/card';
-import type { KnowledgeWorkspaceDocument } from '@shared/knowledge-product.interface';
+import type { KnowledgeWorkspaceDocument, KnowledgeWorkspaceSource } from '@shared/knowledge-product.interface';
 import { buildGroundedWritingLocationState } from '@client/src/lib/grounded-writing';
 
 const originLabels: Record<KnowledgeWorkspaceDocument['document']['originKind'], string> = {
@@ -33,6 +33,7 @@ function safeErrorMessage(error: unknown): string {
 export default function KnowledgePage() {
   const navigate = useNavigate();
   const [documents, setDocuments] = useState<KnowledgeWorkspaceDocument[]>([]);
+  const [sources, setSources] = useState<KnowledgeWorkspaceSource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -45,7 +46,9 @@ export default function KnowledgePage() {
     setLoading(true);
     setError(null);
     try {
-      setDocuments(await knowledgeApi.listDocuments());
+      const [nextDocuments, nextSources] = await Promise.all([knowledgeApi.listDocuments(), knowledgeApi.listSources()]);
+      setDocuments(nextDocuments);
+      setSources(nextSources);
     } catch (loadError) {
       setError(safeErrorMessage(loadError));
     } finally {
@@ -111,6 +114,24 @@ export default function KnowledgePage() {
           <DocumentUploadFlow onReady={() => undefined} onImported={loadDocuments} />
         </CardContent>
       </Card>
+
+      {sources.some((source) => source.contentStatus === 'metadata-only') && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-slate-800">仅元数据资料</h2>
+          <p className="text-xs text-amber-700">摘要和元数据不是全文证据；上传 PDF 并关联后仍需显式建立索引。</p>
+          <div className="grid gap-4 md:grid-cols-2">
+            {sources.filter((source) => source.contentStatus === 'metadata-only').map((source) => (
+              <Card key={source.id} id={`source-${source.id}`}>
+                <CardContent className="space-y-3 pt-5">
+                  <div><h3 className="text-sm font-medium text-slate-800">{source.title || '未命名学术资料'}</h3><Badge variant="secondary">仅元数据</Badge></div>
+                  {source.abstract && <p className="line-clamp-2 text-xs text-slate-500">{source.abstract}</p>}
+                  <DocumentUploadFlow sourceRecordId={source.id} onReady={() => undefined} onImported={loadDocuments} />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3">
         <div className="flex items-center justify-between gap-3">

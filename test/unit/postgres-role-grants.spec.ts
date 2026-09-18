@@ -29,7 +29,7 @@ describe('P3 canonical PostgreSQL role grants', () => {
     expect(sql).not.toMatch(/PASSWORD|postgres(?:ql)?:\/\/|TOKEN|SECRET/iu);
   });
 
-  it('normalizes the three least-privilege roles and explicit owners', () => {
+  it('normalizes the owner, migrator, app, and dedicated backup roles', () => {
     const sql = readFileSync(canonicalPath, 'utf8');
 
     expect(sql).toMatch(
@@ -38,7 +38,7 @@ describe('P3 canonical PostgreSQL role grants', () => {
     expect(sql).toMatch(
       /ALTER ROLE academic_writing_db_owner\s+NOLOGIN\s+NOINHERIT\s+NOSUPERUSER\s+NOCREATEDB\s+NOCREATEROLE/iu,
     );
-    for (const role of ['academic_writing_migrator', 'academic_writing_app']) {
+    for (const role of ['academic_writing_migrator', 'academic_writing_app', 'academic_writing_backup']) {
       expect(sql).toMatch(
         new RegExp(
           `CREATE ROLE ${role}\\s+LOGIN\\s+NOINHERIT\\s+NOSUPERUSER\\s+NOCREATEDB\\s+NOCREATEROLE`,
@@ -56,6 +56,18 @@ describe('P3 canonical PostgreSQL role grants', () => {
     expect(sql).toMatch(/ALTER SCHEMA public OWNER TO academic_writing_db_owner/iu);
     expect(sql).toMatch(/CREATE SCHEMA IF NOT EXISTS drizzle AUTHORIZATION academic_writing_db_owner/iu);
     expect(sql).toMatch(/ALTER SCHEMA drizzle OWNER TO academic_writing_db_owner/iu);
+  });
+
+  it('grants the backup role read-only operational access without role membership', () => {
+    const sql = readFileSync(canonicalPath, 'utf8');
+    expect(sql).toMatch(/GRANT CONNECT ON DATABASE .* TO academic_writing_backup/isu);
+    expect(sql).toMatch(/GRANT USAGE ON SCHEMA public, drizzle TO academic_writing_backup/iu);
+    expect(sql).toMatch(/GRANT SELECT ON ALL TABLES IN SCHEMA public, drizzle TO academic_writing_backup/iu);
+    expect(sql).toMatch(/GRANT SELECT ON ALL SEQUENCES IN SCHEMA public, drizzle TO academic_writing_backup/iu);
+    expect(sql).toMatch(/ALTER DEFAULT PRIVILEGES FOR ROLE academic_writing_migrator IN SCHEMA public\s+GRANT SELECT ON TABLES TO academic_writing_backup/iu);
+    expect(sql).toMatch(/ALTER DEFAULT PRIVILEGES FOR ROLE academic_writing_migrator IN SCHEMA drizzle\s+GRANT SELECT ON SEQUENCES TO academic_writing_backup/iu);
+    expect(sql).not.toMatch(/GRANT\s+(?:INSERT|UPDATE|DELETE|CREATE)[^;]*TO academic_writing_backup/iu);
+    expect(sql).not.toMatch(/GRANT\s+academic_writing_(?:db_owner|migrator|app)\s+TO academic_writing_backup/iu);
   });
 
   it('allows migration only in precreated schemas and keeps the app DDL-free', () => {

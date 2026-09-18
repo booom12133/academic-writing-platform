@@ -3,6 +3,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import type {
   ImportWorkspaceDocumentRequest,
   KnowledgeWorkspaceDocument,
+  KnowledgeWorkspaceSource,
 } from '@shared/knowledge-product.interface';
 import type { DocumentInputRef } from '@shared/document-input.interface';
 import { DocumentInputError } from '../document-input/document-input.errors';
@@ -87,6 +88,28 @@ export class KnowledgeProductService {
         document.userId === userId && document.lifecycleStatus === 'active',
     );
     return Promise.all(owned.map((document) => this.project(userId, document)));
+  }
+
+  async listSources(userId: string): Promise<KnowledgeWorkspaceSource[]> {
+    this.requireUser(userId);
+    const [sources, documents] = await Promise.all([
+      this.repository.listSourceRecords(userId),
+      this.repository.listDocuments(userId),
+    ]);
+    const linkedSourceIds = new Set(documents.filter((document) => document.lifecycleStatus === 'active').map((document) => document.sourceRecordId).filter((id): id is string => Boolean(id)));
+    return sources.filter((source) => source.userId === userId && source.status === 'active').map((source) => ({
+      id: source.id,
+      kind: source.kind,
+      ...(source.canonicalMetadata.title ? { title: source.canonicalMetadata.title.value } : {}),
+      ...(source.canonicalMetadata.authors ? { authors: source.canonicalMetadata.authors.value } : {}),
+      ...(source.canonicalMetadata.year ? { year: source.canonicalMetadata.year.value } : {}),
+      ...(source.canonicalMetadata.venue ? { venue: source.canonicalMetadata.venue.value } : {}),
+      ...(source.canonicalMetadata.abstract ? { abstract: source.canonicalMetadata.abstract.value } : {}),
+      ...(source.canonicalMetadata.doi ? { doi: source.canonicalMetadata.doi.value } : {}),
+      ...(source.canonicalMetadata.url ? { url: source.canonicalMetadata.url.value } : {}),
+      contentStatus: linkedSourceIds.has(source.id) ? 'full-text-linked' : 'metadata-only',
+      isGroundedEvidence: false,
+    }));
   }
 
   async getDocument(

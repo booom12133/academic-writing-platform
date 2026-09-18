@@ -64,6 +64,11 @@ for key in NODE_ENV RUNTIME_PROFILE SERVER_HOST SERVER_PORT DATABASE_URL \
     fail "required env key is missing: $key"
 done
 
+if grep -Eq '^[[:space:]]*BACKUP_DATABASE_URL=' "$env_file"; then
+  grep -Eq '^[[:space:]]*BACKUP_DATABASE_URL=.+$' "$env_file" ||
+    fail "BACKUP_DATABASE_URL must be non-empty when present"
+fi
+
 test "$(grep -E '^NODE_ENV=' "$env_file" | tail -n 1)" = "NODE_ENV=production" ||
   fail "NODE_ENV must be production"
 test "$(grep -E '^RUNTIME_PROFILE=' "$env_file" | tail -n 1)" = "RUNTIME_PROFILE=standalone" ||

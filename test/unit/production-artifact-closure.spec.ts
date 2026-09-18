@@ -25,6 +25,12 @@ function createArtifact(
   mkdirSync(join(root, 'shared'), { recursive: true });
   mkdirSync(join(root, 'sourcemaps'), { recursive: true });
   mkdirSync(join(root, 'node_modules'), { recursive: true });
+  mkdirSync(join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build'), {
+    recursive: true,
+  });
+  mkdirSync(join(root, 'node_modules', 'pdfjs-dist', 'standard_fonts'), {
+    recursive: true,
+  });
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(root, 'drizzle', 'migrations'), { recursive: true });
   writeFileSync(join(root, 'server', 'main.js'), 'runtime');
@@ -43,6 +49,18 @@ function createArtifact(
   writeFileSync(join(root, 'page-routes.json'), '{}');
   writeFileSync(join(root, 'package.json'), '{"private":true}');
   writeFileSync(join(root, 'run.sh'), '#!/usr/bin/env bash');
+  writeFileSync(
+    join(root, 'node_modules', 'pdfjs-dist', 'package.json'),
+    '{"name":"pdfjs-dist"}',
+  );
+  writeFileSync(
+    join(root, 'node_modules', 'pdfjs-dist', 'legacy', 'build', 'pdf.js'),
+    'module.exports = {};',
+  );
+  writeFileSync(
+    join(root, 'node_modules', 'pdfjs-dist', 'standard_fonts', 'FoxitSerif.pfb'),
+    'font-fixture',
+  );
   for (const script of [
     'db-migrate.js',
     'db-backup.js',
@@ -114,6 +132,32 @@ describe('production artifact closure', () => {
       expect(() =>
         assertProductionArtifactLayout(root, migrationsRoot),
       ).toThrow(/scripts\/lint\.js/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+      rmSync(migrationsRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects an artifact that omits the PDF parser runtime package and assets', () => {
+    const root = mkdtempSync(join(tmpdir(), 'academic-writing-artifact-'));
+    const migrationsRoot = mkdtempSync(
+      join(tmpdir(), 'academic-writing-migrations-'),
+    );
+    try {
+      createArtifact(root);
+      rmSync(join(root, 'node_modules', 'pdfjs-dist'), {
+        recursive: true,
+        force: true,
+      });
+      mkdirSync(migrationsRoot, { recursive: true });
+      writeFileSync(
+        join(migrationsRoot, migrationName),
+        'CREATE TABLE baseline ();',
+      );
+
+      expect(() =>
+        assertProductionArtifactLayout(root, migrationsRoot),
+      ).toThrow(/pdfjs-dist/);
     } finally {
       rmSync(root, { recursive: true, force: true });
       rmSync(migrationsRoot, { recursive: true, force: true });

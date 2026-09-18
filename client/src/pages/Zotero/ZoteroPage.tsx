@@ -7,6 +7,7 @@ import { ZoteroConnectionPanel } from '@client/src/components/zotero/ZoteroConne
 import { ZoteroItemsList } from '@client/src/components/zotero/ZoteroItemsList';
 import { Button } from '@client/src/components/ui/button';
 import { Card, CardContent } from '@client/src/components/ui/card';
+import { Badge } from '@client/src/components/ui/badge';
 import type { ZoteroConnection, ZoteroImportResult, ZoteroItem, ZoteroItemsPage } from '@shared/zotero.interface';
 
 function safeErrorMessage(error: unknown): string {
@@ -119,8 +120,9 @@ export default function ZoteroPage() {
         <div className="flex items-center gap-2">
           <Link className="h-6 w-6 text-blue-600" />
           <h1 className="text-2xl font-semibold leading-tight text-slate-800">Zotero</h1>
+          <Badge variant="secondary">Optional Advanced Integration</Badge>
         </div>
-        <p className="mt-2 text-sm text-slate-500">连接 Zotero，导入真实文献元数据和支持的 PDF 附件到知识工作区。</p>
+        <p className="mt-2 text-sm text-slate-500">可选的 API Key 高级集成；OAuth 暂缓。导入真实文献元数据和支持的 PDF 附件后，仍需在文档工作区显式建立索引。</p>
       </div>
 
       <ZoteroConnectionPanel

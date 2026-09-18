@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-08
+Last Updated: 2026-09-18
 
 ## Project
 
@@ -23,13 +23,13 @@ Last Updated: 2026-09-08
 
 ## Current development
 
-- Current Development: Phase P2 accepted and merged; post-merge governance closeout is in progress on `main`; final main CI and accepted tag are pending. P3 is not started and not authorized.
+- Current Development: Phase P3 final remediation implementation is authorized on `phase/p3-deployment-e2e`, PR #16. Code is being prepared for Controller review; production deployment/revalidation remains NOT AUTHORIZED.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
 - P2 PR: [#15 Phase P2: complete product integration and MVP UX flows](https://github.com/booom12133/academic-writing-platform/pull/15), MERGED with merge commit `171dcac876cf097c010b00ebf39aa7abc9231caf`.
 - P2 Final Acceptance Report: [PHASE_P2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P2_FINAL_ACCEPTANCE_REPORT.md).
 - P2 Final Acceptance Preparation: `f19af1434300113acb096f141b843ce2e0cf1127`; Review-Pass CI run `34235018088` and final preparation CI run `34236991699` passed `verify`, `postgres-schema`, and `production-gates`.
-- P3 status: `NOT_STARTED / NOT AUTHORIZED`; do not begin P3 from this closeout.
+- P3 status: `FINAL_REMEDIATION_IMPLEMENTATION / CONTROLLER_CODE_REVIEW_PENDING`; `PRODUCTION_ROLLBACK_AUTHORIZED=NO`, merge/tag/production operations remain unauthorized.
 - P1 status: `PHASE_P1_ACCEPTED`; `P1_ACCEPTED_CLOSED=NO` until final `main` CI succeeds and the annotated `phase-p1-accepted` tag is verified.
 - P1 branch: `phase-p1`.
 - P1 PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14), MERGED with merge commit `03b730454edc1b22add8af527eac8c08e9ef301e`.

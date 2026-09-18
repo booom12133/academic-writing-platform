@@ -16,6 +16,7 @@ import {
 export interface DocumentUploadFlowProps {
   onReady: (selection: WorkspaceDocumentSelection | null) => void;
   onImported?: () => void | Promise<void>;
+  sourceRecordId?: string;
 }
 
 function createIdempotencyKey(): string {
@@ -28,6 +29,7 @@ function createIdempotencyKey(): string {
 export function DocumentUploadFlow({
   onReady,
   onImported,
+  sourceRecordId,
 }: DocumentUploadFlowProps) {
   const [state, dispatch] = useReducer(
     reduceDocumentWorkspaceState,
@@ -54,7 +56,7 @@ export function DocumentUploadFlow({
         },
         importDocument: knowledgeApi.importDocument,
         createIdempotencyKey,
-      });
+      }, sourceRecordId);
       const selection = toWorkspaceDocumentSelection(result.workspaceDocument);
       if (!selection) throw new DocumentWorkspaceFlowError('import', null);
       dispatch({

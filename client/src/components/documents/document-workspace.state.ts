@@ -119,6 +119,7 @@ export interface DocumentUploadFlowDependencies {
 export async function runDocumentUploadFlow(
   file: File,
   dependencies: DocumentUploadFlowDependencies,
+  sourceRecordId?: string,
 ): Promise<{
   descriptor: DocumentInputDescriptor;
   workspaceDocument: KnowledgeWorkspaceDocument;
@@ -136,6 +137,7 @@ export async function runDocumentUploadFlow(
       idempotencyKey: `workspace:${dependencies.createIdempotencyKey()}`,
       displayName,
       documentRef: descriptor.document,
+      ...(sourceRecordId ? { sourceRecordId } : {}),
     });
     return { descriptor, workspaceDocument };
   } catch (error) {

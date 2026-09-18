@@ -33,10 +33,13 @@ describe('P3 Part A remediation CI gates', () => {
     expect(nginx).toContain(
       'test/integration/p3-upload-boundary.integration.spec.ts',
     );
+    expect(nginx).toContain('test/integration/p3-acme-webroot.integration.spec.ts');
     expect(rotation).toContain('P3_WP6_INTEGRATION: YES');
     expect(rotation).toContain('test/unit/p3-wp6-step5b.integration.spec.ts');
     expect(postgres).toContain('P3_POSTGRES_ROLE_INTEGRATION: YES');
     expect(postgres).toContain('test/unit/postgres-schema.integration.spec.ts');
+    expect(postgres).toContain('test/integration/p3-backup-restore.integration.spec.ts');
+    expect(postgres).toContain('test/integration/p3-real-pdf-knowledge-pipeline.integration.spec.ts');
     expect(postgres).toContain(
       'test/unit/postgres-database-readiness.integration.spec.ts',
     );

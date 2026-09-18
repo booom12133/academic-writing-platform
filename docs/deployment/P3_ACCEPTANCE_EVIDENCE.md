@@ -71,6 +71,26 @@ must not be promoted to PASS from GitHub/CI evidence alone.
 
 ## Final status
 
+### Final remediation code candidate
+
+- Plan SHA-256: `9d68d0d1642809f7893eedb70cf8536b23c267dbc8468a3c9c9768cdccb623f6`
+- PDF parser root cause: production artifact pruning omitted the dynamically
+  resolved `pdfjs-dist` runtime package and standard-font assets.
+- Local/unit verification: PASS — `npm test -- --runInBand`: 195 suites
+  passed, 9 environment-gated suites skipped; 1,099 tests passed, 55 skipped.
+- Lint and combined type-check: PASS
+- Full production build: PASS via repository `scripts/build.sh`; 467 packages
+  copied, zero failures.
+- Artifact closure/startup/frontend/health/shutdown: PASS; packaged PDF parser
+  regression: 23 pages and 2,323 non-empty parsed blocks.
+- Disposable PostgreSQL/Nginx verification: delegated to required CI jobs
+- Migration diff: EMPTY
+- Production deployment: NOT_EXECUTED
+- Production revalidation: NOT_EXECUTED
+- Production rollback authorized: NO
+- E2E-10: BLOCKED_BY_AUTHORIZATION
+- Handoff target: `P3_REMEDIATION_CODE_READY_FOR_CONTROLLER_REVIEW`
+
 P3_ACCEPTED=NO
 P3_ACCEPTED_CLOSED=NO
 STOP_FOR_CHATGPT_REVIEW=YES

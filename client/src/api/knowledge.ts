@@ -1,6 +1,7 @@
 import type {
   ImportWorkspaceDocumentRequest,
   KnowledgeWorkspaceDocument,
+  KnowledgeWorkspaceSource,
 } from '@shared/knowledge-product.interface';
 
 import { productHttpClient } from './http';
@@ -9,6 +10,7 @@ export type {
   ImportWorkspaceDocumentRequest,
   KnowledgeWorkspaceDocument,
   WorkspaceDocumentSelection,
+  KnowledgeWorkspaceSource,
 } from '@shared/knowledge-product.interface';
 
 export class ProductApiError extends Error {
@@ -75,6 +77,13 @@ export async function listDocuments(): Promise<KnowledgeWorkspaceDocument[]> {
     const response = await productHttpClient.get<KnowledgeWorkspaceDocument[]>(
       '/api/knowledge/documents',
     );
+    return response.data;
+  });
+}
+
+export async function listSources(): Promise<KnowledgeWorkspaceSource[]> {
+  return productRequest(async () => {
+    const response = await productHttpClient.get<KnowledgeWorkspaceSource[]>('/api/knowledge/sources');
     return response.data;
   });
 }

@@ -28,6 +28,9 @@ describe('P3 deployment contract', () => {
 
     expect(config).toContain('server_name write.yingrenji.cn');
     expect(config).toContain('return 301 https://$host$request_uri;');
+    expect(config).toContain('location ^~ /.well-known/acme-challenge/');
+    expect(config).toContain('root /var/lib/letsencrypt;');
+    expect(config).toContain('try_files $uri =404;');
     expect(config).toContain('proxy_pass http://127.0.0.1:3000;');
     expect(config).toContain('client_max_body_size 22m;');
     expect(config).toContain('ssl_certificate');
@@ -55,6 +58,7 @@ describe('P3 deployment contract', () => {
       'pm2-systemd-handoff.js',
       'candidate-input-contract.js',
       'first-deploy.js',
+      'prepare-acme-webroot.sh',
     ]) {
       expect(existsSync(join(root, 'deploy', 'scripts', script))).toBe(true);
     }

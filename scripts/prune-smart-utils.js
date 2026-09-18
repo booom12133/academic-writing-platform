@@ -3,6 +3,20 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+const MANDATORY_RUNTIME_PACKAGES = ['pdfjs-dist'];
+
+function addMandatoryRuntimePackages(packages, rootNodeModules) {
+  for (const packageName of MANDATORY_RUNTIME_PACKAGES) {
+    const packageRoot = path.join(rootNodeModules, packageName);
+    const manifestPath = path.join(packageRoot, 'package.json');
+    if (!fs.existsSync(packageRoot) || !fs.existsSync(manifestPath)) {
+      throw new Error(`mandatory runtime package is unavailable: ${packageName}`);
+    }
+    packages.add(packageName);
+  }
+  return packages;
+}
+
 function classifyDependencyEntry(entry) {
   if (entry.isSymbolicLink) return 'reject-symlink';
   if (entry.isDirectory) return entry.name === '.bin' ? 'skip' : 'recurse';
@@ -56,6 +70,8 @@ function copyDependencyTree(source, destination, stats = { hardLinks: 0, copies:
 }
 
 module.exports = {
+  MANDATORY_RUNTIME_PACKAGES,
+  addMandatoryRuntimePackages,
   classifyDependencyEntry,
   copyDependencyTree,
 };

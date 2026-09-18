@@ -4,6 +4,7 @@ import {
   Receipt,
   History,
   Settings,
+  Plug,
 } from 'lucide-react';
 
 export type ProfileTab =
@@ -11,6 +12,7 @@ export type ProfileTab =
   | 'tasks'
   | 'orders'
   | 'records'
+  | 'integrations'
   | 'settings';
 
 interface ProfileSidebarProps {
@@ -27,6 +29,7 @@ const menuItems: {
   { key: 'tasks', label: '我的任务', icon: FileText },
   { key: 'orders', label: '订单记录', icon: Receipt },
   { key: 'records', label: '积分流水', icon: History },
+  { key: 'integrations', label: '第三方集成', icon: Plug },
   { key: 'settings', label: '账号设置', icon: Settings },
 ];
 

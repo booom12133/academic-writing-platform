@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 3 ]; then
-  echo "usage: rotate-production-env.sh <candidate-env-file> <app-root> <INITIAL_COMPROMISE_ROTATION|NORMAL_FUTURE_ROTATION>" >&2
+if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
+  echo "usage: rotate-production-env.sh <candidate-env-file> <app-root> <INITIAL_COMPROMISE_ROTATION|NORMAL_FUTURE_ROTATION> [--bootstrap-backup-credential]" >&2
   exit 2
 fi
 
 candidate_file="$1"
 app_root="$2"
 rotation_mode="$3"
+bootstrap_flag="${4:-}"
 env_dir="/etc/academic-writing-platform"
 env_file="$env_dir/production.env"
 rotation_marker="$env_dir/secret-rotation-complete"
@@ -38,10 +39,13 @@ test "$(stat -c '%a' "$env_dir")" = "755" ||
 
 case "$rotation_mode" in
   INITIAL_COMPROMISE_ROTATION)
+    test -z "$bootstrap_flag" || fail "backup bootstrap is invalid for initial compromise rotation"
     test ! -e "$rotation_marker" ||
       fail "initial compromise rotation has already completed"
     ;;
   NORMAL_FUTURE_ROTATION)
+    test -z "$bootstrap_flag" || test "$bootstrap_flag" = "--bootstrap-backup-credential" ||
+      fail "rotation flag is invalid"
     test -f "$rotation_marker" ||
       fail "normal future rotation requires the initial completion marker"
     test ! -L "$rotation_marker" || fail "rotation marker must not be a symlink"
@@ -55,12 +59,18 @@ case "$rotation_mode" in
     ;;
 esac
 
-plan_output="$(node "$rotation_contract" "$env_file" "$candidate_file" "$rotation_mode")" ||
+contract_args=("$env_file" "$candidate_file" "$rotation_mode")
+if [ -n "$bootstrap_flag" ]; then
+  contract_args+=("$bootstrap_flag")
+fi
+plan_output="$(node "$rotation_contract" "${contract_args[@]}")" ||
   fail "rotation contract validation failed"
 roles_to_rotate="$(printf '%s\n' "$plan_output" | sed -n 's/^roles_to_rotate=//p')"
 zotero_key_changed="$(printf '%s\n' "$plan_output" | sed -n 's/^zotero_key_changed=//p')"
+backup_credential_action="$(printf '%s\n' "$plan_output" | sed -n 's/^backup_credential_action=//p')"
 
 temp_env="$(mktemp "$env_dir/.production.env.XXXXXX")"
+helper_args=("$env_file" "$temp_env" "$rotation_mode" "$app_root")
 temp_marker=""
 admin_password=""
 cleanup() {
@@ -74,7 +84,7 @@ install -o root -g academic-writing -m 640 "$candidate_file" "$temp_env"
 P3_SECURITY_SECRET_ROTATION_REQUIRED=YES \
   "$verify_script" "$temp_env" "$app_root" candidate >/dev/null
 
-if [ -n "$roles_to_rotate" ] || [ "$zotero_key_changed" = "YES" ]; then
+if [ -n "$roles_to_rotate" ] || [ "$zotero_key_changed" = "YES" ] || [ "$backup_credential_action" != "none" ]; then
   test -n "${P3_DB_ADMIN_URL:-}" ||
     fail "P3_DB_ADMIN_URL is required and must not contain a password"
   test -r /dev/tty || fail "interactive administrative credential input is required"
@@ -87,7 +97,8 @@ fi
 
 if ! (
   cd "$app_root"
-  node --env-file="$temp_env" "$role_rotation_script" "$env_file" "$temp_env" "$rotation_mode" "$app_root"
+  if [ -n "$bootstrap_flag" ]; then helper_args+=("$bootstrap_flag"); fi
+  node --env-file="$temp_env" "$role_rotation_script" "${helper_args[@]}"
 ); then
   fail "database role rotation or new credential connectivity validation failed"
 fi

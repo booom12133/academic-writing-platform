@@ -92,6 +92,33 @@ describe('P3 immutable release integrity contract', () => {
     expect(rollback.indexOf('release-manifest.js')).toBeLessThan(
       rollback.indexOf('ln -sfn'),
     );
+    expect(rollback.indexOf('rollback-preflight.js')).toBeGreaterThanOrEqual(0);
+    expect(rollback.indexOf('rollback-preflight.js')).toBeLessThan(rollback.indexOf('ln -sfn'));
+    expect(rollback).not.toMatch(/db-migrate|pg_restore|DROP SCHEMA/iu);
     expect(existsSync(join(root, 'deploy', 'scripts', 'release-manifest.js'))).toBe(true);
+  });
+
+  it('requires authorization and matching recovery receipts before rollback', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { validateRollbackPreflight } = require('../../deploy/scripts/rollback-preflight.js');
+    const sha = 'a'.repeat(40);
+    const digest = 'b'.repeat(64);
+    const regularRootFile = { isFile: () => true, isSymbolicLink: () => false, uid: 0, mode: 0o100600 };
+    const inputs = {
+      targetReleaseSha: sha,
+      env: {
+        PRODUCTION_ROLLBACK_AUTHORIZED: 'YES', P3_REVIEWED_ROLLBACK_SHA: sha,
+        BACKUP_EVIDENCE_PATH: '/evidence/backup.json', RESTORE_EVIDENCE_PATH: '/evidence/restore.json',
+        BACKUP_INPUT_PATH: '/evidence/backup.dump',
+      },
+      lstat: () => regularRootFile,
+      readJson: (path: string) => path.includes('backup.json')
+        ? { version: 1, status: 'pass', backupSha256: digest, sourceDatabaseIdentity: 'db:5432/live' }
+        : { version: 1, status: 'pass', backupSha256: digest, liveDatabaseIdentity: 'db:5432/live', restoreDatabaseIdentity: 'db:5432/recovery', isolatedTarget: true },
+      sha256File: () => digest,
+    };
+    expect(validateRollbackPreflight(inputs)).toEqual({ authorized: true, targetReleaseSha: sha });
+    expect(() => validateRollbackPreflight({ ...inputs, env: { ...inputs.env, PRODUCTION_ROLLBACK_AUTHORIZED: 'NO' } })).toThrow(/PRODUCTION_ROLLBACK_AUTHORIZED=YES/);
+    expect(() => validateRollbackPreflight({ ...inputs, readJson: () => ({ version: 1, status: 'pass', backupSha256: digest, liveDatabaseIdentity: 'same', restoreDatabaseIdentity: 'same', isolatedTarget: true }) })).toThrow(/isolated/i);
   });
 });

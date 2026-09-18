@@ -12,6 +12,7 @@ export interface OpenAlexWorkLike {
   open_access?: unknown;
   doi?: unknown;
   abstract_inverted_index?: unknown;
+  updated_date?: unknown;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

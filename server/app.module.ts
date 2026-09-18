@@ -23,6 +23,7 @@ import { KnowledgeModule } from './modules/knowledge/knowledge.module';
 import { KnowledgeProductModule } from './modules/knowledge-product/knowledge-product.module';
 import { ZoteroModule } from './modules/zotero/zotero.module';
 import { AcademicSearchModule } from './modules/academic-search/academic-search.module';
+import { AcademicSearchImportModule } from './modules/academic-search-import/academic-search-import.module';
 import { GroundedGenerationModule } from './modules/grounded-generation/grounded-generation.module';
 import { StandaloneAuthModule } from './auth/standalone-auth.module';
 import { ApiSecurityModule } from './common/security/api-security.module';
@@ -76,6 +77,7 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
     KnowledgeProductModule,
     ZoteroModule,
     AcademicSearchModule,
+    AcademicSearchImportModule,
     GroundedGenerationModule,
     // ====== @route-section: business-modules END ======
 

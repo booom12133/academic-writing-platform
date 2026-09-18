@@ -116,7 +116,7 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
 
       expect(existsSync(join(releaseRoot, 'deploy', 'node_modules'))).toBe(false);
       expect(readProjectFile('deploy/scripts/rotate-production-env.sh')).toContain(
-        '"$role_rotation_script" "$env_file" "$temp_env" "$rotation_mode" "$app_root"',
+        '"$role_rotation_script" "${helper_args[@]}"',
       );
       const helper = require(join(deployScriptsRoot, 'rotate-postgres-roles.js'));
       expect(helper.loadPgClient(appRoot)).toEqual(expect.any(Function));
@@ -429,17 +429,51 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
     expect(roleRotation).toContain("await adminClient.query('COMMIT')");
     expect(roleRotation).toContain('SELECT current_user AS current_user');
 
+    const backupCandidate = connection('academic_writing_backup', 'bootstrap');
     const future = createRotationPlan({
       mode: 'NORMAL_FUTURE_ROTATION',
-      currentEnv,
+      currentEnv: { ...currentEnv, BACKUP_DATABASE_URL: backupCandidate },
       candidateEnv: {
         ...currentEnv,
+        BACKUP_DATABASE_URL: backupCandidate,
         ACADEMIC_SEARCH_CURSOR_SECRET: opaque('cursor', 'future'),
       },
     });
     expect(future.changedKeys).toEqual(['ACADEMIC_SEARCH_CURSOR_SECRET']);
     expect(future.rolesToRotate).toEqual([]);
     expect(future.createsInitialMarker).toBe(false);
+
+    expect(() => createRotationPlan({
+      mode: 'NORMAL_FUTURE_ROTATION',
+      currentEnv,
+      candidateEnv: { ...currentEnv, BACKUP_DATABASE_URL: backupCandidate },
+    })).toThrow(/bootstrap-backup-credential/);
+    const bootstrap = createRotationPlan({
+      mode: 'NORMAL_FUTURE_ROTATION',
+      currentEnv,
+      candidateEnv: { ...currentEnv, BACKUP_DATABASE_URL: backupCandidate },
+      allowBackupCredentialBootstrap: true,
+    });
+    expect(bootstrap.backupCredentialPlan).toEqual({
+      key: 'BACKUP_DATABASE_URL',
+      role: 'academic_writing_backup',
+      action: 'bootstrap',
+    });
+    expect(() => createRotationPlan({
+      mode: 'INITIAL_COMPROMISE_ROTATION', currentEnv,
+      candidateEnv, allowBackupCredentialBootstrap: true,
+    })).toThrow(/only valid.*NORMAL_FUTURE_ROTATION/i);
+    const installedEnv = { ...currentEnv, BACKUP_DATABASE_URL: backupCandidate };
+    expect(() => createRotationPlan({
+      mode: 'NORMAL_FUTURE_ROTATION', currentEnv: installedEnv,
+      candidateEnv: { ...installedEnv, ACADEMIC_SEARCH_CURSOR_SECRET: opaque('cursor', 'future') },
+      allowBackupCredentialBootstrap: true,
+    })).toThrow(/already complete/i);
+    const backupRotated = createRotationPlan({
+      mode: 'NORMAL_FUTURE_ROTATION', currentEnv: installedEnv,
+      candidateEnv: { ...installedEnv, BACKUP_DATABASE_URL: connection('academic_writing_backup', 'rotated') },
+    });
+    expect(backupRotated.backupCredentialPlan.action).toBe('rotate');
     expect(() =>
       createRotationPlan({
         mode: 'INITIAL_COMPROMISE_ROTATION',
@@ -514,6 +548,72 @@ describe('P3 WP6 PM2 state and secret rotation contract', () => {
         encryptedCredentialCount: 0,
       }),
     ).not.toThrow();
+  });
+
+  it('does not validate an unbootstrapped backup credential during the initial rotation CLI flow', () => {
+    const { spawnSync } = require('node:child_process');
+    const tempRoot = mkdtempSync(join(tmpdir(), 'p3-initial-backup-boundary-'));
+    const appRoot = join(tempRoot, 'app');
+    const deployScriptsRoot = join(tempRoot, 'deploy', 'scripts');
+    const appPgRoot = join(appRoot, 'node_modules', 'pg');
+    const currentPath = join(tempRoot, 'current.env');
+    const candidatePath = join(tempRoot, 'candidate.env');
+    const observedPath = join(tempRoot, 'connections.log');
+    mkdirSync(deployScriptsRoot, { recursive: true });
+    mkdirSync(appPgRoot, { recursive: true });
+    writeFileSync(join(appRoot, 'package.json'), JSON.stringify({ name: 'reviewed-production-app', dependencies: { pg: '8.23.0' } }));
+    writeFileSync(join(appPgRoot, 'package.json'), JSON.stringify({ name: 'pg', main: 'index.js' }));
+    writeFileSync(join(appPgRoot, 'index.js'), [
+      "const fs = require('node:fs');",
+      'class Client {',
+      '  constructor(config) { this.role = config.connectionString ? new URL(config.connectionString).username : \'admin\'; }',
+      '  async connect() {',
+      "    fs.appendFileSync(process.env.P3_TEST_OBSERVED_PATH, `${this.role}\n`);",
+      "    if (this.role === 'academic_writing_backup') throw new Error('unbootstrapped backup credential was used');",
+      '  }',
+      '  async query(sql, params) {',
+      "    if (sql.includes(\"to_regclass\")) return { rows: [{ relation: null }] };",
+      "    if (sql.includes('rolname = ANY')) return { rows: params[0].map((rolname) => ({ rolname })) };",
+      "    if (sql.includes('quote_literal')) return { rows: [{ literal: \"'synthetic'\" }] };",
+      "    if (sql.includes('current_user')) return { rows: [{ current_user: this.role }] };",
+      '    return { rows: [] };',
+      '  }',
+      '  async end() {}',
+      '}',
+      'module.exports = { Client };',
+    ].join('\n'));
+    writeFileSync(join(deployScriptsRoot, 'rotation-contract.js'), readProjectFile('deploy/scripts/rotation-contract.js'));
+    writeFileSync(join(deployScriptsRoot, 'rotate-postgres-roles.js'), readProjectFile('deploy/scripts/rotate-postgres-roles.js'));
+    const lines = (revision: string, includeBackup: boolean) => [
+      `DATABASE_URL=postgresql://academic_writing_app:app-${revision}@db.example/academic_writing`,
+      `MIGRATION_DATABASE_URL=postgresql://academic_writing_migrator:migrator-${revision}@db.example/academic_writing`,
+      `ACADEMIC_SEARCH_CURSOR_SECRET=cursor-${revision}`,
+      `ZOTERO_CREDENTIAL_ENCRYPTION_KEY=zotero-${revision}`,
+      'DATABASE_SSL_CA=synthetic-ca',
+      ...(includeBackup ? ['BACKUP_DATABASE_URL=postgresql://academic_writing_backup:not-bootstrapped@db.example/academic_writing'] : []),
+    ].join('\n');
+    writeFileSync(currentPath, lines('baseline', false));
+    writeFileSync(candidatePath, lines('rotated', true));
+
+    try {
+      const result = spawnSync(process.execPath, [
+        join(deployScriptsRoot, 'rotate-postgres-roles.js'), currentPath, candidatePath,
+        'INITIAL_COMPROMISE_ROTATION', appRoot,
+      ], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          P3_DB_ADMIN_URL: 'postgresql://admin@db.example/academic_writing',
+          P3_DB_ADMIN_PASSWORD: 'synthetic-admin-secret',
+          P3_TEST_OBSERVED_PATH: observedPath,
+        },
+      });
+      expect(result.status).toBe(0);
+      expect(readFileSync(observedPath, 'utf8').trim().split('\n')).toEqual(['admin', 'academic_writing_app', 'academic_writing_migrator']);
+      expect(`${result.stdout}${result.stderr}`).not.toContain('unbootstrapped backup credential was used');
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
   });
 
   it('does not print synthetic database password values from the rotation contract CLI', () => {

@@ -24,6 +24,9 @@ completion marker created by the atomic rotation helper.
 
     DATABASE_URL=postgresql://academic_writing_app:<password>@db.academic-writing.internal:5432/academic_writing
     MIGRATION_DATABASE_URL=postgresql://academic_writing_migrator:<password>@db.academic-writing.internal:5432/academic_writing
+    BACKUP_DATABASE_URL=postgresql://academic_writing_backup:<password>@db.academic-writing.internal:5432/academic_writing
+    RESTORE_DATABASE_URL=postgresql://<recovery-operator>:<password>@db.academic-writing.internal:5432/<isolated-recovery-database>
+    RESTORE_DATABASE_NAME_CONFIRM=<isolated-recovery-database>
     DATABASE_SSL_CA_FILE=/etc/academic-writing-platform/postgres-ca.pem
     PGSSLMODE=verify-full
     PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem
@@ -46,6 +49,15 @@ and the read-only `scripts/verify-production-database.js` pre-start gate.
 only by the production migration runner. `production migration has no DATABASE_URL fallback`;
 a missing migration URL fails closed before any database connection or PM2
 start. Neither URL value may appear in logs or deployment evidence.
+
+`BACKUP_DATABASE_URL` is a read-only operational connection and is never used
+by the runtime or migration runner. It is introduced only after canonical
+grants create `academic_writing_backup`, through the explicit
+`NORMAL_FUTURE_ROTATION --bootstrap-backup-credential` flow. This additive
+bootstrap does not change the four-key initial-compromise rotation contract.
+`RESTORE_DATABASE_URL` is operator-supplied only for a confirmed isolated
+recovery database and must never identify the live database. None of these URL
+values may appear in logs or evidence.
 
 ## Auth0 public configuration
 

@@ -42,7 +42,7 @@ jobs:
       - name: Verify Nginx and application upload boundaries
         env:
           P3_NGINX_UPLOAD_INTEGRATION: YES
-        run: npx jest test/integration/p3-upload-boundary.integration.spec.ts test/unit/p3-deployment-contract.spec.ts --runInBand
+        run: npx jest test/integration/p3-acme-webroot.integration.spec.ts test/integration/p3-upload-boundary.integration.spec.ts test/unit/p3-deployment-contract.spec.ts --runInBand
 
   verify:
     runs-on: ubuntu-latest
@@ -414,7 +414,7 @@ jobs:
           P3_POSTGRES_ROLE_INTEGRATION: YES
           P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
           P3_PRODUCTION_DATABASE_VERIFY_SCRIPT: ${{ github.workspace }}/dist/scripts/verify-production-database.js
-        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts --runInBand
+        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/integration/p3-backup-restore.integration.spec.ts --runInBand
 
       - name: Verify approved previous-release rollback compatibility
         env:
@@ -425,16 +425,4 @@ jobs:
       - name: Verify accepted PostgreSQL feature regressions
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-        run: npx jest test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts --runInBand
-
-      - name: Create PostgreSQL backup
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-          BACKUP_OUTPUT_PATH: /tmp/academic-writing-test.dump
-        run: npm run db:backup
-
-      - name: Restore and verify PostgreSQL backup
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-          BACKUP_INPUT_PATH: /tmp/academic-writing-test.dump
-        run: npm run db:restore:verify -- --confirm-restore
+        run: npx jest test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts test/integration/p3-real-pdf-knowledge-pipeline.integration.spec.ts --runInBand
