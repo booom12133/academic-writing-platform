@@ -1,8 +1,9 @@
 # P3 Acceptance Evidence
 
 This document records the authorized P3 production deployment and revalidation
-evidence. It is not an acceptance decision, does not grant
-`PHASE_P3_ACCEPTED`, and does not authorize any further production mutation.
+evidence. Controller Final Acceptance was subsequently granted as
+`PHASE_P3_ACCEPTED`; acceptance does not authorize merge, tag, or any further
+production mutation.
 
 ## Identity
 
@@ -12,6 +13,9 @@ evidence. It is not an acceptance decision, does not grant
 - Base SHA: `666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d`
 - Candidate commit: `40d83f351ad5b42b1b1849919b0bc231098aa75f`
 - Production release SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`
+- Final Acceptance governance HEAD: `17e7a463773d52e1dc9e562e06a0203fc54f4ae9`
+- Controller Acceptance comment ID: `5733219396`
+- Authoritative CI run: `35369858150` — all five required jobs `SUCCESS`
 - Release package: `academic-writing-platform-p3-40d83f351ad5b42b1b1849919b0bc231098aa75f.tar.gz`
 - Package size: `54,986,604 bytes`
 - Package SHA-256: `8b6a1f05b4c7830581a26f62be46c86868ef524f8bbdca92aaf4dd670d6b2e1f`
@@ -201,12 +205,17 @@ authorized by this evidence update.
 P3_REMEDIATION_CODE_REVIEW_PASS
 P3_PRODUCTION_REVALIDATION_COMPLETE_WITH_ONE_DEFERRED_ITEM
 ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED
-FINAL_ACCEPTANCE_PENDING
-P3_ACCEPTED=NO
+PHASE_P3_ACCEPTED
+P3_ACCEPTED=YES
 P3_ACCEPTED_CLOSED=NO
-STOP_FOR_CHATGPT_REVIEW=YES
+FINAL_ACCEPTANCE_GOVERNANCE_HEAD=17e7a463773d52e1dc9e562e06a0203fc54f4ae9
+CONTROLLER_ACCEPTANCE_COMMENT_ID=5733219396
+AUTHORITATIVE_CI_RUN=35369858150
+MERGE_PENDING=YES
 ```
 
-The only deferred item is `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`. P3 has
-not received explicit Final Acceptance; no P3 Final Acceptance Report has been
-created.
+The only deferred item is `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`. It is
+non-blocking for P3 acceptance and remains follow-up backlog; it is not a
+`PASS`. P3 is accepted but not closed. Merge, final main CI, post-merge
+governance closeout, annotated tag creation, and tag-target verification remain
+outstanding and separately gated.

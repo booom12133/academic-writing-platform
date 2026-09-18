@@ -157,7 +157,7 @@ describe('P3 deployment contract', () => {
     expect(evidence).toContain('AUTHENTICATED_PROVIDER_ACCEPTANCE=PASS');
     expect(evidence).not.toContain('RUNTIME_UNKNOWN');
     expect(evidence).toContain('ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED');
-    expect(evidence).toContain('P3_ACCEPTED=NO');
+    expect(evidence).toContain('P3_ACCEPTED=YES');
     expect(evidence).toContain('P3_ACCEPTED_CLOSED=NO');
     expect(rollback).not.toMatch(
       /db-migrate|migration down|DROP SCHEMA|pg_restore/iu,
