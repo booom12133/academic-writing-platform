@@ -3,8 +3,6 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import { createP3PostgresRoleFixture, type P3PostgresRoleFixture } from '../support/p3-postgres-role-fixture';
 
@@ -12,6 +10,8 @@ import { createP3PostgresRoleFixture, type P3PostgresRoleFixture } from '../supp
 const { createBackupInvocation, runBackup } = require('../../scripts/db-backup.js');
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { runRestoreVerify } = require('../../scripts/db-restore-verify.js');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { assertControlledMigrationPreconditions, runMigrations } = require('../../scripts/db-migrate.js');
 
 const enabled = process.env.P3_POSTGRES_ROLE_INTEGRATION === 'YES';
 const describeIfEnabled = enabled ? describe : describe.skip;
@@ -43,8 +43,13 @@ describeIfEnabled('P3 dedicated backup and isolated restore', () => {
   beforeAll(async () => {
     fixture = await createP3PostgresRoleFixture();
     const migrator = verifiedPool(fixture.migratorUrl, fixture.caFile);
-    await migrate(drizzle(migrator), { migrationsFolder: 'drizzle/migrations' });
-    await migrator.end();
+    const migrationClient = await migrator.connect();
+    try {
+      await assertControlledMigrationPreconditions(migrationClient, { production: true });
+    } finally {
+      migrationClient.release();
+    }
+    await runMigrations({ pool: migrator });
     await fixture.applyCanonicalGrants();
     const app = verifiedPool(fixture.appUrl, fixture.caFile);
     await app.query("INSERT INTO app_users (user_id, username) VALUES ('p3-backup-user', 'Backup Fixture')");
