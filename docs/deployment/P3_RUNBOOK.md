@@ -254,7 +254,6 @@ created by root under a root-only directory so the resulting dump and receipts
 satisfy rollback preflight:
 
     cd /opt/academic-writing-platform/current/app
-    node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
     node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
     sudo install -d -o root -g root -m 700 /var/backups/academic-writing-platform
     sudo env BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump BACKUP_EVIDENCE_PATH=/var/backups/academic-writing-platform/<timestamp>.backup.receipt.json node --env-file=/etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app/scripts/db-backup.js

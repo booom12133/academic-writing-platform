@@ -163,12 +163,19 @@ describe('P3 deployment contract', () => {
 
   it('documents root-controlled backup and isolated restore artifacts accepted by rollback preflight', () => {
     const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
+    const databaseOperations = runbook
+      .split('## Database operations')[1]
+      ?.split('## ACME webroot renewal')[0];
     const operations = readProjectFile(
       'docs/operations/database-backup-restore.md',
     );
     const rollbackPreflight = readProjectFile(
       'deploy/scripts/rollback-preflight.js',
     );
+
+    expect(databaseOperations).toBeDefined();
+    expect(databaseOperations).toContain('verify-production-database.js');
+    expect(databaseOperations).not.toContain('db-migrate.js');
 
     for (const document of [runbook, operations]) {
       expect(document).toContain(
