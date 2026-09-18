@@ -25,7 +25,7 @@ tag are pending post-merge closeout.
 | E6 | Grounded Generation / Citation | Evidence-grounded generation and traceable academic citation | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
-| P3 | Deployment / Production E2E | Final remediation candidate for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning | IMPLEMENTATION / CONTROLLER CODE REVIEW PENDING | No |
+| P3 | Deployment / Production E2E | Production deployment and revalidation for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning; full-text direct import deferred | PRODUCTION REVALIDATION COMPLETE / FINAL ACCEPTANCE PENDING | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -93,3 +93,15 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 - Candidate CI run `34236991699`: `verify`, `postgres-schema`, and `production-gates` all SUCCESS.
 - Status: `PHASE_P2_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required for `P2_ACCEPTED_CLOSED`.
 - P3: `NOT_STARTED / NOT AUTHORIZED`.
+
+## Phase P3 current record
+
+- Branch: `phase/p3-deployment-e2e`.
+- PR: [#16 P3 WP6 Step5B real deployment E2E validation](https://github.com/booom12133/academic-writing-platform/pull/16), OPEN.
+- Candidate and production release SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`.
+- Review: `P3_REMEDIATION_CODE_REVIEW_PASS`.
+- Production status: `P3_PRODUCTION_REVALIDATION_COMPLETE_WITH_ONE_DEFERRED_ITEM`.
+- Deferred item: `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`; it is non-blocking for governance closure and remains follow-up backlog.
+- Governance status: `FINAL_ACCEPTANCE_PENDING`; `P3_ACCEPTED=NO`; `P3_ACCEPTED_CLOSED=NO`.
+- Merge and tag remain unauthorized; P3 is not accepted, closed, merged, or tagged.
+- Rollback, reboot, and production migration rerun remain unauthorized.

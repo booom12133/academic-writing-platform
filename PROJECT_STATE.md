@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-18
+Last Updated: 2026-09-19
 
 ## Project
 
@@ -23,13 +23,18 @@ Last Updated: 2026-09-18
 
 ## Current development
 
-- Current Development: Phase P3 final remediation implementation is authorized on `phase/p3-deployment-e2e`, PR #16. Code is being prepared for Controller review; production deployment/revalidation remains NOT AUTHORIZED.
+- Current Development: Phase P3 production deployment and revalidation are complete on `phase/p3-deployment-e2e`, PR #16, for candidate `40d83f351ad5b42b1b1849919b0bc231098aa75f`. The remediation code review passed; one non-blocking item is deferred and formal Final Acceptance remains pending.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
 - P2 PR: [#15 Phase P2: complete product integration and MVP UX flows](https://github.com/booom12133/academic-writing-platform/pull/15), MERGED with merge commit `171dcac876cf097c010b00ebf39aa7abc9231caf`.
 - P2 Final Acceptance Report: [PHASE_P2_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P2_FINAL_ACCEPTANCE_REPORT.md).
 - P2 Final Acceptance Preparation: `f19af1434300113acb096f141b843ce2e0cf1127`; Review-Pass CI run `34235018088` and final preparation CI run `34236991699` passed `verify`, `postgres-schema`, and `production-gates`.
-- P3 status: `FINAL_REMEDIATION_IMPLEMENTATION / CONTROLLER_CODE_REVIEW_PENDING`; `PRODUCTION_ROLLBACK_AUTHORIZED=NO`, merge/tag/production operations remain unauthorized.
+- P3 candidate SHA: `40d83f351ad5b42b1b1849919b0bc231098aa75f`; production release uses the same SHA.
+- P3 remediation review: `P3_REMEDIATION_CODE_REVIEW_PASS`.
+- P3 production status: `P3_PRODUCTION_REVALIDATION_COMPLETE_WITH_ONE_DEFERRED_ITEM`; the only deferred item is `ACADEMIC_SEARCH_FULL_TEXT_IMPORT_DEFERRED`, retained as non-blocking follow-up backlog.
+- P3 governance status: `FINAL_ACCEPTANCE_PENDING`; `P3_ACCEPTED=NO`; `P3_ACCEPTED_CLOSED=NO`; PR #16 remains OPEN and no P3 Final Acceptance Report has been created.
+- P3 authorization boundary: `PRODUCTION_ROLLBACK_AUTHORIZED = NO`; `DATABASE_MIGRATION_RERUN_AUTHORIZED = NO`; `REBOOT_AUTHORIZED = NO`; `MERGE_AUTHORIZED = NO`; `TAG_AUTHORIZED = NO`; `E2E-10 rollback = BLOCKED_BY_AUTHORIZATION`.
+- P3 production mutation boundary: `NO PRODUCTION MIGRATION RERUN`; no rollback, reboot, merge, tag, or new production mutation is authorized by the governance evidence update.
 - P1 status: `PHASE_P1_ACCEPTED`; `P1_ACCEPTED_CLOSED=NO` until final `main` CI succeeds and the annotated `phase-p1-accepted` tag is verified.
 - P1 branch: `phase-p1`.
 - P1 PR: [#14 P1 Production Readiness](https://github.com/booom12133/academic-writing-platform/pull/14), MERGED with merge commit `03b730454edc1b22add8af527eac8c08e9ef301e`.
