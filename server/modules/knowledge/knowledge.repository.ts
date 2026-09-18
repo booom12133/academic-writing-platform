@@ -46,6 +46,7 @@ export interface KnowledgeRepositoryPort {
   refreshSourceRecord?(input: { userId: string; sourceRecordId: string; canonicalMetadata: CreateSourceRecordInput['canonicalMetadata']; metadataAssertions: MetadataAssertionInput[]; externalProvenance: ExternalProvenance[] }): Promise<SourceRecord>;
   createExternalLinks(input: { userId: string; sourceRecordId: string; links: ExternalProvenance[] }): Promise<void>;
   getSourceRecord(userId: string, sourceRecordId: string): Promise<SourceRecord | null>;
+  listSourceRecords?(userId: string): Promise<SourceRecord[]>;
   createDocument(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocument>;
   createDocumentWithExternalIdentityArbitration?(input: KnowledgeDocumentCreateInput): Promise<KnowledgeDocumentCreateResult>;
   createVersion(input: Omit<KnowledgeDocumentVersion, 'id' | 'createdAt'>): Promise<KnowledgeDocumentVersion>;
@@ -361,6 +362,15 @@ export class KnowledgeRepository {
     if (!source) return null;
     const links = await this.db.select().from(knowledgeSourceExternalLinks).where(and(eq(knowledgeSourceExternalLinks.sourceRecordId, sourceRecordId), eq(knowledgeSourceExternalLinks.userId, userId)));
     return toSourceRecord(source, links);
+  }
+
+  async listSourceRecords(userId: string): Promise<SourceRecord[]> {
+    const rows = await this.db.select({ id: knowledgeSourceRecords.id })
+      .from(knowledgeSourceRecords)
+      .where(and(eq(knowledgeSourceRecords.userId, userId), eq(knowledgeSourceRecords.status, 'active')))
+      .orderBy(desc(knowledgeSourceRecords.updatedAt), desc(knowledgeSourceRecords.createdAt));
+    const records = await Promise.all(rows.map((row) => this.getSourceRecord(userId, row.id)));
+    return records.filter((record): record is SourceRecord => record !== null);
   }
 
   private async validateDocumentInput(input: KnowledgeDocumentCreateInput): Promise<void> {

@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react';
+import { useLocation } from 'react-router-dom';
 import { authClient } from '@lark-apaas/client-toolkit/auth';
 import { getAxiosForBackend } from '@lark-apaas/client-toolkit/utils/getAxiosForBackend';
 
@@ -29,6 +30,7 @@ export interface AppAuthContextValue extends AuthSessionSnapshot {
   logout: () => Promise<void>;
   canSignOut: boolean;
   beginLogin?: (returnUrl: string) => Promise<void>;
+  completeLogin?: () => Promise<{ session: AuthSessionSnapshot; returnUrl: string }>;
 }
 
 const AppAuthContext = createContext<AppAuthContextValue | null>(null);
@@ -46,6 +48,7 @@ export function AppAuthProvider({
   adapter: providedAdapter,
   runtimeDependencies,
 }: AppAuthProviderProps) {
+  const location = useLocation();
   const adapter = useMemo(
     () =>
       providedAdapter ??
@@ -82,8 +85,10 @@ export function AppAuthProvider({
       getAccessToken: adapter.getAccessToken,
       onUnauthorized: () => setSession({ status: 'anonymous' }),
     });
-    void refreshSession();
-  }, [adapter, refreshSession]);
+    if (location.pathname !== '/auth/callback') {
+      void refreshSession();
+    }
+  }, [adapter, location.pathname, refreshSession]);
 
   const logout = useCallback(async () => {
     const nextSession = await logoutWithAdapter(adapter, refreshSession);
@@ -100,6 +105,25 @@ export function AppAuthProvider({
     [adapter],
   );
 
+  const completeLogin = useCallback(async () => {
+    if (!adapter.completeLogin) {
+      throw new Error('AUTH_CONFIGURATION_UNAVAILABLE');
+    }
+    setSession({ status: 'loading' });
+    try {
+      const result = await adapter.completeLogin();
+      setSession(result.session);
+      return result;
+    } catch (_error) {
+      const nextSession: AuthSessionSnapshot = {
+        status: 'error',
+        errorCode: 'AUTH_PROVIDER_ERROR',
+      };
+      setSession(nextSession);
+      throw _error;
+    }
+  }, [adapter]);
+
   const value = useMemo<AppAuthContextValue>(
     () => ({
       ...session,
@@ -107,6 +131,7 @@ export function AppAuthProvider({
       logout,
       canSignOut: Boolean(adapter.signOut),
       ...(adapter.beginLogin ? { beginLogin } : {}),
+      ...(adapter.completeLogin ? { completeLogin } : {}),
     }),
     [adapter.beginLogin, adapter.signOut, beginLogin, logout, refreshSession, session],
   );

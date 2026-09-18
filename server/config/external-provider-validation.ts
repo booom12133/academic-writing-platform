@@ -1,3 +1,5 @@
+import { resolveEmbeddingProductionConfig } from '../modules/knowledge/indexing/embedding-production-config';
+
 function required(env: NodeJS.ProcessEnv, name: string): string {
   const value = env[name]?.trim();
   if (!value) throw new Error(`${name} is required in production.`);
@@ -21,6 +23,8 @@ export function validateProductionExternalProviderConfig(
   required(env, 'DEEPSEEK_API_KEY');
   requireHttps(env, 'DEEPSEEK_BASE_URL', 'https://api.deepseek.com');
   required(env, 'DEEPSEEK_DEFAULT_MODEL');
+
+  resolveEmbeddingProductionConfig(env);
 
   requireHttps(env, 'OPENALEX_API_BASE_URL', 'https://api.openalex.org');
   required(env, 'ACADEMIC_SEARCH_CURSOR_SECRET');

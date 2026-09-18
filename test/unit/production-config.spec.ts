@@ -7,6 +7,8 @@ const validProductionEnv = {
   RUNTIME_PROFILE: 'standalone',
   DATABASE_URL:
     'postgresql://postgres:postgres@127.0.0.1:5432/academic_writing_test',
+  MIGRATION_DATABASE_URL:
+    'postgresql://academic_writing_migrator:postgres@127.0.0.1:5432/academic_writing_test',
   DOCUMENT_STORAGE_ROOT: resolve('academic-writing-documents'),
   OIDC_ISSUER_URL: 'https://issuer.example.com',
   OIDC_AUDIENCE: 'academic-writing-platform',
@@ -14,6 +16,11 @@ const validProductionEnv = {
   CORS_ALLOWED_ORIGINS: 'https://app.example.com',
   DEEPSEEK_API_KEY: 'test-deepseek-key',
   DEEPSEEK_DEFAULT_MODEL: 'deepseek-v4-flash',
+  EMBEDDING_BASE_URL: 'https://api.siliconflow.cn/v1',
+  EMBEDDING_API_KEY: 'test-embedding-key',
+  EMBEDDING_MODEL: 'BAAI/bge-m3',
+  EMBEDDING_DIMENSIONS: '1024',
+  EMBEDDING_TIMEOUT_MS: '10000',
   OPENALEX_API_BASE_URL: 'https://api.openalex.org',
   ACADEMIC_SEARCH_CURSOR_SECRET: 'test-cursor-secret',
   ZOTERO_API_BASE_URL: 'https://api.zotero.org',
@@ -83,4 +90,29 @@ describe('production configuration gate', () => {
   ])('rejects an invalid production boundary', (environment, message) => {
     expect(() => loadRuntimeConfig(environment)).toThrow(message);
   });
+
+  it.each(['DATABASE_URL', 'MIGRATION_DATABASE_URL'] as const)(
+    'rejects PostgreSQL SSL query parameters in %s before deployment mutation',
+    (variableName) => {
+      for (const parameter of ['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert']) {
+        const secretUrl =
+          `postgresql://user:sentinel-password@db.example/academic_writing?${parameter}=sentinel-value`;
+        expect(() =>
+          loadRuntimeConfig({
+            ...validProductionEnv,
+            [variableName]: secretUrl,
+          }),
+        ).toThrow(new RegExp(`${variableName} must not include PostgreSQL SSL query parameters`));
+        try {
+          loadRuntimeConfig({
+            ...validProductionEnv,
+            [variableName]: secretUrl,
+          });
+        } catch (error) {
+          expect(String(error)).not.toContain(secretUrl);
+          expect(String(error)).not.toContain('sentinel-password');
+        }
+      }
+    },
+  );
 });

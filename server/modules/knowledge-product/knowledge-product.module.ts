@@ -6,13 +6,14 @@ import { KnowledgeModule } from '../knowledge/knowledge.module';
 import {
   KnowledgeProductController,
   KnowledgeProductIndexController,
+  KnowledgeProductSourceController,
 } from './knowledge-product.controller';
 import { KnowledgeProductIndexingService } from './knowledge-product.indexing';
 import { KnowledgeProductService } from './knowledge-product.service';
 
 @Module({
   imports: [KnowledgeModule, KnowledgeIndexingModule, DocumentInputModule],
-  controllers: [KnowledgeProductController, KnowledgeProductIndexController],
+  controllers: [KnowledgeProductController, KnowledgeProductIndexController, KnowledgeProductSourceController],
   providers: [KnowledgeProductService, KnowledgeProductIndexingService],
   exports: [KnowledgeProductService],
 })

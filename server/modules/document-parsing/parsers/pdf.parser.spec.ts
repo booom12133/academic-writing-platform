@@ -2,12 +2,42 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 import type { ValidatedDocumentInput } from '../document-parser.interface';
+import { DocumentParserService } from '../document-parser.service';
 import { DocumentNormalizer } from '../document-normalizer';
 import { PdfParser } from './pdf.parser';
 
 const fixture = (name: string) => join(process.cwd(), 'server', 'modules', 'document-parsing', '__fixtures__', name);
 
 describe('PdfParser', () => {
+  it('parses the real-world selectable-text academic PDF deterministically', async () => {
+    const buffer = await readFile(fixture('academic-textual-realworld.pdf'));
+    const draft = await new PdfParser().parse({
+      buffer,
+      fileName: 'academic-textual-realworld.pdf',
+      mimeType: 'application/pdf',
+      extension: '.pdf',
+      sourceType: 'pdf',
+      sizeBytes: buffer.length,
+    } satisfies ValidatedDocumentInput);
+
+    expect(draft.metadata.pageCount).toBe(23);
+    expect(draft.blocks.some((block) => block.text.trim().length > 0)).toBe(true);
+  });
+
+  it('normalizes the real-world selectable-text academic PDF', async () => {
+    const buffer = await readFile(fixture('academic-textual-realworld.pdf'));
+    const service = new DocumentParserService([new PdfParser()]);
+
+    await expect(service.parse({
+      buffer,
+      fileName: 'academic-textual-realworld.pdf',
+      mimeType: 'application/pdf',
+    })).resolves.toMatchObject({
+      source: { sizeBytes: 634609, type: 'pdf' },
+      metadata: { pageCount: 23 },
+    });
+  });
+
   it('extracts selectable text with page provenance and page count', async () => {
     const buffer = await readFile(fixture('academic-basic.pdf'));
     const draft = await new PdfParser().parse({

@@ -6,7 +6,7 @@
     "preserveWatchOutput": true,
     "paths": {
       "@server/*": ["server/*"],
-      "@shared/*": ["shared/*"],
+      "@shared/*": ["shared/*"]
     },
     "types": ["node", "jest"]
   },
@@ -14,5 +14,13 @@
     "excludeDirectories": ["node_modules/**"]
   },
   "include": ["server/**/*", "shared/**/*.ts"],
-  "exclude": ["node_modules", "dist", "client", "source_package", "**/*.e2e-spec.ts"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "client",
+    "source_package",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.e2e-spec.ts"
+  ]
 }

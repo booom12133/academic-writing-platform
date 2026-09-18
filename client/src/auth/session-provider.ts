@@ -8,6 +8,7 @@ import type {
   StandaloneAuthBridge,
 } from './session.types';
 import { isRealAccessToken } from './session.types';
+import { createLazyStandaloneOidcAuthBridge } from './standalone-oidc';
 
 const AUTH_PROVIDER_ERROR = 'AUTH_PROVIDER_ERROR';
 const AUTH_CONFIGURATION_UNAVAILABLE = 'AUTH_CONFIGURATION_UNAVAILABLE';
@@ -156,6 +157,9 @@ export function createStandaloneAuthAdapter(
         return null;
       }
     },
+    ...(bridge?.completeLogin
+      ? { completeLogin: bridge.completeLogin }
+      : {}),
     ...(bridge?.beginLogin ? { beginLogin: bridge.beginLogin } : {}),
     ...(bridge?.signOut ? { signOut: bridge.signOut } : {}),
   };
@@ -166,12 +170,6 @@ function runtimeProfile(): 'local' | 'platform' | 'standalone' | undefined {
   return profile === 'local' || profile === 'platform' || profile === 'standalone'
     ? profile
     : undefined;
-}
-
-function standaloneBridgeFromHost(): StandaloneAuthBridge | undefined {
-  if (typeof window === 'undefined') return undefined;
-  return (window as Window & { __academicWritingAuthBridge?: StandaloneAuthBridge })
-    .__academicWritingAuthBridge;
 }
 
 export interface RuntimeAuthAdapterDependencies {
@@ -205,7 +203,10 @@ export function createRuntimeAuthAdapter(
     (!profile && process.env.NODE_ENV === 'production')
   ) {
     return createStandaloneAuthAdapter(
-      dependencies.standaloneBridge ?? standaloneBridgeFromHost(),
+      dependencies.standaloneBridge ??
+        (typeof window !== 'undefined'
+          ? createLazyStandaloneOidcAuthBridge()
+          : undefined),
     );
   }
   return createLocalAuthAdapter(dependencies.loadLocalProfile);

@@ -5,6 +5,7 @@ import MyTasks from './pages/MyTasks';
 import Orders from './pages/Orders';
 import PointRecords from './pages/PointRecords';
 import Settings from './pages/Settings';
+import Integrations from './pages/Integrations';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('dashboard');
@@ -21,6 +22,8 @@ export default function ProfilePage() {
         return <PointRecords />;
       case 'settings':
         return <Settings />;
+      case 'integrations':
+        return <Integrations />;
       default:
         return null;
     }

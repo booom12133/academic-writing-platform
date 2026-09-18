@@ -51,6 +51,8 @@ Thumbs.db
 tmp/
 temp/
 .playwright-cli/
+playwright-report/
+test-results/
 
 # Lock files (keep package-lock.json for consistent installs)
 yarn.lock

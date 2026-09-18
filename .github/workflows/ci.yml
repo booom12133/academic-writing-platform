@@ -7,6 +7,43 @@ on:
     branches: [main]
 
 jobs:
+  nginx-upload-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Extract a disposable Nginx binary
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          package_dir="$RUNNER_TEMP/p3-a6-nginx-package"
+          mkdir -p "$package_dir"
+          cd "$package_dir"
+          apt-get download nginx
+          package_file="$(find . -maxdepth 1 -name 'nginx_*.deb' -print -quit)"
+          test -n "$package_file"
+          dpkg-deb --extract "$package_file" root
+          test -x "$package_dir/root/usr/sbin/nginx"
+          echo "$package_dir/root/usr/sbin" >> "$GITHUB_PATH"
+          "$package_dir/root/usr/sbin/nginx" -v
+
+      - name: Verify Nginx and application upload boundaries
+        env:
+          P3_NGINX_UPLOAD_INTEGRATION: YES
+        run: npx jest test/integration/p3-acme-webroot.integration.spec.ts test/integration/p3-upload-boundary.integration.spec.ts test/unit/p3-deployment-contract.spec.ts --runInBand
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -43,7 +80,7 @@ jobs:
         run: npm run build:client
 
   production-gates:
-    needs: verify
+    needs: [verify, wp6-step5b, nginx-upload-boundary, postgres-schema]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -59,8 +96,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate production shell syntax
+        run: npx jest test/unit/p3-deployment-shell-syntax.spec.ts --runInBand
+
       - name: Validate production configuration and shutdown contracts
-        run: npm test -- --runInBand test/unit/production-config.spec.ts test/unit/production-bootstrap.spec.ts test/unit/graceful-shutdown.spec.ts test/unit/reproducible-build.spec.ts
+        run: npm test -- --runInBand test/unit/production-config.spec.ts test/unit/production-bootstrap.spec.ts test/unit/graceful-shutdown.spec.ts test/unit/reproducible-build.spec.ts test/unit/p3-wp6-security-contract.spec.ts
+
+      - name: Validate Part A remediation contracts
+        run: >-
+          npx jest
+          test/unit/db-migrate.spec.ts
+          test/unit/db-migration-schema-contract.spec.ts
+          test/unit/postgres-role-grants.spec.ts
+          test/unit/verify-production-database.spec.ts
+          test/integration/p3-first-deploy-composition.spec.ts
+          test/unit/p3-health-auth-contract.spec.ts
+          test/unit/p3-wp6-security-contract.spec.ts
+          test/unit/p3-deployment-contract.spec.ts
+          test/unit/p3-release-integrity.spec.ts
+          test/unit/production-artifact-closure.spec.ts
+          test/unit/production-artifact-frontend-smoke.spec.ts
+          test/unit/p3-pm2-systemd-handoff.spec.ts
+          --runInBand
 
       - name: Validate production tooling is reproducible
         run: node scripts/test-reproducible-build.js
@@ -71,9 +128,183 @@ jobs:
       - name: Smoke test clean production artifact
         run: node scripts/test-production-artifact.js
 
+  wp6-step5b:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: academic_writing
+          POSTGRES_PASSWORD: synthetic-bootstrap-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d academic_writing"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare reviewed shell entrypoints
+        run: |
+          set -euo pipefail
+          chmod +x deploy/scripts/rotate-production-env.sh deploy/scripts/verify-production-env.sh
+          node_path="$(command -v node)"
+          test -x "$node_path"
+          sudo ln -sf "$node_path" /usr/local/bin/node
+          test -x /usr/local/bin/node
+
+      - name: Create production-equivalent service identity
+        run: |
+          set -euo pipefail
+          sudo groupadd --system academic-writing || true
+          sudo useradd --system \
+            --gid academic-writing \
+            --home-dir /nonexistent \
+            --shell /usr/sbin/nologin \
+            academic-writing || true
+          id academic-writing
+          getent group academic-writing
+
+      - name: Configure PostgreSQL 16 TLS and SCRAM
+        run: |
+          set -euo pipefail
+          tls_dir="$RUNNER_TEMP/p3-wp6-tls"
+          mkdir -p "$tls_dir"
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/ca.key" \
+            -out "$tls_dir/ca.pem" \
+            -days 1 \
+            -subj '/CN=P3 WP6 disposable PostgreSQL CA'
+          openssl req -new -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/server.key" \
+            -out "$tls_dir/server.csr" \
+            -subj '/CN=db.academic-writing.internal'
+          printf '%s\n' \
+            '[v3_req]' \
+            'subjectAltName=DNS:db.academic-writing.internal' \
+            > "$tls_dir/server.ext"
+          openssl x509 -req \
+            -in "$tls_dir/server.csr" \
+            -CA "$tls_dir/ca.pem" \
+            -CAkey "$tls_dir/ca.key" \
+            -CAcreateserial \
+            -out "$tls_dir/server.crt" \
+            -days 1 \
+            -extfile "$tls_dir/server.ext" \
+            -extensions v3_req
+
+          service_id="$(docker ps --filter 'ancestor=pgvector/pgvector:pg16' --format '{{.ID}}' | head -n 1)"
+          test -n "$service_id"
+          docker cp "$tls_dir/server.crt" "$service_id:/var/lib/postgresql/data/server.crt"
+          docker cp "$tls_dir/server.key" "$service_id:/var/lib/postgresql/data/server.key"
+          docker exec "$service_id" chown postgres:postgres \
+            /var/lib/postgresql/data/server.crt \
+            /var/lib/postgresql/data/server.key
+          docker exec "$service_id" chmod 600 /var/lib/postgresql/data/server.key
+          docker exec "$service_id" sh -c \
+            "sed -i '1ihostssl all all 0.0.0.0/0 scram-sha-256' /var/lib/postgresql/data/pg_hba.conf"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres -d academic_writing -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET listen_addresses = '*';" \
+            -c "ALTER SYSTEM SET ssl = 'on';" \
+            -c "ALTER SYSTEM SET password_encryption = 'scram-sha-256';" \
+            -c "ALTER SYSTEM SET log_min_error_statement = 'PANIC';" \
+            -c "ALTER SYSTEM SET ssl_cert_file = '/var/lib/postgresql/data/server.crt';" \
+            -c "ALTER SYSTEM SET ssl_key_file = '/var/lib/postgresql/data/server.key';"
+          docker restart "$service_id"
+          for attempt in $(seq 1 30); do
+            if docker exec -u postgres "$service_id" pg_isready \
+              -U postgres -d academic_writing >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              exit 1
+            fi
+            sleep 1
+          done
+
+          sudo install -d -m 755 /etc/academic-writing-platform
+          sudo install -o root -g academic-writing -m 640 "$tls_dir/ca.pem" \
+            /etc/academic-writing-platform/postgres-ca.pem
+          echo '127.0.0.1 db.academic-writing.internal' | sudo tee -a /etc/hosts >/dev/null
+          test "$(docker exec -u postgres "$service_id" psql -At \
+            -U postgres -d academic_writing -c "SHOW password_encryption")" = 'scram-sha-256'
+          test "$(docker exec -u postgres "$service_id" psql -At \
+            -U postgres -d academic_writing -c "SHOW log_min_error_statement")" = 'panic'
+
+      - name: Build and stage compiled production app root
+        run: |
+          set -euo pipefail
+          npm run build:server
+          staging_root="$RUNNER_TEMP/p3-wp6-app-staging"
+          app_root="/opt/academic-writing-platform/current/app"
+          mkdir -p "$staging_root/server/config" \
+            "$staging_root/server/modules/knowledge/indexing" \
+            "$staging_root/node_modules"
+          cp -R dist/server/config/. "$staging_root/server/config/"
+          cp -R dist/server/modules/knowledge/indexing/. \
+            "$staging_root/server/modules/knowledge/indexing/"
+          cp package.json "$staging_root/package.json"
+          for dependency in \
+            pg \
+            pg-connection-string \
+            pg-pool \
+            pg-protocol \
+            pg-types \
+            pgpass \
+            pg-int8 \
+            postgres-array \
+            postgres-bytea \
+            postgres-date \
+            postgres-interval \
+            split2 \
+            xtend; do
+            cp -R "node_modules/$dependency" "$staging_root/node_modules/$dependency"
+          done
+          sudo rm -rf -- /opt/academic-writing-platform
+          sudo install -d -o root -g root -m 755 "$app_root"
+          sudo cp -R "$staging_root/." "$app_root/"
+          sudo chown -R root:root /opt/academic-writing-platform
+          sudo chmod -R a+rX /opt/academic-writing-platform
+          test -r "$app_root/server/config/production-config.js"
+          test -r "$app_root/node_modules/pg/package.json"
+          echo "P3_WP6_APP_ROOT=$app_root" >> "$GITHUB_ENV"
+          echo "P3_WP6_CA_PATH=/etc/academic-writing-platform/postgres-ca.pem" >> "$GITHUB_ENV"
+          echo 'P3_WP6_DATABASE_HOST=db.academic-writing.internal' >> "$GITHUB_ENV"
+          echo 'P3_WP6_BOOTSTRAP_PASSWORD=synthetic-bootstrap-password' >> "$GITHUB_ENV"
+
+      - name: Run all Step5B scenarios
+        env:
+          P3_WP6_INTEGRATION: YES
+          P3_WP6_PYTHON: python3
+        run: npx jest test/unit/p3-wp6-step5b.integration.spec.ts --runInBand
+
+      - name: Cleanup disposable Step5B host state
+        if: always()
+        run: |
+          set +e
+          sudo rm -rf -- /etc/academic-writing-platform
+          sudo rm -rf -- /opt/academic-writing-platform
+          sudo sed -i '/db\.academic-writing\.internal/d' /etc/hosts
+
   postgres-schema:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -90,6 +321,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -100,29 +333,96 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate standard PostgreSQL migrations
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-        run: npm run db:migrate
+      - name: Build production artifact for database verification
+        run: npm run build
 
-      - name: Verify standard PostgreSQL schema and pgvector
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-        run: npm run test:integration:postgres
+      - name: Configure verified TLS for disposable PostgreSQL service
+        run: |
+          set -euo pipefail
+          tls_dir="$RUNNER_TEMP/p3-postgres-tls"
+          mkdir -p "$tls_dir"
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/ca.key" \
+            -out "$tls_dir/ca.pem" \
+            -days 1 \
+            -subj '/CN=P3 CI PostgreSQL CA'
+          openssl req -new -newkey rsa:2048 -nodes \
+            -keyout "$tls_dir/server.key" \
+            -out "$tls_dir/server.csr" \
+            -subj '/CN=localhost'
+          printf '%s\n' \
+            'subjectAltName=DNS:localhost,IP:127.0.0.1' \
+            > "$tls_dir/server.ext"
+          openssl x509 -req \
+            -in "$tls_dir/server.csr" \
+            -CA "$tls_dir/ca.pem" \
+            -CAkey "$tls_dir/ca.key" \
+            -CAcreateserial \
+            -out "$tls_dir/server.crt" \
+            -days 1 \
+            -extfile "$tls_dir/server.ext"
 
-      - name: Re-run migrations as an upgrade gate
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-        run: npm run db:migrate
+          service_id="$(docker ps --filter 'ancestor=pgvector/pgvector:pg16' --format '{{.ID}}' | head -n 1)"
+          test -n "$service_id"
+          docker cp "$tls_dir/server.crt" "$service_id:/var/lib/postgresql/data/server.crt"
+          docker cp "$tls_dir/server.key" "$service_id:/var/lib/postgresql/data/server.key"
+          docker exec "$service_id" chown postgres:postgres \
+            /var/lib/postgresql/data/server.crt \
+            /var/lib/postgresql/data/server.key
+          docker exec "$service_id" chmod 600 \
+            /var/lib/postgresql/data/server.key
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl = 'on';"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl_cert_file = '/var/lib/postgresql/data/server.crt';"
+          docker exec -u postgres "$service_id" psql \
+            -U postgres \
+            -d academic_writing_test \
+            -v ON_ERROR_STOP=1 \
+            -c "ALTER SYSTEM SET ssl_key_file = '/var/lib/postgresql/data/server.key';"
+          docker restart "$service_id"
+          for attempt in $(seq 1 30); do
+            if docker exec -u postgres "$service_id" pg_isready \
+              -U postgres -d academic_writing_test >/dev/null 2>&1; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              exit 1
+            fi
+            sleep 1
+          done
 
-      - name: Create PostgreSQL backup
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-          BACKUP_OUTPUT_PATH: /tmp/academic-writing-test.dump
-        run: npm run db:backup
+          sudo install -d -m 755 /etc/academic-writing-platform
+          sudo install -m 644 "$tls_dir/ca.pem" \
+            /etc/academic-writing-platform/postgres-ca.pem
+          {
+            echo 'PGSSLMODE=verify-full'
+            echo 'PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem'
+            echo 'DATABASE_SSL=require'
+            echo 'DATABASE_SSL_CA_FILE=/etc/academic-writing-platform/postgres-ca.pem'
+          } >> "$GITHUB_ENV"
 
-      - name: Restore and verify PostgreSQL backup
+      - name: Verify least-privilege grants and controlled migrations
+        env:
+          P3_POSTGRES_ROLE_INTEGRATION: YES
+          P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+          P3_PRODUCTION_DATABASE_VERIFY_SCRIPT: ${{ github.workspace }}/dist/scripts/verify-production-database.js
+        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/integration/p3-backup-restore.integration.spec.ts --runInBand
+
+      - name: Verify approved previous-release rollback compatibility
+        env:
+          P3_ROLLBACK_COMPAT_PREVIOUS_SHA: 666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d
+          P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
+        run: npx jest test/integration/p3-rollback-compatibility.integration.spec.ts --runInBand
+
+      - name: Verify accepted PostgreSQL feature regressions
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
-          BACKUP_INPUT_PATH: /tmp/academic-writing-test.dump
-        run: npm run db:restore:verify -- --confirm-restore
+        run: npx jest test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts test/integration/p3-real-pdf-knowledge-pipeline.integration.spec.ts --runInBand

@@ -27,6 +27,10 @@ export class KnowledgeProductController {
     return this.service.listDocuments(this.requireUser(req));
   }
 
+  async listSources(req: Request) {
+    return this.service.listSources(this.requireUser(req));
+  }
+
   async getDocument(req: Request, documentId: string) {
     return this.service.getDocument(this.requireUser(req), documentId);
   }
@@ -57,6 +61,15 @@ export class KnowledgeProductIndexController {
     const userId = req.userContext?.userId;
     if (!userId) throw new UnauthorizedException('Authentication is required.');
     return this.service.retryIndex(userId, indexId);
+  }
+}
+
+export class KnowledgeProductSourceController {
+  constructor(private readonly service: KnowledgeProductService) {}
+  async listSources(req: Request) {
+    const userId = req.userContext?.userId;
+    if (!userId) throw new UnauthorizedException('Authentication is required.');
+    return this.service.listSources(userId);
   }
 }
 
@@ -97,3 +110,10 @@ NeedLogin()(KnowledgeProductIndexController.prototype, 'retryIndex', Object.getO
 Post(':indexId/retry')(KnowledgeProductIndexController.prototype, 'retryIndex', Object.getOwnPropertyDescriptor(KnowledgeProductIndexController.prototype, 'retryIndex')!);
 Req()(KnowledgeProductIndexController.prototype, 'retryIndex', 0);
 Param('indexId')(KnowledgeProductIndexController.prototype, 'retryIndex', 1);
+
+Controller('api/knowledge/sources')(KnowledgeProductSourceController);
+UseFilters(KnowledgeProductExceptionFilter)(KnowledgeProductSourceController);
+Inject(KnowledgeProductService)(KnowledgeProductSourceController, undefined, 0);
+NeedLogin()(KnowledgeProductSourceController.prototype, 'listSources', Object.getOwnPropertyDescriptor(KnowledgeProductSourceController.prototype, 'listSources')!);
+Get()(KnowledgeProductSourceController.prototype, 'listSources', Object.getOwnPropertyDescriptor(KnowledgeProductSourceController.prototype, 'listSources')!);
+Req()(KnowledgeProductSourceController.prototype, 'listSources', 0);

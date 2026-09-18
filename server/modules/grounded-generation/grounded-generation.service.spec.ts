@@ -45,7 +45,7 @@ describe('GroundedGenerationService', () => {
     expect(llm.generate).toHaveBeenCalledWith(expect.objectContaining({ jsonMode: true }));
   });
 
-  it('blocks unbound units by default', async () => {
+  it('blocks an unknown evidence id by default without retrying generation', async () => {
     const evidence = { retrieve: jest.fn().mockResolvedValue(evidenceSet()) };
     const llm = { generate: jest.fn().mockResolvedValue({ ...modelResult, content: JSON.stringify({ segments: [{ segmentId: 'segment-1', units: [{ unitId: 'unit-1', unitType: 'transition', text: 'Unbound.', evidenceRefs: [{ evidenceId: 'chunk:missing' }] }] }] }) }) };
 
@@ -53,6 +53,7 @@ describe('GroundedGenerationService', () => {
       code: 'GROUNDED_GENERATION_CITATION_INVALID',
       httpStatus: 422,
     });
+    expect(llm.generate).toHaveBeenCalledTimes(1);
   });
 
   it('returns partial annotated output when explicitly requested', async () => {
@@ -93,11 +94,13 @@ describe('GroundedGenerationService', () => {
     await expect(new GroundedGenerationService(evidence, rateLimited).generate('user-1', request)).rejects.toMatchObject({
       code: 'GROUNDED_GENERATION_RATE_LIMITED', httpStatus: 429,
     });
+    expect(rateLimited.generate).toHaveBeenCalledTimes(1);
 
     const timedOut = { generate: jest.fn().mockRejectedValue(new Error('DeepSeek request timed out')) };
     await expect(new GroundedGenerationService(evidence, timedOut).generate('user-1', request)).rejects.toMatchObject({
       code: 'GROUNDED_GENERATION_TIMEOUT', httpStatus: 504,
     });
+    expect(timedOut.generate).toHaveBeenCalledTimes(1);
   });
 
   it('maps retrieval orchestration deadline expiry to timeout', async () => {

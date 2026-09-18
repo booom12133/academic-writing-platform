@@ -14,6 +14,7 @@ import {
   indexDocument,
   importDocument,
   listDocuments,
+  listSources,
   retryIndex,
 } from '../../client/src/api/knowledge';
 import type { DocumentInputDescriptor } from '@shared/document-input.interface';
@@ -108,6 +109,13 @@ describe('knowledge product client API', () => {
     expect(remove).toHaveBeenCalledWith(
       `/api/knowledge/documents/${workspaceDocument.document.id}`,
     );
+  });
+
+  it('lists owner-scoped metadata-only sources separately from documents', async () => {
+    const sources = [{ id: 'source-1', kind: 'scholarly-work', contentStatus: 'metadata-only', isGroundedEvidence: false }];
+    (productHttpClient.get as jest.Mock).mockResolvedValueOnce({ data: sources });
+    await expect(listSources()).resolves.toEqual(sources);
+    expect(productHttpClient.get).toHaveBeenCalledWith('/api/knowledge/sources');
   });
 
   it('normalizes product API failures without exposing a raw response', async () => {
@@ -232,6 +240,14 @@ describe('document workspace state', () => {
       displayName: 'Research Paper',
       documentRef: descriptor.document,
     });
+  });
+
+  it('attaches an uploaded PDF to an explicit metadata-only source', async () => {
+    const importIntoWorkspace = jest.fn().mockResolvedValue(workspaceDocument);
+    await runDocumentUploadFlow(new File(['paper'], 'paper.pdf'), {
+      uploadDocument: jest.fn().mockResolvedValue(descriptor), importDocument: importIntoWorkspace, createIdempotencyKey: () => 'uuid-2',
+    }, 'source-1');
+    expect(importIntoWorkspace).toHaveBeenCalledWith(expect.objectContaining({ sourceRecordId: 'source-1' }));
   });
 
   it('labels the failing stage without calling import after upload failure', async () => {

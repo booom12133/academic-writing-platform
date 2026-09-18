@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { and, eq, sql } from 'drizzle-orm';
 import { Pool } from 'pg';
+import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
 import { randomUUID } from 'node:crypto';
 import { knowledgeDocumentVersions, knowledgeDocuments, knowledgeImports } from '../../server/database/schema';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../../server/modules/knowledge/knowledge.repository';
@@ -63,7 +64,11 @@ describeIfDatabase('E4 real PostgreSQL concurrency arbitration', () => {
   let pool: Pool;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: databaseUrl });
+    pool = new Pool(createStandardPostgresConfig({
+      ...process.env,
+      NODE_ENV: 'production',
+      DATABASE_URL: databaseUrl,
+    }));
     await migrate(drizzle(pool), { migrationsFolder: 'drizzle/migrations' });
   });
 

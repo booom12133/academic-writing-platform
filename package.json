@@ -65,6 +65,7 @@
     "htmlparser2": "^9.1.0",
     "mammoth": "^1.12.2",
     "marked": "^4.3.0",
+    "oidc-client-ts": "3.5.0",
     "pdfjs-dist": "^3.11.174",
     "pg": "8.23.0",
     "reflect-metadata": "^0.1.14",
@@ -82,6 +83,7 @@
     "@lark-apaas/fullstack-vite-preset": "^1.0.36",
     "@nestjs/cli": "^10.4.9",
     "@nestjs/testing": "^10.4.20",
+    "@playwright/test": "1.55.0",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -215,7 +217,23 @@
     "testEnvironment": "node",
     "testMatch": [
       "<rootDir>/server/**/*.spec.ts",
-      "<rootDir>/test/unit/**/*.spec.ts"
+      "<rootDir>/test/unit/**/*.spec.ts",
+      "<rootDir>/test/integration/**/*.spec.ts"
+    ],
+    "transform": {
+      "^.+[\\\\/]server[\\\\/]modules[\\\\/]runtime-config[\\\\/].+\\.tsx?$": [
+        "<rootDir>/test/jest/nest-typescript-transformer.cjs",
+        {}
+      ],
+      "^.+\\.tsx?$": [
+        "ts-jest",
+        {
+          "tsconfig": "tsconfig.json"
+        }
+      ]
+    },
+    "modulePathIgnorePatterns": [
+      "<rootDir>/dist/"
     ],
     "moduleNameMapper": {
       "^@server/(.*)$": "<rootDir>/server/$1"

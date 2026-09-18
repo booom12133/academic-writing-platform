@@ -1,8 +1,11 @@
+import { readFileSync } from 'node:fs';
+
 import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool, type PoolConfig } from 'pg';
 import * as schema from './schema';
 import { DRIZZLE_DATABASE, type AppDatabase } from './database.types';
+import { assertNoProductionPostgresSslQueryParameters } from '../config/config-validation';
 
 export interface StandardPostgresConfig extends PoolConfig {
   connectionString: string;
@@ -22,6 +25,20 @@ function parseBoundedInteger(
     throw new Error(`${name} must be an integer between ${minimum} and ${maximum}.`);
   }
   return value;
+}
+
+function readDatabaseCa(env: NodeJS.ProcessEnv): string | undefined {
+  const caFile = env.DATABASE_SSL_CA_FILE?.trim();
+  if (caFile) {
+    try {
+      const ca = readFileSync(caFile, 'utf8');
+      if (!ca.trim()) throw new Error('empty CA file');
+      return ca;
+    } catch {
+      throw new Error('DATABASE_SSL_CA_FILE must be a readable non-empty PEM file.');
+    }
+  }
+  return env.DATABASE_SSL_CA;
 }
 
 export function createStandardPostgresConfig(
@@ -46,6 +63,9 @@ export function createStandardPostgresConfig(
   }
 
   const isProduction = env.NODE_ENV === 'production';
+  if (isProduction) {
+    assertNoProductionPostgresSslQueryParameters(connectionString, 'DATABASE_URL');
+  }
   if (isProduction && env.DATABASE_SSL_REJECT_UNAUTHORIZED === 'false') {
     throw new Error('DATABASE_SSL_REJECT_UNAUTHORIZED cannot be false in production.');
   }
@@ -54,10 +74,11 @@ export function createStandardPostgresConfig(
   }
 
   const sslRequired = isProduction || env.DATABASE_SSL === 'require';
+  const ca = readDatabaseCa(env);
   const ssl = sslRequired
     ? {
         rejectUnauthorized: env.DATABASE_SSL_REJECT_UNAUTHORIZED !== 'false',
-        ...(env.DATABASE_SSL_CA ? { ca: env.DATABASE_SSL_CA } : {}),
+        ...(ca ? { ca } : {}),
       }
     : undefined;
 

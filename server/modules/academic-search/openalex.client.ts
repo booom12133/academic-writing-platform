@@ -13,7 +13,7 @@ export interface FetchLike {
 
 const SELECT_FIELDS = [
   'id', 'title', 'authorships', 'publication_date', 'publication_year',
-  'primary_location', 'type', 'cited_by_count', 'open_access', 'doi', 'abstract_inverted_index',
+  'primary_location', 'type', 'cited_by_count', 'open_access', 'doi', 'abstract_inverted_index', 'updated_date',
 ].join(',');
 
 interface SearchWorksInput {
@@ -76,6 +76,44 @@ export class OpenAlexClient {
           await this.sleepImpl(backoffMs);
           continue;
         }
+        throw new AcademicSearchError('ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE', 'The academic search provider is unavailable.');
+      } finally {
+        clearTimeout(timeout);
+      }
+    }
+    throw new AcademicSearchError('ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE', 'The academic search provider is unavailable.');
+  }
+
+  async getWork(externalRecordId: string): Promise<OpenAlexPage['results'][number]> {
+    const match = externalRecordId.trim().match(/^(?:https:\/\/openalex\.org\/)?(W[1-9][0-9]*)$/iu);
+    if (!match) throw new AcademicSearchError('ACADEMIC_SEARCH_INVALID_QUERY', 'The OpenAlex work identifier is invalid.');
+    const url = new URL(`${this.config.baseUrl.replace(/\/$/u, '')}/works/${match[1].toUpperCase()}`);
+    url.searchParams.set('select', SELECT_FIELDS);
+    const deadline = Date.now() + this.config.timeoutMs;
+    for (let attempt = 0; attempt <= this.config.maxRetries; attempt += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) throw this.timeoutError();
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), remaining);
+      try {
+        const response = await this.fetchImpl(url.toString(), {
+          headers: this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : {},
+          signal: controller.signal,
+        });
+        if (response.ok) {
+          const body = await response.json();
+          if (!body || typeof body !== 'object' || Array.isArray(body)) throw this.invalidResponse();
+          return body as OpenAlexPage['results'][number];
+        }
+        if ((response.status === 429 || response.status === 503) && attempt < this.config.maxRetries) {
+          const delay = response.status === 429 ? this.retryAfterMs(response.headers, attempt) : this.backoffMs(attempt);
+          if (Date.now() + delay < deadline) { await this.sleepImpl(delay); continue; }
+        }
+        throw new AcademicSearchError('ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE', 'The academic search provider is unavailable.');
+      } catch (error) {
+        if (error instanceof AcademicSearchError) throw error;
+        if (controller.signal.aborted) throw this.timeoutError();
+        if (attempt < this.config.maxRetries) { await this.sleepImpl(this.backoffMs(attempt)); continue; }
         throw new AcademicSearchError('ACADEMIC_SEARCH_PROVIDER_UNAVAILABLE', 'The academic search provider is unavailable.');
       } finally {
         clearTimeout(timeout);

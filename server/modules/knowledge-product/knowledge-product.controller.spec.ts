@@ -60,7 +60,7 @@ describe('KnowledgeProductController', () => {
       body,
     );
 
-    expect(NeedLogin).toHaveBeenCalledTimes(7);
+    expect(NeedLogin).toHaveBeenCalledTimes(8);
     expect(service.importDocument).toHaveBeenCalledWith('owner-1', body);
   });
 

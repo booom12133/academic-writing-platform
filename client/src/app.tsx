@@ -11,6 +11,7 @@ import ProfilePage from './pages/Profile/ProfilePage';
 import RechargeUnavailablePage from './pages/Recharge/RechargeUnavailablePage';
 import LoginPage from './pages/Login/LoginPage';
 import RegisterPage from './pages/Register/RegisterPage';
+import AuthCallbackPage from './pages/AuthCallback/AuthCallbackPage';
 import KnowledgePage from './pages/Knowledge/KnowledgePage';
 import AcademicSearchPage from './pages/AcademicSearch/AcademicSearchPage';
 import ZoteroPage from './pages/Zotero/ZoteroPage';
@@ -106,6 +107,7 @@ const RoutesComponent = () => {
           />
         </Route>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>

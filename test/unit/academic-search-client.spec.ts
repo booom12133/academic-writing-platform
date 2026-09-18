@@ -5,7 +5,7 @@ jest.mock('../../client/src/api/http', () => ({
 }));
 
 import { productHttpClient } from '../../client/src/api/http';
-import { search } from '../../client/src/api/academic-search';
+import { importToWorkspace, search } from '../../client/src/api/academic-search';
 
 describe('academic search client', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -70,5 +70,12 @@ describe('academic search client', () => {
       retryable: true,
     });
     await expect(request).rejects.not.toThrow('raw upstream secret response');
+  });
+
+  it('imports by provider identity without forwarding discovery metadata', async () => {
+    const response = { kind: 'metadata-only', source: { id: 'source-1' }, fullTextReason: 'not-advertised', uploadRequired: true };
+    (productHttpClient.post as jest.Mock).mockResolvedValueOnce({ data: response });
+    await expect(importToWorkspace({ provider: 'openalex', externalRecordId: 'https://openalex.org/W123' })).resolves.toEqual(response);
+    expect(productHttpClient.post).toHaveBeenCalledWith('/api/academic-search/import', { provider: 'openalex', externalRecordId: 'https://openalex.org/W123' });
   });
 });

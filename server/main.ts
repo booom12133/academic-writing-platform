@@ -33,8 +33,11 @@ async function bootstrap() {
   const host = process.env.SERVER_HOST || 'localhost';
   const port = Number(process.env.SERVER_PORT || '3000');
 
-  // 注册视图引擎, 渲染 client 目录下的 html 文件
-  app.setBaseViewsDir(join(process.cwd(), 'dist/client'));
+  // 生产前端根同时承载构建后的 HTML 与 hashed 静态资源。
+  // index=false 保留 ViewController 对入口页的平台上下文渲染。
+  const frontendRoot = join(process.cwd(), 'dist/client');
+  app.useStaticAssets(frontendRoot, { index: false });
+  app.setBaseViewsDir(frontendRoot);
   app.setViewEngine('html');
   app.engine('html', hbsExpressEngine);
 

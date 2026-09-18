@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
 import { eq } from 'drizzle-orm';
 import { knowledgeDocuments } from '../../server/database/schema';
+import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../../server/modules/knowledge/knowledge.repository';
 import { KnowledgeService } from '../../server/modules/knowledge/knowledge.service';
 import { hashTextInputExact } from '../../server/modules/knowledge/knowledge.hash';
@@ -11,9 +11,20 @@ import { finalizeKnowledgeChunkDraft } from '../../server/modules/knowledge/know
 import type { ParsedDocument } from '../../server/modules/document-parsing/document-parser.types';
 import type { StructuralDocumentContext } from '../../server/modules/context-builder/context-builder.types';
 import type { StructuralChunkedDocument } from '../../server/modules/chunking/chunking.types';
+import {
+  createP3PostgresRoleFixture,
+  type P3PostgresRoleFixture,
+} from '../support/p3-postgres-role-fixture';
 
-const databaseUrl = process.env.DATABASE_URL;
-const describeIfDatabase = databaseUrl ? describe : describe.skip;
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const {
+  assertControlledMigrationPreconditions,
+  createMigrationPoolConfig,
+  runMigrations,
+} = require('../../scripts/db-migrate.js');
+
+const roleIntegrationEnabled = process.env.P3_POSTGRES_ROLE_INTEGRATION === 'YES';
+const describeIfDatabase = roleIntegrationEnabled ? describe : describe.skip;
 
 const parsed: ParsedDocument = {
   source: { type: 'txt', fileName: 'input.txt', extension: '.txt', sizeBytes: 12 },
@@ -34,15 +45,140 @@ const chunked: StructuralChunkedDocument = {
 
 describeIfDatabase('standard PostgreSQL migrations', () => {
   let pool: Pool;
+  let adminPool: Pool;
+  let fixture: P3PostgresRoleFixture;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: databaseUrl });
-    await migrate(drizzle(pool), { migrationsFolder: 'drizzle/migrations' });
-    await migrate(drizzle(pool), { migrationsFolder: 'drizzle/migrations' });
+    fixture = await createP3PostgresRoleFixture();
+    await fixture.applyCanonicalGrants();
+
+    const migrationEnvironment = {
+      NODE_ENV: 'production',
+      MIGRATION_DATABASE_URL: fixture.migratorUrl,
+      DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    };
+    const migrationPool = new Pool(createMigrationPoolConfig(migrationEnvironment));
+    const migrationClient = await migrationPool.connect();
+    try {
+      await assertControlledMigrationPreconditions(migrationClient, { production: true });
+    } finally {
+      migrationClient.release();
+    }
+    await migrationPool.end();
+    await runMigrations({ pool: new Pool(createMigrationPoolConfig(migrationEnvironment)) });
+    await runMigrations({ pool: new Pool(createMigrationPoolConfig(migrationEnvironment)) });
+    await fixture.applyCanonicalGrants();
+
+    const appEnvironment = {
+      NODE_ENV: 'production',
+      DATABASE_URL: fixture.appUrl,
+      DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    };
+    pool = new Pool(createStandardPostgresConfig(appEnvironment));
+    adminPool = new Pool(createStandardPostgresConfig({
+      ...appEnvironment,
+      DATABASE_URL: fixture.adminUrl,
+    }));
   });
 
   afterAll(async () => {
     await pool.end();
+    await adminPool.end();
+    await fixture.close();
+  });
+
+  it('enforces role attributes, ownership, schema bounds, and vector ownership', async () => {
+    const roles = await adminPool.query<{
+      rolname: string;
+      rolcanlogin: boolean;
+      rolinherit: boolean;
+      rolsuper: boolean;
+      rolcreatedb: boolean;
+      rolcreaterole: boolean;
+    }>(`
+      SELECT rolname, rolcanlogin, rolinherit, rolsuper, rolcreatedb, rolcreaterole
+      FROM pg_catalog.pg_roles
+      WHERE rolname IN (
+        'academic_writing_db_owner',
+        'academic_writing_migrator',
+        'academic_writing_app'
+      )
+      ORDER BY rolname
+    `);
+    expect(roles.rows).toEqual([
+      {
+        rolname: 'academic_writing_app', rolcanlogin: true, rolinherit: false,
+        rolsuper: false, rolcreatedb: false, rolcreaterole: false,
+      },
+      {
+        rolname: 'academic_writing_db_owner', rolcanlogin: false, rolinherit: false,
+        rolsuper: false, rolcreatedb: false, rolcreaterole: false,
+      },
+      {
+        rolname: 'academic_writing_migrator', rolcanlogin: true, rolinherit: false,
+        rolsuper: false, rolcreatedb: false, rolcreaterole: false,
+      },
+    ]);
+
+    const ownership = await adminPool.query<{
+      database_owner: string;
+      public_owner: string;
+      drizzle_owner: string;
+      vector_owner: string;
+    }>(`
+      SELECT
+        pg_get_userbyid((SELECT datdba FROM pg_database WHERE datname = current_database())) AS database_owner,
+        pg_get_userbyid((SELECT nspowner FROM pg_namespace WHERE nspname = 'public')) AS public_owner,
+        pg_get_userbyid((SELECT nspowner FROM pg_namespace WHERE nspname = 'drizzle')) AS drizzle_owner,
+        pg_get_userbyid((SELECT extowner FROM pg_extension WHERE extname = 'vector')) AS vector_owner
+    `);
+    expect(ownership.rows[0]).toMatchObject({
+      database_owner: 'academic_writing_db_owner',
+      public_owner: 'academic_writing_db_owner',
+      drizzle_owner: 'academic_writing_db_owner',
+    });
+    expect(ownership.rows[0].vector_owner).not.toMatch(
+      /^academic_writing_(?:migrator|app)$/u,
+    );
+
+    const privileges = await adminPool.query<{
+      database_create: boolean;
+      schema_usage: boolean;
+      schema_create: boolean;
+      app_is_migrator: boolean;
+    }>(`
+      SELECT
+        has_database_privilege('academic_writing_migrator', current_database(), 'CREATE') AS database_create,
+        has_schema_privilege('academic_writing_migrator', 'drizzle', 'USAGE') AS schema_usage,
+        has_schema_privilege('academic_writing_migrator', 'drizzle', 'CREATE') AS schema_create,
+        pg_has_role('academic_writing_app', 'academic_writing_migrator', 'MEMBER') AS app_is_migrator
+    `);
+    expect(privileges.rows[0]).toEqual({
+      database_create: false,
+      schema_usage: true,
+      schema_create: true,
+      app_is_migrator: false,
+    });
+  });
+
+  it('denies arbitrary schema creation to the migrator', async () => {
+    const migratorPool = new Pool(createMigrationPoolConfig({
+      NODE_ENV: 'production',
+      MIGRATION_DATABASE_URL: fixture.migratorUrl,
+      DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    }));
+    await expect(migratorPool.query('CREATE SCHEMA p3_forbidden_schema')).rejects.toThrow();
+    await migratorPool.end();
+  });
+
+  it('denies runtime DDL while retaining required application DML', async () => {
+    await expect(pool.query('CREATE TABLE p3_forbidden_table (id integer)')).rejects.toThrow();
+    await expect(pool.query('ALTER TABLE app_users ADD COLUMN p3_forbidden integer')).rejects.toThrow();
+    await expect(pool.query('DROP TABLE app_users')).rejects.toThrow();
+    await expect(pool.query('CREATE EXTENSION hstore')).rejects.toThrow();
   });
 
   it('applies the accepted baseline and E1 schema exactly once', async () => {
@@ -171,5 +307,45 @@ describeIfDatabase('standard PostgreSQL migrations', () => {
     await expect(repository.getDocument(userId, seeded.document.id)).resolves.toMatchObject({ activeVersionId: result.version.id });
     await expect(repository.getVersion(userId, seeded.previous.id)).resolves.toMatchObject({ id: seeded.previous.id, versionNumber: 1, sourceText: 'previous' });
     await expect(repository.getChunks(userId, seeded.previous.id)).resolves.toEqual([seeded.previousChunk]);
+  });
+});
+
+describeIfDatabase('controlled migration vector prerequisite', () => {
+  let fixture: P3PostgresRoleFixture;
+
+  beforeAll(async () => {
+    fixture = await createP3PostgresRoleFixture({ installVector: false });
+  });
+
+  afterAll(async () => {
+    await fixture.close();
+  });
+
+  it('fails closed without vector and records no completed migration', async () => {
+    const migrationEnvironment = {
+      NODE_ENV: 'production',
+      MIGRATION_DATABASE_URL: fixture.migratorUrl,
+      DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    };
+    await expect(
+      runMigrations({ pool: new Pool(createMigrationPoolConfig(migrationEnvironment)) }),
+    ).rejects.toThrow();
+
+    const adminPool = new Pool(createStandardPostgresConfig({
+      NODE_ENV: 'production',
+      DATABASE_URL: fixture.adminUrl,
+      DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    }));
+    const migrations = await adminPool.query<{ count: string }>(
+      'SELECT count(*) FROM drizzle.__drizzle_migrations',
+    );
+    const tables = await adminPool.query<{ count: string }>(
+      "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'",
+    );
+    expect(migrations.rows[0].count).toBe('0');
+    expect(tables.rows[0].count).toBe('0');
+    await adminPool.end();
   });
 });

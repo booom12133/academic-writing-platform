@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -8,6 +8,10 @@ import { DocumentInputService } from './document-input.service';
 import type { DocumentStoragePort } from './document-input.storage';
 import type { DocumentInputProvider, DocumentInputRef } from '@shared/document-input.interface';
 import { SelfHostedFilesystemDocumentStorageAdapter } from './filesystem-document-storage.adapter';
+import { DocumentParserService } from '../document-parsing/document-parser.service';
+import { PdfParser } from '../document-parsing/parsers/pdf.parser';
+import { ContextBuilderService } from '../context-builder/context-builder.service';
+import { ChunkingService } from '../chunking/chunking.service';
 
 const bytes = Buffer.from('## Title\n\nEvidence.');
 const sha256 = (value: Buffer): string => createHash('sha256').update(value).digest('hex');
@@ -105,6 +109,42 @@ const makeService = (storage: ReturnType<typeof makeStorage> = makeStorage()) =>
   buildService(storage);
 
 describe('DocumentInputService', () => {
+  it('uploads the sanitized real-world PDF through the real parser and filesystem storage', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'academic-writing-p3-pdf-'));
+    try {
+      const buffer = await readFile(join(
+        process.cwd(),
+        'server',
+        'modules',
+        'document-parsing',
+        '__fixtures__',
+        'academic-textual-realworld.pdf',
+      ));
+      const storage = new SelfHostedFilesystemDocumentStorageAdapter(root);
+      const service = new DocumentInputService(
+        storage,
+        new DocumentParserService([new PdfParser()]),
+        new ContextBuilderService(),
+        new ChunkingService(),
+      );
+
+      await expect(service.upload('p3-regression-user', {
+        buffer,
+        originalname: 'academic-textual-realworld.pdf',
+        mimetype: 'application/pdf',
+      })).resolves.toMatchObject({
+        document: {
+          provider: 'self-hosted-filesystem',
+          sourceType: 'pdf',
+          sizeBytes: 634609,
+        },
+        summary: { pageCount: 23 },
+      });
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it('uses the storage provider when creating a descriptor', async () => {
     const storage = makeStorage();
     (storage.getProvider as jest.Mock).mockReturnValue('self-hosted-filesystem' satisfies DocumentInputProvider);

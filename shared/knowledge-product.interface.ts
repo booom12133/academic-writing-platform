@@ -46,3 +46,32 @@ export interface WorkspaceDocumentSelection {
   documentVersionId: string;
   displayName: string;
 }
+
+export interface KnowledgeWorkspaceSource {
+  id: string;
+  kind: 'scholarly-work' | 'user-declared' | 'reference-library-item';
+  title?: string;
+  authors?: Array<{ name: string; given?: string; family?: string; orcid?: string }>;
+  year?: number;
+  venue?: string;
+  abstract?: string;
+  doi?: string;
+  url?: string;
+  contentStatus: 'metadata-only' | 'full-text-linked';
+  isGroundedEvidence: false;
+}
+
+export type AcademicSearchImportResult =
+  | {
+      kind: 'full-text';
+      source: KnowledgeWorkspaceSource;
+      document: KnowledgeWorkspaceDocument;
+      indexStatus: 'not-indexed';
+      uploadRequired: false;
+    }
+  | {
+      kind: 'metadata-only';
+      source: KnowledgeWorkspaceSource;
+      fullTextReason: 'not-advertised' | 'unavailable' | 'invalid-pdf' | 'processing-failed';
+      uploadRequired: true;
+    };

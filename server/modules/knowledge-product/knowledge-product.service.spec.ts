@@ -113,6 +113,16 @@ function serviceFixture() {
     getVersion: jest.fn().mockImplementation(async (userId: string, id: string) =>
       userId === ownerId ? versions.get(id) ?? null : null),
     getSourceRecord: jest.fn().mockResolvedValue(null),
+    listSourceRecords: jest.fn().mockResolvedValue([{
+      id: sourceRecordId,
+      userId: ownerId,
+      kind: 'scholarly-work',
+      canonicalMetadata: { title: { value: 'Metadata paper', assertionIds: ['a1'], resolutionStatus: 'resolved' } },
+      externalProvenance: [],
+      status: 'active',
+      createdAt: '2026-09-18T00:00:00.000Z',
+      updatedAt: '2026-09-18T00:00:00.000Z',
+    }]),
   };
   const knowledge = {
     importDocument: jest.fn().mockResolvedValue({
@@ -150,6 +160,12 @@ function serviceFixture() {
 }
 
 describe('KnowledgeProductService', () => {
+  it('projects metadata-only sources without synthesizing evidence or index state', async () => {
+    const { service } = serviceFixture();
+    await expect(service.listSources(ownerId)).resolves.toEqual([expect.objectContaining({
+      id: sourceRecordId, title: 'Metadata paper', contentStatus: 'metadata-only', isGroundedEvidence: false,
+    })]);
+  });
   it('lists only owner documents and reconstructs refs only for stored artifacts', async () => {
     const { service, repository, storedDocument } = serviceFixture();
 

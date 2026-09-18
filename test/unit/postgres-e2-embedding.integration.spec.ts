@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Pool } from 'pg';
+import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
 import { KnowledgeRepository } from '../../server/modules/knowledge/knowledge.repository';
 import { finalizeKnowledgeChunkDraft } from '../../server/modules/knowledge/knowledge.provenance';
 import {
@@ -20,7 +21,11 @@ describeIfDatabase('E2 PostgreSQL and pgvector embedding persistence', () => {
   let pool: Pool;
 
   beforeAll(async () => {
-    pool = new Pool({ connectionString: databaseUrl });
+    pool = new Pool(createStandardPostgresConfig({
+      ...process.env,
+      NODE_ENV: 'production',
+      DATABASE_URL: databaseUrl,
+    }));
     await migrate(drizzle(pool), { migrationsFolder: 'drizzle/migrations' });
   });
 
