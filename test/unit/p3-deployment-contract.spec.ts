@@ -161,6 +161,50 @@ describe('P3 deployment contract', () => {
     );
   });
 
+  it('documents root-controlled backup and isolated restore artifacts accepted by rollback preflight', () => {
+    const runbook = readProjectFile('docs/deployment/P3_RUNBOOK.md');
+    const operations = readProjectFile(
+      'docs/operations/database-backup-restore.md',
+    );
+    const rollbackPreflight = readProjectFile(
+      'deploy/scripts/rollback-preflight.js',
+    );
+
+    for (const document of [runbook, operations]) {
+      expect(document).toContain(
+        'sudo install -d -o root -g root -m 700 /var/backups/academic-writing-platform',
+      );
+      expect(document).toContain(
+        'sudo env BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/',
+      );
+      expect(document).toContain(
+        'node --env-file=/etc/academic-writing-platform/production.env',
+      );
+      expect(document).toContain(
+        '--env-file=/etc/academic-writing-platform/recovery-input/restore.env',
+      );
+      expect(document).toContain(
+        'sudo install -o root -g root -m 600 /dev/null /etc/academic-writing-platform/recovery-input/restore.env',
+      );
+      expect(document).toContain('root-owned mode `0600`');
+      expect(document).not.toMatch(
+        /(?:^|\n)BACKUP_OUTPUT_PATH=.*node --env-file=/u,
+      );
+    }
+
+    expect(rollbackPreflight).toContain('stats.uid !== 0');
+    expect(rollbackPreflight).toContain('(stats.mode & 0o777) !== 0o600');
+    expect(rollbackPreflight).toContain(
+      "assertProtectedFile(backupPath, 'backup dump', lstat)",
+    );
+    expect(rollbackPreflight).toContain(
+      "assertProtectedFile(backupReceiptPath, 'backup receipt', lstat)",
+    );
+    expect(rollbackPreflight).toContain(
+      "assertProtectedFile(restoreReceiptPath, 'restore receipt', lstat)",
+    );
+  });
+
   it('defines an external-state Playwright contract without credentials', () => {
     const config = readProjectFile('playwright.config.ts');
     const authHelper = readProjectFile('test/e2e/support/p3-auth.ts');

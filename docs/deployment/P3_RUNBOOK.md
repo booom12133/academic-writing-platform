@@ -249,13 +249,31 @@ credential as an existing required credential.
 
 ## Database operations
 
-From the current B release app:
+From the current B release app, backup and isolated restore evidence must be
+created by root under a root-only directory so the resulting dump and receipts
+satisfy rollback preflight:
 
     cd /opt/academic-writing-platform/current/app
     node --env-file=/etc/academic-writing-platform/production.env scripts/db-migrate.js
     node --env-file=/etc/academic-writing-platform/production.env scripts/verify-production-database.js
-    BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump BACKUP_EVIDENCE_PATH=/var/backups/academic-writing-platform/<timestamp>.receipt.json node --env-file=/etc/academic-writing-platform/production.env scripts/db-backup.js
-    RESTORE_DATABASE_NAME_CONFIRM=<isolated-db> BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/<dump>.dump RESTORE_EVIDENCE_PATH=/var/backups/academic-writing-platform/<restore>.receipt.json node --env-file=/etc/academic-writing-platform/production.env scripts/db-restore-verify.js --confirm-isolated-restore
+    sudo install -d -o root -g root -m 700 /var/backups/academic-writing-platform
+    sudo env BACKUP_OUTPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump BACKUP_EVIDENCE_PATH=/var/backups/academic-writing-platform/<timestamp>.backup.receipt.json node --env-file=/etc/academic-writing-platform/production.env /opt/academic-writing-platform/current/app/scripts/db-backup.js
+
+For isolated restore verification, stage the target credential without exposing
+it in shell history. Create the input as a regular root-only file, edit it with
+`sudoedit`, and place exactly `RESTORE_DATABASE_URL=<isolated-target-url>` and
+`RESTORE_DATABASE_NAME_CONFIRM=<exact-isolated-database-name>` inside:
+
+    sudo install -d -o root -g root -m 700 /etc/academic-writing-platform/recovery-input
+    sudo install -o root -g root -m 600 /dev/null /etc/academic-writing-platform/recovery-input/restore.env
+    sudoedit /etc/academic-writing-platform/recovery-input/restore.env
+    sudo env BACKUP_INPUT_PATH=/var/backups/academic-writing-platform/<timestamp>.dump RESTORE_EVIDENCE_PATH=/var/backups/academic-writing-platform/<timestamp>.restore.receipt.json node --env-file=/etc/academic-writing-platform/production.env --env-file=/etc/academic-writing-platform/recovery-input/restore.env /opt/academic-writing-platform/current/app/scripts/db-restore-verify.js --confirm-isolated-restore
+
+Successful root execution leaves the dump, backup receipt, and isolated-restore
+receipt as regular, non-symlink, root-owned mode `0600` files. Preserve those
+three artifacts for Controller review and any later separately authorized
+rollback preflight. Remove the root-only recovery input after the receipt is
+secured. These commands do not set or imply `PRODUCTION_ROLLBACK_AUTHORIZED=YES`.
 
 The protected environment provides DATABASE_SSL_CA_FILE,
 PGSSLMODE=verify-full, and PGSSLROOTCERT=/etc/academic-writing-platform/postgres-ca.pem.

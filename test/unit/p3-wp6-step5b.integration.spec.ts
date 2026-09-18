@@ -15,7 +15,7 @@ if (integrationEnabled) {
 
 async function expectRoleLogin(
   fixture: ReturnType<typeof createStep5BFixture>,
-  role: 'academic_writing_app' | 'academic_writing_migrator',
+  role: 'academic_writing_app' | 'academic_writing_migrator' | 'academic_writing_backup',
   password: string,
 ): Promise<void> {
   const client = await fixture.connectRole(role, password);
@@ -29,7 +29,7 @@ async function expectRoleLogin(
 
 async function expectRoleLoginFailure(
   fixture: ReturnType<typeof createStep5BFixture>,
-  role: 'academic_writing_app' | 'academic_writing_migrator',
+  role: 'academic_writing_app' | 'academic_writing_migrator' | 'academic_writing_backup',
   password: string,
 ): Promise<void> {
   await expect(fixture.connectRole(role, password)).rejects.toThrow();
@@ -373,5 +373,110 @@ describeStep5B('P3 WP6 Step5B disposable PostgreSQL integration', () => {
     assertNoSecretLeakage(fixture, failure);
     expect(fixture.state(fixture.markerPath).exists).toBe(false);
     expect(fixture.state(fixture.candidateEnvPath).exists).toBe(true);
+  });
+
+  it('S15 bootstraps the existing backup role through the real normal-future rotation chain', async () => {
+    const initial = await fixture.runRotation();
+    expect(initial.code).toBe(0);
+    const installedEnv = parseEnvText(fixture.readFile(fixture.currentEnvPath));
+    const backupRoleOid = await fixture.roleOid('academic_writing_backup');
+    expect(backupRoleOid).not.toBeNull();
+    await expectRoleLogin(
+      fixture,
+      'academic_writing_backup',
+      fixture.backupPreBootstrapPassword,
+    );
+
+    const bootstrapCandidate = {
+      ...installedEnv,
+      BACKUP_DATABASE_URL: fixture.backupBootstrapUrl,
+    };
+    await fixture.setCandidateEnv(bootstrapCandidate);
+    const result = await fixture.runRotation({
+      mode: 'NORMAL_FUTURE_ROTATION',
+      bootstrapBackupCredential: true,
+    });
+
+    expect(result.code).toBe(0);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    expect(combinedOutput(result)).toContain(
+      'role=academic_writing_backup credential=bootstrap success',
+    );
+    expect(combinedOutput(result)).not.toContain('postgresql://');
+    assertExactEnv(
+      parseEnvText(fixture.readFile(fixture.currentEnvPath)),
+      bootstrapCandidate,
+      'bootstrapped production.env',
+    );
+    expect(fixture.state(fixture.currentEnvPath)).toEqual({
+      exists: true,
+      owner: 'root:academic-writing',
+      mode: '640',
+    });
+    expect(fixture.state(fixture.markerPath)).toEqual({
+      exists: true,
+      owner: 'root:root',
+      mode: '600',
+    });
+    expect(fixture.state(fixture.candidateEnvPath).exists).toBe(false);
+    expect(await fixture.roleOid('academic_writing_backup')).toBe(backupRoleOid);
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
+    await expectRoleLoginFailure(
+      fixture,
+      'academic_writing_backup',
+      fixture.backupPreBootstrapPassword,
+    );
+    await expectRoleLogin(
+      fixture,
+      'academic_writing_backup',
+      fixture.backupBootstrapPassword,
+    );
+  });
+
+  it('S16 fails closed when the existing backup role is missing during bootstrap', async () => {
+    const initial = await fixture.runRotation();
+    expect(initial.code).toBe(0);
+    const installedEnvText = fixture.readFile(fixture.currentEnvPath);
+    const installedEnv = parseEnvText(installedEnvText);
+    await fixture.dropRole('academic_writing_backup');
+    expect(await fixture.roleOid('academic_writing_backup')).toBeNull();
+    await fixture.setCandidateEnv({
+      ...installedEnv,
+      BACKUP_DATABASE_URL: fixture.backupBootstrapUrl,
+    });
+
+    const result = await fixture.runRotation({
+      mode: 'NORMAL_FUTURE_ROTATION',
+      bootstrapBackupCredential: true,
+    });
+
+    expect(result.code).not.toBe(0);
+    assertNoSecretLeakage(fixture, result, [], { checkServiceLogs: true });
+    expect(combinedOutput(result)).toContain('required PostgreSQL role is missing');
+    expect(fixture.readFile(fixture.currentEnvPath)).toBe(installedEnvText);
+    expect(fixture.state(fixture.currentEnvPath)).toEqual({
+      exists: true,
+      owner: 'root:academic-writing',
+      mode: '640',
+    });
+    expect(fixture.state(fixture.markerPath)).toEqual({
+      exists: true,
+      owner: 'root:root',
+      mode: '600',
+    });
+    expect(fixture.state(fixture.candidateEnvPath)).toEqual({
+      exists: true,
+      owner: 'root:root',
+      mode: '600',
+    });
+    expect(await fixture.roleOid('academic_writing_backup')).toBeNull();
+    await expectRoleLogin(fixture, 'academic_writing_app', fixture.appNewPassword);
+    await expectRoleLogin(fixture, 'academic_writing_migrator', fixture.migratorNewPassword);
+    await expectRoleLoginFailure(
+      fixture,
+      'academic_writing_backup',
+      fixture.backupBootstrapPassword,
+    );
   });
 });

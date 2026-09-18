@@ -87,6 +87,8 @@ export function createStep5BFixture() {
   const appNewPassword = `new-app-${process.pid}`;
   const migratorOldPassword = `old-migrator-${process.pid}`;
   const migratorNewPassword = `new-migrator-${process.pid}`;
+  const backupPreBootstrapPassword = `pre-bootstrap-backup-${process.pid}`;
+  const backupBootstrapPassword = `bootstrap-backup-${process.pid}`;
 
   let currentEnv: EnvValues;
   let candidateEnv: EnvValues;
@@ -198,7 +200,12 @@ export function createStep5BFixture() {
         `SELECT rolname
          FROM pg_catalog.pg_roles
          WHERE rolname = ANY($1::text[])`,
-        [['p3_rotation_admin', 'academic_writing_app', 'academic_writing_migrator']],
+        [[
+          'p3_rotation_admin',
+          'academic_writing_app',
+          'academic_writing_migrator',
+          'academic_writing_backup',
+        ]],
       );
       const existingRoles = new Set(roleResult.rows.map((row) => row.rolname));
       if (!existingRoles.has('academic_writing_app')) {
@@ -206,6 +213,14 @@ export function createStep5BFixture() {
       }
       if (!existingRoles.has('academic_writing_migrator')) {
         await createRole(client, 'academic_writing_migrator', 'LOGIN', migratorOldPassword);
+      }
+      if (!existingRoles.has('academic_writing_backup')) {
+        await createRole(
+          client,
+          'academic_writing_backup',
+          'LOGIN',
+          backupPreBootstrapPassword,
+        );
       }
       if (!existingRoles.has('p3_rotation_admin')) {
         await createRole(
@@ -218,8 +233,14 @@ export function createStep5BFixture() {
       await setRolePassword(client, 'p3_rotation_admin', adminPassword);
       await setRolePassword(client, 'academic_writing_app', appOldPassword);
       await setRolePassword(client, 'academic_writing_migrator', migratorOldPassword);
+      await setRolePassword(
+        client,
+        'academic_writing_backup',
+        backupPreBootstrapPassword,
+      );
       await client.query('GRANT academic_writing_app TO p3_rotation_admin WITH ADMIN OPTION');
       await client.query('GRANT academic_writing_migrator TO p3_rotation_admin WITH ADMIN OPTION');
+      await client.query('GRANT academic_writing_backup TO p3_rotation_admin WITH ADMIN OPTION');
       await client.query('ALTER ROLE p3_rotation_admin RESET statement_timeout');
       if (zoteroTable === 'existing-empty') {
         await client.query(`
@@ -239,8 +260,15 @@ export function createStep5BFixture() {
       await client.query('DROP ROLE IF EXISTS p3_rotation_admin');
       await client.query('DROP ROLE IF EXISTS academic_writing_app');
       await client.query('DROP ROLE IF EXISTS academic_writing_migrator');
+      await client.query('DROP ROLE IF EXISTS academic_writing_backup');
       await createRole(client, 'academic_writing_app', 'LOGIN', appOldPassword);
       await createRole(client, 'academic_writing_migrator', 'LOGIN', migratorOldPassword);
+      await createRole(
+        client,
+        'academic_writing_backup',
+        'LOGIN',
+        backupPreBootstrapPassword,
+      );
       await createRole(
         client,
         'p3_rotation_admin',
@@ -249,6 +277,7 @@ export function createStep5BFixture() {
       );
       await client.query('GRANT academic_writing_app TO p3_rotation_admin WITH ADMIN OPTION');
       await client.query('GRANT academic_writing_migrator TO p3_rotation_admin WITH ADMIN OPTION');
+      await client.query('GRANT academic_writing_backup TO p3_rotation_admin WITH ADMIN OPTION');
     });
   }
 
@@ -378,6 +407,13 @@ export function createStep5BFixture() {
     appNewPassword,
     appOldPassword,
     appRoot,
+    backupBootstrapPassword,
+    backupBootstrapUrl: databaseUrl(
+      'academic_writing_backup',
+      backupBootstrapPassword,
+      databaseHost,
+    ),
+    backupPreBootstrapPassword,
     caPath,
     candidateEnv: () => ({ ...candidateEnv }),
     candidateEnvPath: CANDIDATE_ENV_PATH,
@@ -394,6 +430,14 @@ export function createStep5BFixture() {
       appNewPassword,
       migratorOldPassword,
       migratorNewPassword,
+      backupPreBootstrapPassword,
+      backupBootstrapPassword,
+      currentEnv?.DATABASE_URL,
+      candidateEnv?.DATABASE_URL,
+      currentEnv?.MIGRATION_DATABASE_URL,
+      candidateEnv?.MIGRATION_DATABASE_URL,
+      currentEnv?.BACKUP_DATABASE_URL,
+      candidateEnv?.BACKUP_DATABASE_URL,
       currentEnv?.ACADEMIC_SEARCH_CURSOR_SECRET,
       candidateEnv?.ACADEMIC_SEARCH_CURSOR_SECRET,
       currentEnv?.ZOTERO_CREDENTIAL_ENCRYPTION_KEY,
@@ -480,9 +524,21 @@ export function createStep5BFixture() {
       });
     },
 
-    async dropRole(role: 'academic_writing_app' | 'academic_writing_migrator'): Promise<void> {
+    async dropRole(
+      role: 'academic_writing_app' | 'academic_writing_migrator' | 'academic_writing_backup',
+    ): Promise<void> {
       await withBootstrap(async (client) => {
         await client.query(`DROP ROLE "${role}"`);
+      });
+    },
+
+    async roleOid(role: string): Promise<string | null> {
+      return withBootstrap(async (client) => {
+        const result = await client.query(
+          'SELECT oid::text AS oid FROM pg_catalog.pg_roles WHERE rolname = $1',
+          [role],
+        );
+        return result.rows[0]?.oid || null;
       });
     },
 
@@ -516,6 +572,7 @@ export function createStep5BFixture() {
 
     async runRotation(options: {
       adminPassword?: string;
+      bootstrapBackupCredential?: boolean;
       mode?: 'INITIAL_COMPROMISE_ROTATION' | 'NORMAL_FUTURE_ROTATION';
       pathPrefix?: string;
     } = {}): Promise<RotationResult> {
@@ -534,6 +591,14 @@ export function createStep5BFixture() {
       delete childEnv.P3_DB_ADMIN_PASSWORD;
       childEnv.P3_SECURITY_SECRET_ROTATION_REQUIRED = 'YES';
       childEnv.P3_DB_ADMIN_URL = `postgresql://p3_rotation_admin@${databaseHost}:${DATABASE_PORT}/${DATABASE_NAME}`;
+      const rotationArgs = [
+        CANDIDATE_ENV_PATH,
+        appRoot,
+        options.mode || 'INITIAL_COMPROMISE_ROTATION',
+      ];
+      if (options.bootstrapBackupCredential) {
+        rotationArgs.push('--bootstrap-backup-credential');
+      }
 
       const child = spawn(
         python,
@@ -547,9 +612,7 @@ export function createStep5BFixture() {
           `PATH=${effectivePath}`,
           '/bin/bash',
           join(PROJECT_ROOT, 'deploy', 'scripts', 'rotate-production-env.sh'),
-          CANDIDATE_ENV_PATH,
-          appRoot,
-          options.mode || 'INITIAL_COMPROMISE_ROTATION',
+          ...rotationArgs,
         ],
         {
           cwd: PROJECT_ROOT,
