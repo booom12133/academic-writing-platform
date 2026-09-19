@@ -313,7 +313,21 @@ type SupportState = 'NOT_CLAIMED' | 'VALID' | 'STALE_AFTER_EDIT';
 - Project source: 可解除当前选择；已有 revision snapshot 不删除。
 - Knowledge source/document/version: P4 从不 cascade delete、tombstone 或复制它们。
 
-### 6.7 Optimistic concurrency
+### 6.7 `ProjectSource` canonical binding
+
+`ProjectSource` 只保存 `sourceRecordId?` 与 `documentVersionId?`，不保存冗余 `documentId`。Document identity 必须由服务端按 `KnowledgeDocumentVersion.documentId → KnowledgeDocument` 解析。绑定 invariant 冻结如下：
+
+1. `sourceRecordId` / `documentVersionId` 至少一个非空。
+2. metadata-only web source：`sourceRecordId != null` 且 `documentVersionId = null`。
+3. user Knowledge source：`documentVersionId != null`，`sourceRecordId` 可为空。
+4. full-text web source：`sourceRecordId != null` 且 `documentVersionId != null`。
+5. 两者同时存在时，服务端解析 document version 及其 Knowledge document，且 `document.sourceRecordId` 必须严格等于 supplied `sourceRecordId`。
+6. `originClass` 只从解析后的 canonical Knowledge provenance 推导，不接受客户端值。
+7. 不满足 canonical chain 的 binding 必须在 persistence 前拒绝，且不得进入 retrieval 或 support classification。
+
+P4 不为此修改 accepted Knowledge schema；一致性检查在 P4 source-binding service 内完成。
+
+### 6.8 Optimistic concurrency
 
 MVP 需要轻量 optimistic concurrency，但不需要协同编辑：
 
@@ -357,14 +371,14 @@ type EvidenceAvailability =
 
 ### 7.3 Origin classification
 
-`paper_project_sources.origin_class` 由服务端根据 existing source/document provenance 得出：
+`paper_project_sources.origin_class` 由服务端根据 resolved canonical Knowledge provenance 得出，客户端不得提交或覆盖：
 
-- `WEB_IMPORTED`: `SourceRecord.externalProvenance` 包含 `connectorKind='academic-discovery'` / provider `openalex`，且绑定 full-text Knowledge version。
-- `USER_KNOWLEDGE`: 用户上传或其他非 web discovery 的 Knowledge document version。
+- `WEB_IMPORTED`: 解析 `documentVersionId → KnowledgeDocument`，其 `sourceRecordId` 与 binding supplied `sourceRecordId` 相等，且该 `SourceRecord.externalProvenance` 包含 `connectorKind='academic-discovery'` / provider `openalex`。
+- `USER_KNOWLEDGE`: 解析出的 Knowledge document 没有 web discovery canonical provenance，包括用户上传或其他非 web discovery 的 Knowledge document version。
 - metadata-only web record 可绑定以显示 discovery 状态，但没有 `documentVersionId`，不可进入 retrieval selection。
 - Zotero attachment 仍作为 Knowledge document；MVP 将其归入 user-selected knowledge，除非后续明确增加独立 UI taxonomy。
 
-Actual support classifier 只统计 `GroundedGenerationResult.evidenceTrace` 中真正被 citation semantics 采用的 `documentVersionId`，再与 project source bindings 对照；不能仅按“用户选过什么”判 badge。
+仅有 `documentVersionId` 时，服务端通过 resolved document 的 `sourceRecordId`（若有）读取 provenance；两 ID 同时存在但不属于同一 canonical chain 时立即拒绝，不持久化。Actual support classifier 只统计 `GroundedGenerationResult.evidenceTrace` 中真正被 citation semantics 采用的 `documentVersionId`，再与已通过 canonical-chain validation 的 project source bindings 对照；不能仅按“用户选过什么”判 badge。
 
 ### 7.4 User edit policy
 
@@ -401,12 +415,22 @@ Actual support classifier 只统计 `GroundedGenerationResult.evidenceTrace` 中
 | PK | `id uuid` |
 | Relation | composite FK `(project_id,user_id)` → projects；self parent must share project/owner |
 | Important columns | `parent_id`、`node_type`、`title`、`position`、`target_words`、`generation_notes`、`status`、timestamps |
-| Constraints | active sibling position unique via `(project_id,parent_id,position)` strategy; positive target words; writing-unit leaf validated in service |
+| Constraints | active sibling position unique via two partial indexes; positive target words; writing-unit leaf validated in service |
 | Indexes | `(user_id,project_id,status,parent_id,position)` |
 | Mutability | title/order/notes/status mutable; ID stable |
 | Revision behavior | tree changes do not update section revisions |
 
-Add unique `(id,project_id,user_id)` to support the owner/project-scoped self FK. PostgreSQL null semantics make root sibling uniqueness require either a normalized `parent_key` or two partial unique indexes (`parent_id IS NULL` and `parent_id IS NOT NULL`). Prefer partial indexes in migration.
+Add unique `(id,project_id,user_id)` to support the owner/project-scoped self FK. Active sibling positions are frozen as two PostgreSQL partial unique indexes equivalent to:
+
+```sql
+UNIQUE (project_id, user_id, position)
+WHERE parent_id IS NULL AND status = 'active';
+
+UNIQUE (project_id, user_id, parent_id, position)
+WHERE parent_id IS NOT NULL AND status = 'active';
+```
+
+具体 index name 由实现阶段决定。Archived nodes do not reserve active sibling positions.
 
 ### 8.3 `paper_sections`
 
@@ -444,12 +468,14 @@ Add unique `(id,section_id,user_id)` so `base_revision_id` can be constrained to
 |---|---|
 | Purpose | Current project source selection, including metadata-only degraded records |
 | PK | `id uuid` |
-| Relation | composite owner FK to project；nullable owner-scoped FKs to `knowledge_source_records`、`knowledge_documents`、`knowledge_document_versions` |
-| Important columns | `origin_class`、`source_record_id`、`document_id`、`document_version_id`、`selection_status`、timestamps |
-| Constraints | at least one referenced identity；version requires document；unique project/source and project/version partial indexes |
+| Relation | composite owner FK to project；nullable owner-scoped FKs to `knowledge_source_records` and `knowledge_document_versions` |
+| Important columns | `origin_class`、`source_record_id`、`document_version_id`、`selection_status`、timestamps；no `document_id` |
+| Constraints | at least one of source/version is non-null；unique project/source and project/version partial indexes |
 | Indexes | `(user_id,project_id,selection_status)`、referenced IDs |
 | Mutability | selection/status mutable; readiness computed from live Knowledge state |
 | Delete | unbind current selection only; revision snapshots survive |
+
+`document_id` is deliberately absent. When `document_version_id` is present, the service resolves its owner-scoped `KnowledgeDocumentVersion`, then resolves `version.documentId → KnowledgeDocument`. If `source_record_id` is also present, `document.sourceRecordId` must equal it before insert/update. The service derives `origin_class` only after this validation; a mismatch is rejected before persistence and cannot reach retrieval/support classification.
 
 ### 8.6 JSONB vs relational decision
 
@@ -494,9 +520,11 @@ One bulk resource update is preferred over add/move/delete RPC endpoints. Missin
 | Method | Path | Purpose | Important request | Important response |
 |---|---|---|---|---|
 | `GET` | `/api/paper-projects/:projectId/sources` | project source state | — | bindings + live availability/index state |
-| `PUT` | `/api/paper-projects/:projectId/sources` | replace current selection | `expectedLockVersion`, bindings using accepted IDs | validated bindings + derived origin/availability |
+| `PUT` | `/api/paper-projects/:projectId/sources` | replace current selection | `expectedLockVersion`, bindings containing `sourceRecordId?` and/or `documentVersionId?`; no `documentId`/`originClass` | canonical-chain-validated bindings + server-derived origin/availability |
 
 Search/import/index continue to use existing `/api/academic-search/*` and `/api/knowledge/*`. P4 does not add proxy RPCs for them.
+
+The source binding service resolves every supplied version through `KnowledgeDocumentVersion.documentId → KnowledgeDocument`. When both IDs are supplied, a mismatch with `KnowledgeDocument.sourceRecordId` returns a safe 4xx error and the replacement transaction persists nothing. Only validated bindings may be projected into retrieval selection or actual-support classification.
 
 ### 9.4 Sections and revisions
 
@@ -522,6 +550,7 @@ PAPER_PROJECT_INVALID_REQUEST
 PAPER_OUTLINE_INVALID_TREE
 PAPER_SECTION_REVISION_CONFLICT
 PAPER_SOURCE_OWNERSHIP_MISMATCH
+PAPER_SOURCE_CANONICAL_CHAIN_MISMATCH
 PAPER_SOURCE_METADATA_ONLY
 PAPER_SOURCE_NOT_INDEXED
 PAPER_SOURCE_INDEXING
@@ -716,7 +745,7 @@ Each WP is independently reviewable and follows test-first slices after `PHASE_P
 
 **DB changes:** all five tables, constraints, indexes; no accepted migration edits.
 
-**Tests:** contracts/DTOs, owner isolation, archive behavior, optimistic concurrency, migration order/idempotency, real PostgreSQL FK/rollback, local pg-mem startup.
+**Tests:** contracts/DTOs, owner isolation, archive behavior, optimistic concurrency, migration order/idempotency, real PostgreSQL FK/rollback, local pg-mem startup；assert `paper_project_sources` has no `document_id`, enforces at least one nullable reference, and retains only source/version owner-scoped FKs；assert the two active-only outline position indexes have the required predicates.
 
 **Acceptance criteria:** user A cannot discover or mutate user B project; create/list/get/patch/archive persist correctly; only new 0005 migration changes schema.
 
@@ -752,7 +781,7 @@ Each WP is independently reviewable and follows test-first slices after `PHASE_P
 
 **DB changes:** use WP1 outline/section tables.
 
-**Tests:** valid trees, cycles, duplicate IDs/positions, writing-unit leaf rule, target words, stable IDs, reorder, omission→archive/orphan, remap, concurrency.
+**Tests:** valid trees, cycles, duplicate IDs/positions, writing-unit leaf rule, target words, stable IDs, reorder, omission→archive/orphan, remap, concurrency；specifically `archive node at position N → create/move active sibling to position N → succeeds`, while two active siblings at the same position are rejected.
 
 **Acceptance criteria:** saved writing units have stable PaperSection IDs; outline changes never delete revision data; legacy outline generator remains untouched and preview-only.
 
@@ -788,7 +817,7 @@ Each WP is independently reviewable and follows test-first slices after `PHASE_P
 
 **DB changes:** none beyond WP1 source/revision tables.
 
-**Tests:** owner-scoped binding, index readiness, explicit version routing, GroundedGenerationService delegation, actual evidence classification, citation/trace snapshot, empty evidence fail-closed.
+**Tests:** owner-scoped binding, index readiness, explicit version routing, GroundedGenerationService delegation, actual evidence classification, citation/trace snapshot, empty evidence fail-closed；cover metadata-only source, version-only user source, matching full-text web source, mismatched source/version canonical chain rejected before persistence, and client-supplied origin class rejected by strict DTO policy.
 
 **Acceptance criteria:** E2E B passes; only actual E6 trace yields `USER_EVIDENCE/VALID`.
 
