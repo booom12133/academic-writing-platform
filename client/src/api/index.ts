@@ -7,3 +7,4 @@ export * as documentInputApi from './document-input';
 export * as knowledgeApi from './knowledge';
 export * as academicSearchApi from './academic-search';
 export * as zoteroApi from './zotero';
+export * as paperProjectsApi from './paper-projects';

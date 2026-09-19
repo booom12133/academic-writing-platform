@@ -1,0 +1,23 @@
+import type { OutlineNode, PaperGenerationResponse, PaperProject, PaperProjectSource, PaperSection, PaperSectionRevision, PaperWorkspace, ProjectProfileV1, ResearchPlanV1, SourceStrategy } from '@shared/paper-project.interface';
+import { productHttpClient } from './http';
+
+const id=(value:string)=>encodeURIComponent(value);
+export const createProject=async(request:{profile:ProjectProfileV1;selectedTitle?:string;defaultSourceStrategy?:SourceStrategy})=>(await productHttpClient.post<PaperProject>('/api/paper-projects',request)).data;
+export const listProjects=async(status:'active'|'archived'='active')=>(await productHttpClient.get<PaperProject[]>('/api/paper-projects',{params:{status}})).data;
+export const getWorkspace=async(projectId:string)=>(await productHttpClient.get<PaperWorkspace>(`/api/paper-projects/${id(projectId)}`)).data;
+export const getProject=async(projectId:string)=>(await getWorkspace(projectId)).project;
+export const updateProject=async(projectId:string,request:{expectedLockVersion:number;profile?:ProjectProfileV1;selectedTitle?:string|null;defaultSourceStrategy?:SourceStrategy})=>(await productHttpClient.patch<PaperProject>(`/api/paper-projects/${id(projectId)}`,request)).data;
+export const selectTopic=async(projectId:string,request:{expectedLockVersion:number;title:string})=>(await productHttpClient.put<PaperProject>(`/api/paper-projects/${id(projectId)}/topic-selection`,request)).data;
+export const generateTopics=async(projectId:string,request:{expectedLockVersion:number;instructions?:string;count?:number})=>(await productHttpClient.post(`/api/paper-projects/${id(projectId)}/topics/generate`,request)).data;
+export const getResearchPlan=async(projectId:string)=>(await productHttpClient.get<{researchPlan:ResearchPlanV1|null;lockVersion:number}>(`/api/paper-projects/${id(projectId)}/research-plan`)).data;
+export const generateResearchPlan=async(projectId:string,request:{expectedLockVersion:number;instructions?:string})=>(await productHttpClient.post(`/api/paper-projects/${id(projectId)}/research-plan/generate`,request)).data;
+export const saveResearchPlan=async(projectId:string,request:{expectedLockVersion:number;researchPlan:ResearchPlanV1})=>(await productHttpClient.put<PaperProject>(`/api/paper-projects/${id(projectId)}/research-plan`,request)).data;
+export const getOutline=async(projectId:string)=>(await productHttpClient.get<{nodes:OutlineNode[];lockVersion:number}>(`/api/paper-projects/${id(projectId)}/outline`)).data.nodes;
+export const generateOutline=async(projectId:string,request:{expectedLockVersion:number;instructions?:string})=>(await productHttpClient.post(`/api/paper-projects/${id(projectId)}/outline/generate`,request)).data;
+export const saveOutline=async(projectId:string,request:{expectedLockVersion:number;nodes:unknown[]})=>(await productHttpClient.put<{nodes:OutlineNode[];sections:PaperSection[];lockVersion:number}>(`/api/paper-projects/${id(projectId)}/outline`,request)).data;
+export const listProjectSources=async(projectId:string)=>(await productHttpClient.get<PaperProjectSource[]>(`/api/paper-projects/${id(projectId)}/sources`)).data;
+export const saveProjectSources=async(projectId:string,request:{expectedLockVersion:number;bindings:Array<{sourceRecordId?:string;documentVersionId?:string}>})=>(await productHttpClient.put(`/api/paper-projects/${id(projectId)}/sources`,request)).data;
+export const getSection=async(projectId:string,sectionId:string)=>(await productHttpClient.get<{section:PaperSection;currentRevision:PaperSectionRevision|null}>(`/api/paper-projects/${id(projectId)}/sections/${id(sectionId)}`)).data;
+export const listRevisions=async(projectId:string,sectionId:string)=>(await productHttpClient.get<PaperSectionRevision[]>(`/api/paper-projects/${id(projectId)}/sections/${id(sectionId)}/revisions`)).data;
+export const saveRevision=async(projectId:string,sectionId:string,request:{expectedCurrentRevisionNumber:number;baseRevisionId?:string;content:string})=>(await productHttpClient.post<{noOp:boolean;revision:PaperSectionRevision}>(`/api/paper-projects/${id(projectId)}/sections/${id(sectionId)}/revisions`,request)).data;
+export const generateSection=async(projectId:string,sectionId:string,request:{operation:'GENERATE'|'REWRITE';sourceStrategy:SourceStrategy;expectedCurrentRevisionNumber:number;baseRevisionId?:string;instructions?:string;targetWords?:number})=>(await productHttpClient.post<PaperGenerationResponse>(`/api/paper-projects/${id(projectId)}/sections/${id(sectionId)}/generations`,request)).data;
