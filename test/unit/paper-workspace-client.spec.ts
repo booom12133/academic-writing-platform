@@ -1,7 +1,7 @@
 jest.mock('../../client/src/api/http',()=>({productHttpClient:{get:jest.fn(),post:jest.fn(),put:jest.fn(),patch:jest.fn(),delete:jest.fn()}}));
 import { productHttpClient } from '../../client/src/api/http';
 import { createProject, generateSection, getOutline, listProjects, saveRevision } from '../../client/src/api/paper-projects';
-import { getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, reducePaperEditorState } from '../../client/src/lib/paper-workspace';
+import { canGenerateSection, getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, reducePaperEditorState } from '../../client/src/lib/paper-workspace';
 
 describe('paper workspace client',()=>{
   beforeEach(()=>jest.clearAllMocks());
@@ -19,6 +19,7 @@ describe('paper workspace client',()=>{
     expect(getSupportBadge({actualSupportMode:'AI_DRAFT',supportState:'NOT_CLAIMED'})).toBe('模型草稿');
     expect(getSupportBadge({actualSupportMode:'USER_EVIDENCE',supportState:'VALID'})).toBe('来自用户资料');
     expect(getSupportBadge({actualSupportMode:'WEB_EVIDENCE',supportState:'STALE_AFTER_EDIT'})).toBe('已编辑，证据需复核');
+    expect(getSupportBadge({actualSupportMode:'WEB_EVIDENCE',supportState:'NOT_CLAIMED'})).toBe('证据状态待确认');
   });
   it('tracks local edits without creating revisions until explicit save',()=>{
     const edited=reducePaperEditorState(initialPaperEditorState,{type:'load',content:'a',revisionNumber:1});
@@ -28,6 +29,11 @@ describe('paper workspace client',()=>{
   it('requires explicit confirmation before leaving a dirty section',()=>{
     expect(getSectionSwitchAction(false)).toBe('switch');
     expect(getSectionSwitchAction(true)).toBe('confirm');
+  });
+  it('blocks AI generation while local edits are unsaved',()=>{
+    expect(canGenerateSection('section',false,false)).toBe(true);
+    expect(canGenerateSection('section',false,true)).toBe(false);
+    expect(canGenerateSection('',false,false)).toBe(false);
   });
   it('restores persisted source selections when the workspace reloads',()=>{
     expect([...getSourceSelectionTokens([

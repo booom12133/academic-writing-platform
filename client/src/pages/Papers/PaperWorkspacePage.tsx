@@ -24,6 +24,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog';
 import {
+  canGenerateSection,
   getSectionSwitchAction,
   getPaperWorkspaceError,
   getSourceSelectionTokens,
@@ -67,6 +68,7 @@ export default function PaperWorkspacePage() {
   const [catalogSources, setCatalogSources] = useState<KnowledgeWorkspaceSource[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [pendingSectionId, setPendingSectionId] = useState('');
+  const [pendingRevisionId, setPendingRevisionId] = useState('');
   const [profileDraft, setProfileDraft] = useState<ProjectProfileV1 | null>(null);
 
   async function refresh() {
@@ -96,10 +98,12 @@ export default function PaperWorkspacePage() {
 
   useEffect(() => {
     if (!sectionId) return;
+    let active = true;
     void Promise.all([
       api.getSection(projectId, sectionId),
       api.listRevisions(projectId, sectionId),
     ]).then(([detail, revisions]) => {
+      if (!active) return;
       setRevision(detail.currentRevision);
       setHistory(revisions);
       dispatch({
@@ -108,7 +112,8 @@ export default function PaperWorkspacePage() {
         revisionNumber: detail.section.currentRevisionNumber,
         baseRevisionId: detail.currentRevision?.id,
       });
-    }).catch(() => setError('章节加载失败。'));
+    }).catch(() => { if (active) setError('章节加载失败。'); });
+    return () => { active = false; };
   }, [projectId, sectionId]);
 
   useEffect(() => {
@@ -232,6 +237,33 @@ export default function PaperWorkspacePage() {
     setPendingSectionId('');
   }
 
+  function loadHistoryRevision(item: PaperSectionRevision) {
+    setRevision(item);
+    dispatch({ type: 'load', content: item.content, revisionNumber: Math.max(editor.revisionNumber, item.revisionNumber), baseRevisionId: item.id });
+    setMessage('历史内容已载入；保存会复制为新修订。');
+  }
+
+  function requestHistoryRevision(item: PaperSectionRevision) {
+    if (getSectionSwitchAction(editor.dirty) === 'confirm') {
+      setPendingRevisionId(item.id);
+      return;
+    }
+    loadHistoryRevision(item);
+  }
+
+  function confirmDiscardAndNavigate() {
+    if (pendingSectionId) {
+      confirmSectionSwitch();
+      setPendingRevisionId('');
+      return;
+    }
+    if (pendingRevisionId) {
+      const item = history.find((candidate) => candidate.id === pendingRevisionId);
+      if (item) loadHistoryRevision(item);
+      setPendingRevisionId('');
+    }
+  }
+
   if (!project) return <main className="p-8 text-sm text-slate-500">{error || '正在加载…'}</main>;
   const selectedNode = outline.find((node) => node.sectionId === sectionId);
 
@@ -294,13 +326,10 @@ export default function PaperWorkspacePage() {
         <aside className="rounded-xl border border-slate-200 bg-white p-4"><h2 className="font-semibold">大纲</h2><div className="mt-3 space-y-1">{outline.map((node) => <button key={node.id} disabled={!node.sectionId} onClick={() => requestSectionSwitch(node.sectionId ?? '')} className={`w-full rounded-md px-2 py-2 text-left text-sm ${sectionId === node.sectionId ? 'bg-blue-50 text-blue-700' : 'hover:bg-slate-50'} ${node.parentId ? 'pl-5' : ''}`}>{node.title}</button>)}</div></aside>
 
         <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">{selectedNode?.title ?? '选择一个写作章节'}</h2><p className="text-xs text-slate-500">{getSupportBadge(revision)} · 修订 {editor.revisionNumber}</p></div><div className="flex gap-2"><button disabled={!sectionId || busy} className={`${button} border border-blue-200 text-blue-700`} onClick={() => void run(() => generateSection(revision ? 'REWRITE' : 'GENERATE'))}>{revision ? 'AI 改写' : '生成正文'}</button><button disabled={!editor.dirty || busy} className={`${button} bg-blue-600 text-white`} onClick={() => void run(saveEdit)}>保存修订</button></div></div>
+          <div className="flex items-center justify-between gap-3"><div><h2 className="text-lg font-semibold">{selectedNode?.title ?? '选择一个写作章节'}</h2><p className="text-xs text-slate-500">{getSupportBadge(revision)} · 修订 {editor.revisionNumber}</p></div><div className="flex gap-2"><button disabled={!canGenerateSection(sectionId, busy, editor.dirty)} className={`${button} border border-blue-200 text-blue-700`} onClick={() => void run(() => generateSection(revision ? 'REWRITE' : 'GENERATE'))}>{revision ? 'AI 改写' : '生成正文'}</button><button disabled={!editor.dirty || busy} className={`${button} bg-blue-600 text-white`} onClick={() => void run(saveEdit)}>保存修订</button></div></div>
+          {editor.dirty && <p className="mt-2 text-xs text-amber-700">存在未保存修改；请先保存，再运行 AI 生成或改写。</p>}
           <textarea disabled={!sectionId} value={editor.content} onChange={(event) => dispatch({ type: 'edit', content: event.target.value })} className="mt-4 min-h-[430px] w-full rounded-md border border-slate-300 p-4 text-sm leading-relaxed" placeholder="选择 writing-unit 后生成或撰写正文…" />
-          <h3 className="mt-5 text-sm font-semibold">修订历史</h3><div className="mt-2 flex flex-wrap gap-2">{history.map((item) => <button key={item.id} className="rounded border border-slate-200 px-2 py-1 text-xs" onClick={() => {
-            setRevision(item);
-            dispatch({ type: 'load', content: item.content, revisionNumber: Math.max(editor.revisionNumber, item.revisionNumber), baseRevisionId: item.id });
-            setMessage('历史内容已载入；保存会复制为新修订。');
-          }}>#{item.revisionNumber} {item.origin}</button>)}</div>
+          <h3 className="mt-5 text-sm font-semibold">修订历史</h3><div className="mt-2 flex flex-wrap gap-2">{history.map((item) => <button key={item.id} className="rounded border border-slate-200 px-2 py-1 text-xs" onClick={() => requestHistoryRevision(item)}>#{item.revisionNumber} {item.origin}</button>)}</div>
         </section>
 
         <aside className="rounded-xl border border-slate-200 bg-white p-4">
@@ -314,15 +343,15 @@ export default function PaperWorkspacePage() {
           {revision?.citations.length ? <pre className="mt-4 max-h-52 overflow-auto whitespace-pre-wrap text-xs text-slate-600">{JSON.stringify({ citations: revision.citations, evidenceTrace: revision.evidenceTrace }, null, 2)}</pre> : null}
         </aside>
       </div>
-      <Dialog open={Boolean(pendingSectionId)} onOpenChange={(open) => { if (!open) setPendingSectionId(''); }}>
+      <Dialog open={Boolean(pendingSectionId || pendingRevisionId)} onOpenChange={(open) => { if (!open) { setPendingSectionId(''); setPendingRevisionId(''); } }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>放弃未保存的修改？</DialogTitle>
-            <DialogDescription>当前章节有尚未保存的内容。切换章节会放弃这些本地修改。</DialogDescription>
+            <DialogDescription>当前章节有尚未保存的内容。切换章节或载入历史修订会放弃这些本地修改。</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <button className={`${button} border border-slate-300`} onClick={() => setPendingSectionId('')}>继续编辑</button>
-            <button className={`${button} bg-red-600 text-white`} onClick={confirmSectionSwitch}>放弃并切换</button>
+            <button className={`${button} border border-slate-300`} onClick={() => { setPendingSectionId(''); setPendingRevisionId(''); }}>继续编辑</button>
+            <button className={`${button} bg-red-600 text-white`} onClick={confirmDiscardAndNavigate}>放弃并继续</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

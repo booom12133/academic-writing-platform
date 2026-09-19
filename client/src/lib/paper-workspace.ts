@@ -1,9 +1,10 @@
 import type { ActualSupportMode, PaperProjectSource, SupportState } from '@shared/paper-project.interface';
 
-export function getSupportBadge(revision:{actualSupportMode:ActualSupportMode;supportState:SupportState}|null|undefined){if(!revision)return'尚无正文';if(revision.supportState==='STALE_AFTER_EDIT')return'已编辑，证据需复核';if(revision.actualSupportMode==='WEB_EVIDENCE')return'有真实文献证据';if(revision.actualSupportMode==='USER_EVIDENCE')return'来自用户资料';if(revision.actualSupportMode==='MIXED_EVIDENCE')return'混合证据';return'模型草稿';}
+export function getSupportBadge(revision:{actualSupportMode:ActualSupportMode;supportState:SupportState}|null|undefined){if(!revision)return'尚无正文';if(revision.supportState==='STALE_AFTER_EDIT')return'已编辑，证据需复核';if(revision.actualSupportMode==='AI_DRAFT')return'模型草稿';if(revision.supportState!=='VALID')return'证据状态待确认';if(revision.actualSupportMode==='WEB_EVIDENCE')return'有真实文献证据';if(revision.actualSupportMode==='USER_EVIDENCE')return'来自用户资料';return'混合证据';}
 export interface PaperEditorState{content:string;dirty:boolean;revisionNumber:number;baseRevisionId?:string;}
 export const initialPaperEditorState:PaperEditorState={content:'',dirty:false,revisionNumber:0};
 export function getSectionSwitchAction(isDirty:boolean):'switch'|'confirm'{return isDirty?'confirm':'switch';}
+export function canGenerateSection(sectionId:string,busy:boolean,isDirty:boolean):boolean{return Boolean(sectionId)&&!busy&&!isDirty;}
 export function getSourceSelectionTokens(sources:PaperProjectSource[]):Set<string>{return new Set(sources.map(source=>source.documentVersionId?`v:${source.documentVersionId}`:`s:${source.sourceRecordId!}`));}
 export function getPaperWorkspaceError(error:unknown):string{
   const record=typeof error==='object'&&error!==null?error as Record<string,unknown>:undefined;

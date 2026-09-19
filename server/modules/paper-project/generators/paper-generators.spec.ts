@@ -47,6 +47,9 @@ describe('P4 structured generators', () => {
     'The regression coefficient was 0.42.',
     'Results showed a significant improvement.',
     '该研究结果显示处理组表现更好。',
+    'According to Smith (2024), the intervention is effective.',
+    'Prior work (Smith, 2024) established this claim.',
+    'We surveyed 120 students and observed a 25% increase in performance.',
   ])('rejects unsupported empirical claims: %s', (content) => {
     expect(() => new AcademicIntegrityValidator().validateModelOnly(content))
       .toThrow(expect.objectContaining({ code: 'PAPER_INTEGRITY_VALIDATION_FAILED' }));
@@ -55,5 +58,16 @@ describe('P4 structured generators', () => {
   it('allows prospective language and explicit result placeholders', () => {
     expect(() => new AcademicIntegrityValidator().validateModelOnly('We hypothesize a positive relationship. 【待实证结果补充】'))
       .not.toThrow();
+  });
+
+  it('provides the complete ResearchPlanV1 field shape to the model', async () => {
+    const llm = { generate: jest.fn().mockResolvedValue(result({
+      schemaVersion: 1, researchProblem: 'Problem', researchQuestions: ['Question'], researchObjectives: ['Objective'],
+      methodology: { approach: 'review', methods: ['synthesis'] }, dataMaterialRequirements: [],
+      expectedContributions: ['Contribution'], limitationsAssumptions: [], keywords: ['keyword'],
+    })) } as any;
+    await new ResearchPlanGenerator(llm).generate({ schemaVersion: 1, researchIdea: 'Idea', paperType: 'literature-review', language: 'en' });
+    expect(llm.generate.mock.calls[0][0].messages[1].content).toContain('"researchProblem"');
+    expect(llm.generate.mock.calls[0][0].messages[1].content).toContain('"methodology"');
   });
 });

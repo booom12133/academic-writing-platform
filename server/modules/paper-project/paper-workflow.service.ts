@@ -15,6 +15,7 @@ export class PaperWorkflowService {
   async saveOutline(userId:string,projectId:string,body:unknown) {
     const parsed=outlineSchema.safeParse(body); if(!parsed.success) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Outline request is invalid.',parsed.error.flatten());
     const keys=new Set(parsed.data.nodes.map(n=>n.clientKey)); if(keys.size!==parsed.data.nodes.length) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Outline client keys must be unique.');
+    const stableIds=parsed.data.nodes.flatMap(node=>node.id?[node.id]:[]);if(new Set(stableIds).size!==stableIds.length)throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Stable outline node ids must be unique.');
     const positions=new Set<string>(); for(const node of parsed.data.nodes){ if(node.parentClientKey&&!keys.has(node.parentClientKey)) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Outline parent is missing.'); const key=`${node.parentClientKey??'root'}:${node.position}`; if(positions.has(key)) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Sibling positions must be unique.'); positions.add(key); if(node.nodeType==='writing-unit'&&parsed.data.nodes.some(child=>child.parentClientKey===node.clientKey)) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Writing units must be leaves.'); }
     return this.repository.replaceOutline(userId,projectId,parsed.data.expectedLockVersion,parsed.data.nodes as OutlineWriteNode[]);
   }

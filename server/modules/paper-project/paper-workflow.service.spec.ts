@@ -64,4 +64,17 @@ describe('P4 outline and revision workflow', () => {
     expect(await repository.listSections('user-a', project.id)).toHaveLength(1);
     expect(await repository.listRevisions('user-a', orphan.id)).toHaveLength(1);
   });
+
+  it('rejects duplicate stable node ids before they can form a persisted self-cycle', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const first = await service.saveOutline('user-a', project.id, { expectedLockVersion: 0, nodes: [{ clientKey: 'old', nodeType: 'writing-unit', title: 'Old', position: 0 }] });
+    const reusedId = first.nodes[0].id;
+
+    await expect(service.saveOutline('user-a', project.id, { expectedLockVersion: 1, nodes: [
+      { id: reusedId, clientKey: 'parent', nodeType: 'container', title: 'Parent', position: 0 },
+      { id: reusedId, clientKey: 'child', parentClientKey: 'parent', nodeType: 'writing-unit', title: 'Child', position: 0 },
+    ] })).rejects.toMatchObject({ code: 'PAPER_OUTLINE_INVALID_TREE' });
+
+    expect((await repository.require('user-a', project.id)).lockVersion).toBe(1);
+  });
 });

@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { eq } from 'drizzle-orm';
-import { randomUUID } from 'node:crypto';
 import { knowledgeDocuments } from '../../server/database/schema';
 import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../../server/modules/knowledge/knowledge.repository';
