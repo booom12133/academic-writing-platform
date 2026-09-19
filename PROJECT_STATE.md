@@ -23,6 +23,12 @@ Last Updated: 2026-09-19
 
 ## Current development
 
+- Current Development: Phase P4 — Core Academic Writing Workflow is an `IMPLEMENTATION CANDIDATE / CONTROLLER REVIEW PENDING` on branch `phase/p4-core-writing-workflow`; it is not reviewed, accepted, merged, or frozen.
+- P4 approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a` (`docs/plans/PHASE_P4_IMPLEMENTATION_PLAN_DRAFT.md`).
+- P4 implementation code candidate SHA: `dfe7c64f77f23816a2be7816c2fec7bb3065fbb5`; WP1-WP8 are implemented for controller review.
+- P4 database scope: new migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
+- P4 local verification: targeted PASS — 12 suites / 43 tests; full regression PASS — 207 suites / 1143 tests passed, with 9 suites / 59 tests skipped by environment guards; PostgreSQL integration command PASS — 1 suite / 1 test passed, with 4 suites / 28 tests skipped locally pending real-PostgreSQL CI; lint, type-check, server/client builds, AppModule bootstrap, and P4 E2E scenarios A-D PASS.
+- P4 governance boundary: `REVIEW_PASS=NO`; `ACCEPTED=NO`; `MERGE=NO`; no accepted tag has been created.
 - Current Development: Phase P3 has received explicit Controller Final Acceptance and PR #16 has been merged. Current status is `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`; the accepted tag remains separately gated and unauthorized.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
