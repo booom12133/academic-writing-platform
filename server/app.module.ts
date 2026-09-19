@@ -31,6 +31,7 @@ import { LifecycleModule } from './common/lifecycle/lifecycle.module';
 import { RequestLoggingMiddleware } from './common/logging/request-logging.middleware';
 import { HealthModule } from './modules/health/health.module';
 import { RuntimeConfigModule } from './modules/runtime-config/runtime-config.module';
+import { PaperProjectModule } from './modules/paper-project/paper-project.module';
 
 const runtimeConfig = loadRuntimeConfig();
 
@@ -79,6 +80,7 @@ export function createRuntimeModuleImports(config: RuntimeConfig) {
     AcademicSearchModule,
     AcademicSearchImportModule,
     GroundedGenerationModule,
+    PaperProjectModule,
     // ====== @route-section: business-modules END ======
 
     // ⚠️ @route-order: last

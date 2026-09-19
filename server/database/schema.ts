@@ -505,6 +505,157 @@ export const knowledgeChunkEmbeddings = pgTable(
   ],
 );
 
+export const paperProjects = pgTable(
+  'paper_projects',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    selectedTitle: varchar('selected_title', { length: 500 }),
+    profile: jsonb('profile').notNull(),
+    researchPlan: jsonb('research_plan'),
+    defaultSourceStrategy: varchar('default_source_strategy', { length: 32 }).notNull().default('MODEL_ONLY'),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    lockVersion: integer('lock_version').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_projects_id_user_id_key').on(table.id, table.userId),
+    index('paper_projects_user_status_updated_idx').on(table.userId, table.status, table.updatedAt),
+    check('paper_projects_status_check', sql`${table.status} in ('active', 'archived')`),
+    check('paper_projects_strategy_check', sql`${table.defaultSourceStrategy} in ('MODEL_ONLY', 'WEB_RETRIEVED', 'USER_KNOWLEDGE', 'MIXED')`),
+    check('paper_projects_lock_version_check', sql`${table.lockVersion} >= 0`),
+  ],
+);
+
+export const paperOutlineNodes = pgTable(
+  'paper_outline_nodes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    parentId: uuid('parent_id'),
+    nodeType: varchar('node_type', { length: 20 }).notNull(),
+    title: varchar('title', { length: 500 }).notNull(),
+    position: integer('position').notNull(),
+    targetWords: integer('target_words'),
+    generationNotes: text('generation_notes'),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_outline_nodes_id_project_user_key').on(table.id, table.projectId, table.userId),
+    uniqueIndex('paper_outline_nodes_active_root_position_key')
+      .on(table.projectId, table.userId, table.position)
+      .where(sql`${table.parentId} is null and ${table.status} = 'active'`),
+    uniqueIndex('paper_outline_nodes_active_child_position_key')
+      .on(table.projectId, table.userId, table.parentId, table.position)
+      .where(sql`${table.parentId} is not null and ${table.status} = 'active'`),
+    index('paper_outline_nodes_tree_idx').on(table.userId, table.projectId, table.status, table.parentId, table.position),
+    check('paper_outline_nodes_type_check', sql`${table.nodeType} in ('container', 'writing-unit')`),
+    check('paper_outline_nodes_status_check', sql`${table.status} in ('active', 'archived')`),
+    check('paper_outline_nodes_position_check', sql`${table.position} >= 0`),
+    check('paper_outline_nodes_target_words_check', sql`${table.targetWords} is null or ${table.targetWords} > 0`),
+    foreignKey({
+      columns: [table.projectId, table.userId],
+      foreignColumns: [paperProjects.id, paperProjects.userId],
+      name: 'paper_outline_nodes_project_owner_fk',
+    }),
+    foreignKey({
+      columns: [table.parentId, table.projectId, table.userId],
+      foreignColumns: [table.id, table.projectId, table.userId],
+      name: 'paper_outline_nodes_parent_owner_fk',
+    }),
+  ],
+);
+
+export const paperSections = pgTable(
+  'paper_sections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    outlineNodeId: uuid('outline_node_id'),
+    status: varchar('status', { length: 20 }).notNull().default('active'),
+    currentRevisionNumber: integer('current_revision_number').notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_sections_id_user_id_key').on(table.id, table.userId),
+    uniqueIndex('paper_sections_project_outline_key').on(table.projectId, table.outlineNodeId),
+    index('paper_sections_project_status_idx').on(table.userId, table.projectId, table.status),
+    check('paper_sections_status_check', sql`${table.status} in ('active', 'orphaned', 'archived')`),
+    check('paper_sections_revision_check', sql`${table.currentRevisionNumber} >= 0`),
+    foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_sections_project_owner_fk' }),
+    foreignKey({ columns: [table.outlineNodeId, table.projectId, table.userId], foreignColumns: [paperOutlineNodes.id, paperOutlineNodes.projectId, paperOutlineNodes.userId], name: 'paper_sections_outline_owner_fk' }),
+  ],
+);
+
+export const paperSectionRevisions = pgTable(
+  'paper_section_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sectionId: uuid('section_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    revisionNumber: integer('revision_number').notNull(),
+    baseRevisionId: uuid('base_revision_id'),
+    content: text('content').notNull(),
+    contentHash: varchar('content_hash', { length: 64 }).notNull(),
+    origin: varchar('origin', { length: 24 }).notNull(),
+    sourceStrategy: varchar('source_strategy', { length: 32 }).notNull(),
+    actualSupportMode: varchar('actual_support_mode', { length: 24 }).notNull(),
+    supportState: varchar('support_state', { length: 24 }).notNull(),
+    citations: jsonb('citations').notNull().default(sql`'[]'::jsonb`),
+    bibliography: jsonb('bibliography').notNull().default(sql`'[]'::jsonb`),
+    evidenceTrace: jsonb('evidence_trace').notNull().default(sql`'[]'::jsonb`),
+    generationMetadata: jsonb('generation_metadata').notNull().default(sql`'{}'::jsonb`),
+    warnings: jsonb('warnings').notNull().default(sql`'[]'::jsonb`),
+    rewriteInstruction: text('rewrite_instruction'),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_section_revisions_id_section_user_key').on(table.id, table.sectionId, table.userId),
+    uniqueIndex('paper_section_revisions_number_key').on(table.sectionId, table.userId, table.revisionNumber),
+    index('paper_section_revisions_history_idx').on(table.userId, table.sectionId, table.revisionNumber),
+    check('paper_section_revisions_number_check', sql`${table.revisionNumber} > 0`),
+    check('paper_section_revisions_content_check', sql`length(trim(${table.content})) > 0`),
+    check('paper_section_revisions_origin_check', sql`${table.origin} in ('AI_GENERATION', 'AI_REWRITE', 'USER_EDIT')`),
+    check('paper_section_revisions_strategy_check', sql`${table.sourceStrategy} in ('MODEL_ONLY', 'WEB_RETRIEVED', 'USER_KNOWLEDGE', 'MIXED')`),
+    check('paper_section_revisions_support_mode_check', sql`${table.actualSupportMode} in ('AI_DRAFT', 'WEB_EVIDENCE', 'USER_EVIDENCE', 'MIXED_EVIDENCE')`),
+    check('paper_section_revisions_support_state_check', sql`${table.supportState} in ('NOT_CLAIMED', 'VALID', 'STALE_AFTER_EDIT')`),
+    foreignKey({ columns: [table.sectionId, table.userId], foreignColumns: [paperSections.id, paperSections.userId], name: 'paper_section_revisions_section_owner_fk' }),
+    foreignKey({ columns: [table.baseRevisionId, table.sectionId, table.userId], foreignColumns: [table.id, table.sectionId, table.userId], name: 'paper_section_revisions_base_owner_fk' }),
+  ],
+);
+
+export const paperProjectSources = pgTable(
+  'paper_project_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    projectId: uuid('project_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    sourceRecordId: uuid('source_record_id'),
+    documentVersionId: uuid('document_version_id'),
+    originClass: varchar('origin_class', { length: 24 }).notNull(),
+    selectionStatus: varchar('selection_status', { length: 20 }).notNull().default('selected'),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (table) => [
+    index('paper_project_sources_project_status_idx').on(table.userId, table.projectId, table.selectionStatus),
+    uniqueIndex('paper_project_sources_project_source_key').on(table.projectId, table.sourceRecordId).where(sql`${table.sourceRecordId} is not null`),
+    uniqueIndex('paper_project_sources_project_version_key').on(table.projectId, table.documentVersionId).where(sql`${table.documentVersionId} is not null`),
+    check('paper_project_sources_identity_check', sql`${table.sourceRecordId} is not null or ${table.documentVersionId} is not null`),
+    check('paper_project_sources_origin_check', sql`${table.originClass} in ('WEB_IMPORTED', 'USER_KNOWLEDGE')`),
+    check('paper_project_sources_selection_check', sql`${table.selectionStatus} in ('selected', 'unbound')`),
+    foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_project_sources_project_owner_fk' }),
+    foreignKey({ columns: [table.sourceRecordId, table.userId], foreignColumns: [knowledgeSourceRecords.id, knowledgeSourceRecords.userId], name: 'paper_project_sources_source_owner_fk' }),
+    foreignKey({ columns: [table.documentVersionId, table.userId], foreignColumns: [knowledgeDocumentVersions.id, knowledgeDocumentVersions.userId], name: 'paper_project_sources_version_owner_fk' }),
+  ],
+);
+
 export const appUsersTable = appUsers;
 export const pointRecordsTable = pointRecords;
 export const rechargeOrdersTable = rechargeOrders;
