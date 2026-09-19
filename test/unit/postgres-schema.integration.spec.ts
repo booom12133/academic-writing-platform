@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import { eq } from 'drizzle-orm';
+import { randomUUID } from 'node:crypto';
 import { knowledgeDocuments } from '../../server/database/schema';
 import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
 import { KnowledgeRepository, type KnowledgeRepositoryPort } from '../../server/modules/knowledge/knowledge.repository';
@@ -188,8 +189,31 @@ describeIfDatabase('standard PostgreSQL migrations', () => {
     expect(result.rows.map((row) => row.table_name)).toEqual([
       'app_users', 'knowledge_chunk_embeddings', 'knowledge_chunks', 'knowledge_document_versions', 'knowledge_documents',
       'knowledge_embedding_indexes', 'knowledge_imports', 'knowledge_metadata_assertions', 'knowledge_source_external_links',
-      'knowledge_source_records', 'point_records', 'recharge_orders', 'tasks', 'zotero_connections',
+      'knowledge_source_records', 'paper_outline_nodes', 'paper_project_sources', 'paper_projects',
+      'paper_section_revisions', 'paper_sections', 'point_records', 'recharge_orders', 'tasks', 'zotero_connections',
     ]);
+  });
+
+  it('enforces the P4 canonical source and active sibling schema invariants', async () => {
+    const sourceColumns = await pool.query<{ column_name: string }>(`SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name='paper_project_sources' ORDER BY column_name`);
+    expect(sourceColumns.rows.map((row) => row.column_name)).toContain('source_record_id');
+    expect(sourceColumns.rows.map((row) => row.column_name)).toContain('document_version_id');
+    expect(sourceColumns.rows.map((row) => row.column_name)).not.toContain('document_id');
+    const indexes = await pool.query<{ indexname: string; indexdef: string }>(`SELECT indexname,indexdef FROM pg_indexes WHERE schemaname='public' AND indexname IN ('paper_outline_nodes_active_root_position_key','paper_outline_nodes_active_child_position_key') ORDER BY indexname`);
+    expect(indexes.rows).toHaveLength(2);
+    expect(indexes.rows.map((row) => row.indexdef).join('\n')).toMatch(/WHERE .*status.*active/iu);
+  });
+
+  it('enforces P4 source identities, owner foreign keys, and reusable archived positions', async () => {
+    const userId = `p4-${randomUUID()}`;
+    const project = await pool.query<{ id: string }>(`INSERT INTO paper_projects (user_id, profile) VALUES ($1, $2::jsonb) RETURNING id`, [userId, JSON.stringify({ schemaVersion: 1, researchIdea: 'P4 schema check', paperType: 'other', language: 'en' })]);
+    const projectId = project.rows[0].id;
+    await expect(pool.query(`INSERT INTO paper_project_sources (project_id,user_id,origin_class) VALUES ($1,$2,'USER_KNOWLEDGE')`, [projectId, userId])).rejects.toThrow();
+    await expect(pool.query(`INSERT INTO paper_project_sources (project_id,user_id,source_record_id,origin_class) VALUES ($1,$2,$3,'USER_KNOWLEDGE')`, [projectId, userId, randomUUID()])).rejects.toThrow();
+    const first = await pool.query<{ id: string }>(`INSERT INTO paper_outline_nodes (project_id,user_id,node_type,title,position) VALUES ($1,$2,'writing-unit','First',0) RETURNING id`, [projectId, userId]);
+    await expect(pool.query(`INSERT INTO paper_outline_nodes (project_id,user_id,node_type,title,position) VALUES ($1,$2,'writing-unit','Duplicate',0)`, [projectId, userId])).rejects.toThrow();
+    await pool.query(`UPDATE paper_outline_nodes SET status='archived' WHERE id=$1`, [first.rows[0].id]);
+    await expect(pool.query(`INSERT INTO paper_outline_nodes (project_id,user_id,node_type,title,position) VALUES ($1,$2,'writing-unit','Replacement',0)`, [projectId, userId])).resolves.toMatchObject({ rowCount: 1 });
   });
 
   it('has the composite referenced unique keys required by the ownership foreign keys', async () => {
