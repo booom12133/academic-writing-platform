@@ -16,20 +16,20 @@ export class PaperWritingContextBuilder {
     const languageDirective=profile.language==='zh-CN'
       ? 'Output language: Write the section in Chinese (zh-CN) unless the user instruction explicitly requests another language.'
       : 'Output language: Write the section in English unless the user instruction explicitly requests another language.';
-    const coreProfile=clip('projectProfile',[
+    const coreProfile=[
       languageDirective,
       `Paper type: ${profile.paperType}`,
-      `Research idea: ${profile.researchIdea}`,
-      `Selected title: ${input.project.selectedTitle??'Untitled'}`,
-      profile.discipline?`Discipline: ${profile.discipline}`:'',
-      profile.educationLevel?`Education level: ${profile.educationLevel}`:'',
-      profile.requirements?`Requirements: ${profile.requirements}`:'',
+      clip('researchIdea',`Research idea: ${profile.researchIdea}`,600),
+      clip('selectedTitle',`Selected title: ${input.project.selectedTitle??'Untitled'}`,600),
+      profile.discipline?clip('discipline',`Discipline: ${profile.discipline}`,400):'',
+      profile.educationLevel?clip('educationLevel',`Education level: ${profile.educationLevel}`,400):'',
+      profile.requirements?clip('requirements',`Requirements: ${profile.requirements}`,1_200):'',
       profile.targetWords?`Target words: ${profile.targetWords}`:'',
-    ].filter(Boolean).join('\n'),3_000);
-    const planning=input.project.researchPlan?clip('researchPlan',`Research plan: ${JSON.stringify(input.project.researchPlan)}`,1_800):'';
+    ].filter(Boolean).join('\n');
+    const planning=input.project.researchPlan?clip('researchPlan',`Research plan: ${JSON.stringify(input.project.researchPlan)}`,1_200):'';
     const active=input.outline.filter(node=>node.status==='active');
     const siblings=active.filter(node=>node.parentId===input.selectedNode.parentId).map(node=>node.title);
-    const outline=clip('outline',`Outline path and sibling titles: ${siblings.join(' | ')}`,800);
+    const outline=clip('outline',`Outline path and sibling titles: ${siblings.join(' | ')}`,600);
     return {text:[selected,instruction,base,coreProfile,planning,outline].filter(Boolean).join('\n\n'),includedSectionIds:input.baseRevision?[input.baseRevision.sectionId]:[],warnings};
   }
 }

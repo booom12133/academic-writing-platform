@@ -34,7 +34,9 @@ import {
   getSupportBadge,
   initialPaperEditorState,
   moveOutlineSibling,
+  orderEditableOutline,
   reducePaperEditorState,
+  removeOutlineSubtree,
   toEditableOutline,
 } from '../../lib/paper-workspace';
 
@@ -342,7 +344,7 @@ export default function PaperWorkspacePage() {
             setProposalMode('generated');
           })}>生成新提案</button></div></div>
           {proposalMode === 'generated' && outline.length > 0 && <p className="mt-2 text-xs text-amber-700">新提案不会自动覆盖当前大纲；保存时需要明确确认替换。</p>}
-          <div className="mt-3 space-y-2">{proposal.map((node, index) => <div key={node.clientKey} className="flex items-center gap-1"><input value={node.title} onChange={(event) => setProposal((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item))} className={`min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm ${node.parentClientKey ? 'ml-4' : ''}`} /><button aria-label="上移" className="rounded border px-2 py-1 text-xs" onClick={() => setProposal((current) => moveOutlineSibling(current,node.clientKey,'up'))}>↑</button><button aria-label="下移" className="rounded border px-2 py-1 text-xs" onClick={() => setProposal((current) => moveOutlineSibling(current,node.clientKey,'down'))}>↓</button><button aria-label="移除" className="rounded border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setProposal((current) => current.filter((item) => item.clientKey !== node.clientKey && item.parentClientKey !== node.clientKey))}>移除</button></div>)}</div>
+          <div className="mt-3 space-y-2">{orderEditableOutline(proposal).map((node) => <div key={node.clientKey} className="flex items-center gap-1"><input value={node.title} onChange={(event) => setProposal((current) => current.map((item) => item.clientKey === node.clientKey ? { ...item, title: event.target.value } : item))} className={`min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm ${node.parentClientKey ? 'ml-4' : ''}`} /><button aria-label="上移" className="rounded border px-2 py-1 text-xs" onClick={() => setProposal((current) => moveOutlineSibling(current,node.clientKey,'up'))}>↑</button><button aria-label="下移" className="rounded border px-2 py-1 text-xs" onClick={() => setProposal((current) => moveOutlineSibling(current,node.clientKey,'down'))}>↓</button><button aria-label="移除" className="rounded border border-red-200 px-2 py-1 text-xs text-red-600" onClick={() => setProposal((current) => removeOutlineSubtree(current,node.clientKey))}>移除</button></div>)}</div>
           {proposal.length > 0 && <button className={`${button} mt-2 bg-slate-800 text-white`} onClick={() => void run(async () => {
             if (getOutlineProposalSaveAction(proposalMode,outline.length > 0) === 'confirm-replace') { setPendingOutlineReplace(true); return; }
             await saveOutlineDraft();

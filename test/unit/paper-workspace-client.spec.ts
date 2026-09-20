@@ -1,7 +1,7 @@
 jest.mock('../../client/src/api/http',()=>({productHttpClient:{get:jest.fn(),post:jest.fn(),put:jest.fn(),patch:jest.fn(),delete:jest.fn()}}));
 import { productHttpClient } from '../../client/src/api/http';
 import { createProject, generateSection, getOutline, listProjects, remapSection, saveRevision } from '../../client/src/api/paper-projects';
-import { canGenerateSection, getOutlineProposalSaveAction, getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, moveOutlineSibling, reducePaperEditorState, toEditableOutline } from '../../client/src/lib/paper-workspace';
+import { canGenerateSection, getOutlineProposalSaveAction, getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, moveOutlineSibling, orderEditableOutline, reducePaperEditorState, removeOutlineSubtree, toEditableOutline } from '../../client/src/lib/paper-workspace';
 
 describe('paper workspace client',()=>{
   beforeEach(()=>jest.clearAllMocks());
@@ -27,6 +27,10 @@ describe('paper workspace client',()=>{
       ['22222222-2222-4222-8222-222222222222',1],
       ['33333333-3333-4333-8333-333333333333',0],
     ]);
+    expect(orderEditableOutline(moveOutlineSibling(editable,editable[2].clientKey,'up')).map(node=>node.id)).toEqual([
+      '11111111-1111-4111-8111-111111111111','33333333-3333-4333-8333-333333333333','22222222-2222-4222-8222-222222222222',
+    ]);
+    expect(removeOutlineSubtree(editable,editable[0].clientKey)).toEqual([]);
   });
   it('requires explicit replacement confirmation for a generated proposal but not saved-outline edits',()=>{
     expect(getOutlineProposalSaveAction('generated',true)).toBe('confirm-replace');

@@ -28,6 +28,15 @@ describe('PaperWritingContextBuilder', () => {
     expect(context.text).toEqual(expect.stringContaining('Generation notes: Describe the design.'));
   });
 
+  it('keeps required profile constraints visible even when the research idea is oversized', () => {
+    const oversized=project('zh-CN');oversized.profile.researchIdea='I'.repeat(20_000);
+    const context=new PaperWritingContextBuilder().build({project:oversized,outline:[node],selectedNode:node});
+    expect(context.text).toContain('Write the section in Chinese (zh-CN)');
+    expect(context.text).toContain('Paper type: empirical-qualitative');
+    expect(context.text).toContain('Requirements: Use a formal academic register.');
+    expect(context.warnings).toContain('CONTEXT_TRUNCATED:researchIdea');
+  });
+
   it('keeps rewrite instructions and base revision when optional planning context is huge', () => {
     const huge = project('en');
     huge.researchPlan = { ...huge.researchPlan!, researchProblem: 'P'.repeat(80_000) };
