@@ -54,6 +54,9 @@ describe('P4 structured generators', () => {
     'The 95% confidence interval was [0.10, 0.40].',
     '研究结果显示处理组提高了 25%。',
     'doi:10.1234/fake-result',
+    '回归系数为0.42。',
+    '置信区间为[0.10, 0.40]。',
+    '处理组提高了25%。',
   ])('rejects unsupported empirical claims: %s', (content) => {
     expect(() => new AcademicIntegrityValidator().validateModelOnly(content))
       .toThrow(expect.objectContaining({ code: 'PAPER_INTEGRITY_VALIDATION_FAILED' }));
@@ -67,6 +70,7 @@ describe('P4 structured generators', () => {
     '样本量将在功效分析后确定。',
     '将报告估计所得的置信区间。',
     '回归系数将在模型估计完成后报告。',
+    'p < 0.05 will be used as the significance threshold.',
   ])('allows prospective methodological language: %s', (content) => {
     expect(() => new AcademicIntegrityValidator().validateModelOnly(content)).not.toThrow();
   });

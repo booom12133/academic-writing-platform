@@ -1,7 +1,7 @@
 jest.mock('../../client/src/api/http',()=>({productHttpClient:{get:jest.fn(),post:jest.fn(),put:jest.fn(),patch:jest.fn(),delete:jest.fn()}}));
 import { productHttpClient } from '../../client/src/api/http';
 import { createProject, generateSection, getOutline, listProjects, remapSection, saveRevision } from '../../client/src/api/paper-projects';
-import { canGenerateSection, getOutlineProposalSaveAction, getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, moveOutlineSibling, orderEditableOutline, reducePaperEditorState, removeOutlineSubtree, toEditableOutline } from '../../client/src/lib/paper-workspace';
+import { canGenerateSection, canMoveOutlineSibling, getOutlineControlLabel, getOutlineProposalSaveAction, getPaperWorkspaceError, getSectionSwitchAction, getSourceSelectionTokens, getSupportBadge, initialPaperEditorState, moveOutlineSibling, orderEditableOutline, reducePaperEditorState, removeOutlineSubtree, toEditableOutline } from '../../client/src/lib/paper-workspace';
 
 describe('paper workspace client',()=>{
   beforeEach(()=>jest.clearAllMocks());
@@ -36,6 +36,14 @@ describe('paper workspace client',()=>{
     expect(getOutlineProposalSaveAction('generated',true)).toBe('confirm-replace');
     expect(getOutlineProposalSaveAction('generated',false)).toBe('save');
     expect(getOutlineProposalSaveAction('saved-edit',true)).toBe('save');
+  });
+  it('gives outline controls node-specific accessible labels and disables boundary moves',()=>{
+    const nodes=[{clientKey:'a',nodeType:'writing-unit' as const,title:'Methods',position:0},{clientKey:'b',nodeType:'writing-unit' as const,title:'Results',position:1}];
+    expect(getOutlineControlLabel('up','Methods')).toBe('上移 Methods');
+    expect(getOutlineControlLabel('title','Methods')).toBe('大纲标题 Methods');
+    expect(canMoveOutlineSibling(nodes,'a','up')).toBe(false);
+    expect(canMoveOutlineSibling(nodes,'a','down')).toBe(true);
+    expect(canMoveOutlineSibling(nodes,'b','down')).toBe(false);
   });
   it('derives badges from persisted support, never requested strategy',()=>{
     expect(getSupportBadge({actualSupportMode:'AI_DRAFT',supportState:'NOT_CLAIMED'})).toBe('模型草稿');
