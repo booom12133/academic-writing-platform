@@ -22,4 +22,15 @@ describe('PaperPlanningService provider mapping', () => {
         message: 'Paper generation provider is unavailable.',
       });
   });
+
+  it('passes the selected title into Research Plan proposal generation without saving it', async () => {
+    const plans = { generate: jest.fn().mockResolvedValue({ result: { schemaVersion: 1 } }) };
+    const projects = { require: jest.fn().mockResolvedValue(project), updateRoot: jest.fn() };
+    const service = new PaperPlanningService(projects as any, { generate: jest.fn() } as any, plans as any, { generate: jest.fn() } as any);
+
+    await service.generateResearchPlan('user', 'project', { expectedLockVersion: 0, instructions: 'Keep it focused.' });
+
+    expect(plans.generate).toHaveBeenCalledWith(project.profile, { selectedTitle: 'Title', instructions: 'Keep it focused.' });
+    expect(projects.updateRoot).not.toHaveBeenCalled();
+  });
 });

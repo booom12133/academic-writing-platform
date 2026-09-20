@@ -23,6 +23,27 @@ describe('P4 outline and revision workflow', () => {
     expect((await repository.getSection('user-a', project.id, sectionA.id))?.status).toBe('orphaned');
   });
 
+  it('preserves section identity and revision history when a saved node is renamed and reordered', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const first = await service.saveOutline('user-a', project.id, { expectedLockVersion: 0, nodes: [
+      { clientKey: 'first', nodeType: 'writing-unit', title: 'First', position: 0 },
+      { clientKey: 'second', nodeType: 'writing-unit', title: 'Second', position: 1 },
+    ] });
+    const firstNode = first.nodes.find((node) => node.title === 'First')!;
+    const secondNode = first.nodes.find((node) => node.title === 'Second')!;
+    const firstSection = first.sections.find((section) => section.outlineNodeId === firstNode.id)!;
+    const revision = await repository.appendRevision('user-a', project.id, firstSection.id, 0, { content: 'Keep me', origin: 'USER_EDIT', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED', citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [] });
+
+    const saved = await service.saveOutline('user-a', project.id, { expectedLockVersion: 1, nodes: [
+      { id: secondNode.id, clientKey: `persisted:${secondNode.id}`, nodeType: 'writing-unit', title: 'Second', position: 0 },
+      { id: firstNode.id, clientKey: `persisted:${firstNode.id}`, nodeType: 'writing-unit', title: 'Renamed First', position: 1 },
+    ] });
+
+    expect(saved.nodes.find((node) => node.id === firstNode.id)).toMatchObject({ title: 'Renamed First', position: 1, sectionId: firstSection.id });
+    expect(saved.sections.find((section) => section.id === firstSection.id)).toMatchObject({ currentRevisionNumber: 1, status: 'active' });
+    expect(await repository.listRevisions('user-a', firstSection.id)).toEqual([expect.objectContaining({ id: revision.id, content: 'Keep me' })]);
+  });
+
   it('creates immutable user revisions, marks grounded edits stale, and no-ops identical saves', async () => {
     const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
     const outline = await service.saveOutline('user-a', project.id, { expectedLockVersion: 0, nodes: [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }] });

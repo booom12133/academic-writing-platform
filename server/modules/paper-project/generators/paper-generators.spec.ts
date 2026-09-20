@@ -50,14 +50,25 @@ describe('P4 structured generators', () => {
     'According to Smith (2024), the intervention is effective.',
     'Prior work (Smith, 2024) established this claim.',
     'We surveyed 120 students and observed a 25% increase in performance.',
+    'The sample size was 120.',
+    'The 95% confidence interval was [0.10, 0.40].',
+    '研究结果显示处理组提高了 25%。',
+    'doi:10.1234/fake-result',
   ])('rejects unsupported empirical claims: %s', (content) => {
     expect(() => new AcademicIntegrityValidator().validateModelOnly(content))
       .toThrow(expect.objectContaining({ code: 'PAPER_INTEGRITY_VALIDATION_FAILED' }));
   });
 
-  it('allows prospective language and explicit result placeholders', () => {
-    expect(() => new AcademicIntegrityValidator().validateModelOnly('We hypothesize a positive relationship. 【待实证结果补充】'))
-      .not.toThrow();
+  it.each([
+    'We hypothesize a positive relationship. 【待实证结果补充】',
+    'The sample size will be determined by power analysis.',
+    'Confidence intervals will be reported after estimation.',
+    'The regression coefficients will be estimated using the specified model.',
+    '样本量将在功效分析后确定。',
+    '将报告估计所得的置信区间。',
+    '回归系数将在模型估计完成后报告。',
+  ])('allows prospective methodological language: %s', (content) => {
+    expect(() => new AcademicIntegrityValidator().validateModelOnly(content)).not.toThrow();
   });
 
   it('provides the complete ResearchPlanV1 field shape to the model', async () => {
@@ -69,5 +80,18 @@ describe('P4 structured generators', () => {
     await new ResearchPlanGenerator(llm).generate({ schemaVersion: 1, researchIdea: 'Idea', paperType: 'literature-review', language: 'en' });
     expect(llm.generate.mock.calls[0][0].messages[1].content).toContain('"researchProblem"');
     expect(llm.generate.mock.calls[0][0].messages[1].content).toContain('"methodology"');
+  });
+
+  it('includes the selected paper title in Research Plan generation context', async () => {
+    const llm = { generate: jest.fn().mockResolvedValue(result({
+      schemaVersion: 1, researchProblem: 'Problem', researchQuestions: ['Question'], researchObjectives: ['Objective'],
+      methodology: { approach: 'review', methods: ['synthesis'] }, dataMaterialRequirements: [],
+      expectedContributions: ['Contribution'], limitationsAssumptions: [], keywords: ['keyword'],
+    })) } as any;
+    await new ResearchPlanGenerator(llm).generate(
+      { schemaVersion: 1, researchIdea: 'Idea', paperType: 'literature-review', language: 'en' },
+      { selectedTitle: 'Selected evidence-aware title' },
+    );
+    expect(llm.generate.mock.calls[0][0].messages[1].content).toContain('Selected evidence-aware title');
   });
 });
