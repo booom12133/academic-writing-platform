@@ -13,6 +13,14 @@ describe('CitationRenderer', () => {
     });
 
     expect(result.content).toBe('Rendered unit. [1]');
+    expect(result.citationPlacements).toEqual([{
+      schemaVersion: 1,
+      citationId: 'citation-1',
+      localNumber: 1,
+      start: 15,
+      end: 18,
+      markerText: '[1]',
+    }]);
     expect(result.content).not.toContain('undefined');
   });
 
@@ -28,5 +36,21 @@ describe('CitationRenderer', () => {
 
     expect(result.content).toContain('Partial. [1] [partially-bound]');
     expect(result.content).toContain('Unbound. [unbound]');
+  });
+
+  it('records UTF-16 offsets for adjacent markers after emoji and CJK text', () => {
+    const result = new CitationRenderer().render({ segments: [] }, {
+      units: [{ unitId: 'unit-1', text: '😀研究', citationIds: ['citation-1', 'citation-2'], bindingStatus: 'bound', diagnostics: [] }],
+      citations: [
+        { citationId: 'citation-1', evidenceIds: ['one'] },
+        { citationId: 'citation-2', evidenceIds: ['two'] },
+      ],
+    });
+
+    expect(result.content).toBe('😀研究 [1][2]');
+    expect(result.citationPlacements.map(({ citationId, start, end, markerText }) => ({ citationId, start, end, markerText }))).toEqual([
+      { citationId: 'citation-1', start: 5, end: 8, markerText: '[1]' },
+      { citationId: 'citation-2', start: 8, end: 11, markerText: '[2]' },
+    ]);
   });
 });

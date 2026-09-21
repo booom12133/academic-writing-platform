@@ -98,6 +98,7 @@ export class GroundedGenerationService {
       claims: semantics.claims,
       citations: semantics.citations,
       bibliography: bibliography.entries,
+      citationPlacements: rendered.citationPlacements,
       evidenceTrace: semantics.evidenceTrace,
       grounding: {
         groundingCoverage: validation.groundingCoverage,

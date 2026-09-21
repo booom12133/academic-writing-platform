@@ -33,4 +33,27 @@ describe('ManuscriptProjectionService', () => {
       'TITLE_MISSING', 'RESEARCH_PLAN_MISSING', 'MISSING_SECTION', 'ORPHANED_SECTION_EXCLUDED', 'DERIVED_CONTENT_MISSING',
     ]));
   });
+
+  it('projects placement-normalized citations and one global references block', async () => {
+    const snapshot = fixture();
+    const revision = snapshot.revisionsBySectionId['section-a']!;
+    revision.content = 'User [1]. Claim [1]';
+    revision.supportState = 'VALID';
+    revision.citations = [{ citationId: 'citation-1', evidenceIds: ['evidence-1'] }];
+    revision.bibliography = [{ citationId: 'citation-1', fields: { title: 'Verified title' } }];
+    revision.evidenceTrace = [{
+      evidenceId: 'evidence-1',
+      citationLocator: { chunkId: 'chunk', documentVersionId: 'version', sourceRecordId: 'source' },
+      provenance: { documentId: 'document', documentVersionId: 'version', sourceRecordId: 'source', sourceBlockId: 'b', sourceBlockIndex: 0, section: 'content', headingPath: [], sourceUnitId: 'u', sourceChunkOrdinal: 0, itemOrdinal: 0 },
+      sourceRecord: { id: 'source', userId: 'user', kind: 'scholarly-work', canonicalMetadata: {}, externalProvenance: [], status: 'active', createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' },
+    }];
+    revision.generationMetadata = { citationPlacements: [{ schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 16, end: 19, markerText: '[1]' }] };
+    const service = new ManuscriptProjectionService({ loadManuscriptSnapshot: jest.fn().mockResolvedValue(snapshot) } as any);
+
+    const projection = await service.getProjection('user', 'project');
+
+    expect(projection.blocks.filter((block) => block.kind === 'references')).toEqual([{ kind: 'references', entries: [{ number: 1, identity: 'source:source', fields: { title: 'Verified title' } }] }]);
+    expect(projection.supportSummary.managedCitationCount).toBe(1);
+    expect(projection.citations[0]).toMatchObject({ number: 1, identity: 'source:source' });
+  });
 });

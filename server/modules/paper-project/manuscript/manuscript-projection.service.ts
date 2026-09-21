@@ -3,11 +3,14 @@ import type { DerivedContentProjection, ManuscriptBlock, ManuscriptProjectionV1,
 import { PaperProjectRepository } from '../paper-project.repository';
 import { assembleOutlineTree } from './manuscript-tree-assembler';
 import { computeBodyFingerprint, countManuscriptWordsV1, sha256Canonical } from './manuscript-fingerprint';
+import { WholeDocumentCitationNormalizer } from '../../grounded-generation/citation/whole-document-citation-normalizer';
+import type { BibliographyEntry, CitationPlacementV1, CitationReference, EvidenceTrace } from '../../grounded-generation/grounded-generation.types';
 
 const missingDerived = (role: 'ABSTRACT' | 'KEYWORDS'): DerivedContentProjection => ({ role, state: 'MISSING' });
 
 @Injectable()
 export class ManuscriptProjectionService {
+  private readonly citationNormalizer = new WholeDocumentCitationNormalizer();
   constructor(
     @Inject(PaperProjectRepository)
     private readonly repository: Pick<PaperProjectRepository, 'loadManuscriptSnapshot'>,
@@ -52,13 +55,37 @@ export class ManuscriptProjectionService {
       warnings.push({ code: 'ORPHANED_SECTION_EXCLUDED', severity: 'warning', message: 'An orphaned section was excluded from the manuscript.', sectionId: section.id, revisionId: snapshot.revisionsBySectionId[section.id]?.id });
     }
 
+    const citationSections = ordered.flatMap(({ node }) => {
+      const section = sectionByNode.get(node.id);
+      const revision = section ? snapshot.revisionsBySectionId[section.id] : undefined;
+      if (!section || !revision) return [];
+      const metadataPlacements = revision.generationMetadata.citationPlacements;
+      return [{
+        sectionId: section.id,
+        revisionId: revision.id,
+        supportState: revision.supportState,
+        content: revision.content,
+        citations: revision.citations as CitationReference[],
+        bibliography: revision.bibliography as BibliographyEntry[],
+        evidenceTrace: revision.evidenceTrace as EvidenceTrace[],
+        ...(Array.isArray(metadataPlacements) ? { citationPlacements: metadataPlacements as CitationPlacementV1[] } : {}),
+      }];
+    });
+    const normalized = this.citationNormalizer.normalize(citationSections);
+    const normalizedByRevision = new Map(normalized.sections.map((section) => [section.revisionId, section.content]));
+    for (const block of blocks) {
+      if (block.kind === 'paragraph') block.text = normalizedByRevision.get(block.revisionId) ?? block.text;
+    }
+    warnings.push(...normalized.warnings);
+    if (normalized.bibliography.length > 0) blocks.push({ kind: 'references', entries: normalized.bibliography });
+
     const derived = { abstract: missingDerived('ABSTRACT'), keywords: missingDerived('KEYWORDS') };
     warnings.push(
       { code: 'DERIVED_CONTENT_MISSING', severity: 'warning', message: 'The manuscript abstract is missing.', derivedRole: 'ABSTRACT' },
       { code: 'DERIVED_CONTENT_MISSING', severity: 'warning', message: 'The manuscript keywords are missing.', derivedRole: 'KEYWORDS' },
     );
     const bodyFingerprint = computeBodyFingerprint(snapshot);
-    const manuscriptFingerprint = sha256Canonical({ version: 'manuscript-v1', bodyFingerprint, abstract: null, keywords: null, citations: [], template: ['generic-academic-v1', '1'], renderer: ['docx', '1'] });
+    const manuscriptFingerprint = sha256Canonical({ version: 'manuscript-v1', bodyFingerprint, abstract: null, keywords: null, citations: normalized.mapping, template: ['generic-academic-v1', '1'], renderer: ['docx', '1'] });
     const acknowledgementCodes = [...new Set(warnings.filter((warning) => warning.severity === 'blocking').map((warning) => warning.code))];
     return {
       schemaVersion: 1,
@@ -72,9 +99,9 @@ export class ManuscriptProjectionService {
       blocks,
       outline: ordered.map(({ node, depth }) => ({ nodeId: node.id, ...(sectionByNode.get(node.id) ? { sectionId: sectionByNode.get(node.id)!.id } : {}), title: node.title, depth, nodeType: node.nodeType })),
       derived,
-      supportSummary: { ...support, managedCitationCount: 0, bibliographyEntryCount: 0, bibliographyState: 'NONE' },
-      citations: [],
-      bibliography: [],
+      supportSummary: { ...support, managedCitationCount: normalized.citations.length, bibliographyEntryCount: normalized.bibliography.length, bibliographyState: normalized.citations.length === 0 ? 'NONE' : normalized.warnings.some((warning) => warning.code === 'BIBLIOGRAPHY_METADATA_UNRESOLVED') ? 'INCOMPLETE' : 'COMPLETE' },
+      citations: normalized.citations,
+      bibliography: normalized.bibliography,
       warnings,
       exportPolicy: { cleanAllowed: acknowledgementCodes.length === 0, draftAllowed: true, acknowledgementCodes },
     };
