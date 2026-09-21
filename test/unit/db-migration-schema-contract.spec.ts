@@ -13,6 +13,7 @@ const reviewedMigrations = [
   { fileName: '0002_e1_knowledge_provenance.sql', folderMillis: 1788495777914 },
   { fileName: '0003_e2_embedding_indexes.sql', folderMillis: 1788623512945 },
   { fileName: '0004_e4_zotero_connections.sql', folderMillis: 1788670451922 },
+  { fileName: '0005_p4_paper_projects.sql', folderMillis: 1789790000000 },
 ].map(({ fileName, folderMillis }) => ({
   fileName,
   folderMillis,

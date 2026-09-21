@@ -267,6 +267,72 @@ CREATE TABLE knowledge_imports (
 
 CREATE INDEX knowledge_imports_user_status_idx
   ON knowledge_imports (user_id, status);
+
+CREATE TABLE paper_projects (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), user_id varchar(64) NOT NULL,
+  selected_title varchar(500), profile jsonb NOT NULL, research_plan jsonb,
+  default_source_strategy varchar(32) NOT NULL DEFAULT 'MODEL_ONLY', status varchar(20) NOT NULL DEFAULT 'active',
+  lock_version integer NOT NULL DEFAULT 0, _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_projects_id_user_id_key UNIQUE (id, user_id),
+  CONSTRAINT paper_projects_status_check CHECK (status IN ('active','archived')),
+  CONSTRAINT paper_projects_strategy_check CHECK (default_source_strategy IN ('MODEL_ONLY','WEB_RETRIEVED','USER_KNOWLEDGE','MIXED')),
+  CONSTRAINT paper_projects_lock_version_check CHECK (lock_version >= 0)
+);
+CREATE INDEX paper_projects_user_status_updated_idx ON paper_projects (user_id, status, _updated_at);
+
+CREATE TABLE paper_outline_nodes (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), project_id uuid NOT NULL, user_id varchar(64) NOT NULL,
+  parent_id uuid, node_type varchar(20) NOT NULL, title varchar(500) NOT NULL, position integer NOT NULL,
+  target_words integer, generation_notes text, status varchar(20) NOT NULL DEFAULT 'active',
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_outline_nodes_id_project_user_key UNIQUE (id, project_id, user_id),
+  CONSTRAINT paper_outline_nodes_project_owner_fk FOREIGN KEY (project_id,user_id) REFERENCES paper_projects(id,user_id),
+  CONSTRAINT paper_outline_nodes_parent_owner_fk FOREIGN KEY (parent_id,project_id,user_id) REFERENCES paper_outline_nodes(id,project_id,user_id),
+  CONSTRAINT paper_outline_nodes_type_check CHECK (node_type IN ('container','writing-unit')),
+  CONSTRAINT paper_outline_nodes_status_check CHECK (status IN ('active','archived')),
+  CONSTRAINT paper_outline_nodes_position_check CHECK (position >= 0),
+  CONSTRAINT paper_outline_nodes_target_words_check CHECK (target_words IS NULL OR target_words > 0)
+);
+CREATE UNIQUE INDEX paper_outline_nodes_active_root_position_key ON paper_outline_nodes(project_id,user_id,position) WHERE parent_id IS NULL AND status='active';
+CREATE UNIQUE INDEX paper_outline_nodes_active_child_position_key ON paper_outline_nodes(project_id,user_id,parent_id,position) WHERE parent_id IS NOT NULL AND status='active';
+
+CREATE TABLE paper_sections (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), project_id uuid NOT NULL, user_id varchar(64) NOT NULL,
+  outline_node_id uuid, status varchar(20) NOT NULL DEFAULT 'active', current_revision_number integer NOT NULL DEFAULT 0,
+  _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_sections_id_user_id_key UNIQUE(id,user_id),
+  CONSTRAINT paper_sections_project_outline_key UNIQUE(project_id,outline_node_id),
+  CONSTRAINT paper_sections_project_owner_fk FOREIGN KEY(project_id,user_id) REFERENCES paper_projects(id,user_id),
+  CONSTRAINT paper_sections_outline_owner_fk FOREIGN KEY(outline_node_id,project_id,user_id) REFERENCES paper_outline_nodes(id,project_id,user_id),
+  CONSTRAINT paper_sections_status_check CHECK(status IN ('active','orphaned','archived')),
+  CONSTRAINT paper_sections_revision_check CHECK(current_revision_number >= 0)
+);
+
+CREATE TABLE paper_section_revisions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), section_id uuid NOT NULL, user_id varchar(64) NOT NULL,
+  revision_number integer NOT NULL, base_revision_id uuid, content text NOT NULL, content_hash varchar(64) NOT NULL,
+  origin varchar(24) NOT NULL, source_strategy varchar(32) NOT NULL, actual_support_mode varchar(24) NOT NULL,
+  support_state varchar(24) NOT NULL, citations jsonb NOT NULL DEFAULT '[]', bibliography jsonb NOT NULL DEFAULT '[]',
+  evidence_trace jsonb NOT NULL DEFAULT '[]', generation_metadata jsonb NOT NULL DEFAULT '{}', warnings jsonb NOT NULL DEFAULT '[]',
+  rewrite_instruction text, _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_section_revisions_id_section_user_key UNIQUE(id,section_id,user_id),
+  CONSTRAINT paper_section_revisions_number_key UNIQUE(section_id,user_id,revision_number),
+  CONSTRAINT paper_section_revisions_section_owner_fk FOREIGN KEY(section_id,user_id) REFERENCES paper_sections(id,user_id),
+  CONSTRAINT paper_section_revisions_base_owner_fk FOREIGN KEY(base_revision_id,section_id,user_id) REFERENCES paper_section_revisions(id,section_id,user_id),
+  CONSTRAINT paper_section_revisions_content_check CHECK(content <> '')
+);
+
+CREATE TABLE paper_project_sources (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), project_id uuid NOT NULL, user_id varchar(64) NOT NULL,
+  source_record_id uuid, document_version_id uuid, origin_class varchar(24) NOT NULL,
+  selection_status varchar(20) NOT NULL DEFAULT 'selected', _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT paper_project_sources_project_owner_fk FOREIGN KEY(project_id,user_id) REFERENCES paper_projects(id,user_id),
+  CONSTRAINT paper_project_sources_source_owner_fk FOREIGN KEY(source_record_id,user_id) REFERENCES knowledge_source_records(id,user_id),
+  CONSTRAINT paper_project_sources_version_owner_fk FOREIGN KEY(document_version_id,user_id) REFERENCES knowledge_document_versions(id,user_id),
+  CONSTRAINT paper_project_sources_identity_check CHECK(source_record_id IS NOT NULL OR document_version_id IS NOT NULL)
+);
 `;
 
 export async function createLocalDevelopmentDatabase(): Promise<LocalDevelopmentDatabase> {

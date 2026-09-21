@@ -67,7 +67,7 @@ describe('PostgreSQL backup and restore wrappers', () => {
       .mockReturnValueOnce({ status: 0, stdout: Buffer.from('10.10.0.5|5432|academic_writing\n') })
       .mockReturnValueOnce({ status: 0, stdout: Buffer.from('10.10.0.5|5432|academic_writing_recovery\n') })
       .mockReturnValueOnce({ status: 0 })
-      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('t|14|4|academic_writing_recovery\n') });
+      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('t|19|5|academic_writing_recovery\n') });
     expect(runRestoreVerify({
       liveDatabaseUrl: 'postgresql://app:live-secret@db.example/academic_writing',
       restoreDatabaseUrl: 'postgresql://operator:restore-secret@db.example/academic_writing_recovery',
@@ -75,18 +75,25 @@ describe('PostgreSQL backup and restore wrappers', () => {
       confirmIsolatedRestore: true, env: verifiedLibpqEnv, spawnSync,
       now: () => '2026-09-17T00:01:00.000Z',
     })).toEqual({ verified: true });
-    expect(createRestoreVerifyInvocations({
+    const invocations = createRestoreVerifyInvocations({
       liveDatabaseUrl: 'postgresql://app@db.example/academic_writing',
       restoreDatabaseUrl: 'postgresql://operator@db.example/academic_writing_recovery', backupPath,
-    })).toEqual([
+    });
+    expect(invocations).toEqual([
       expect.objectContaining({ command: 'psql' }), expect.objectContaining({ command: 'psql' }),
       expect.objectContaining({ command: 'pg_restore' }), expect.objectContaining({ command: 'psql' }),
     ]);
+    const schemaVerificationQuery = invocations[3].args.at(-1);
+    expect(schemaVerificationQuery).toEqual(expect.stringContaining("'paper_projects'"));
+    expect(schemaVerificationQuery).toEqual(expect.stringContaining("'paper_outline_nodes'"));
+    expect(schemaVerificationQuery).toEqual(expect.stringContaining("'paper_sections'"));
+    expect(schemaVerificationQuery).toEqual(expect.stringContaining("'paper_section_revisions'"));
+    expect(schemaVerificationQuery).toEqual(expect.stringContaining("'paper_project_sources'"));
     const receipt = JSON.parse(readFileSync(evidencePath, 'utf8'));
     expect(receipt).toEqual(expect.objectContaining({
       version: 1, status: 'pass', liveDatabaseIdentity: '10.10.0.5:5432/academic_writing',
       restoreDatabaseIdentity: '10.10.0.5:5432/academic_writing_recovery', isolatedTarget: true,
-      vectorExtension: true, tableCount: 14, migrationCount: 4, verifiedAt: '2026-09-17T00:01:00.000Z',
+      vectorExtension: true, tableCount: 19, migrationCount: 5, verifiedAt: '2026-09-17T00:01:00.000Z',
     }));
     expect(JSON.stringify(receipt)).not.toMatch(/live-secret|restore-secret/u);
   });

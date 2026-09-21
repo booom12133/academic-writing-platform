@@ -19,7 +19,7 @@ const {
 
 const APPROVED_PREVIOUS_SHA = '666f40309b42f2c0d44e4fd6ecbcd1e81f869a8d';
 const APPROVED_PREVIOUS_TAG = 'phase-p2-accepted';
-const CURRENT_MIGRATION_COUNT = 4;
+const CURRENT_MIGRATION_COUNT = 5;
 const REPOSITORY_ROOT = resolve(__dirname, '../..');
 const integrationEnabled = Boolean(process.env.P3_POSTGRES_ADMIN_URL);
 const describeCompatibility = integrationEnabled ? describe : describe.skip;

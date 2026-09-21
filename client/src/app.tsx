@@ -16,6 +16,9 @@ import KnowledgePage from './pages/Knowledge/KnowledgePage';
 import AcademicSearchPage from './pages/AcademicSearch/AcademicSearchPage';
 import ZoteroPage from './pages/Zotero/ZoteroPage';
 import GroundedWritingPage from './pages/GroundedWriting/GroundedWritingPage';
+import PapersPage from './pages/Papers/PapersPage';
+import NewPaperPage from './pages/Papers/NewPaperPage';
+import PaperWorkspacePage from './pages/Papers/PaperWorkspacePage';
 import { AppAuthProvider } from './auth/AppAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 
@@ -88,6 +91,18 @@ const RoutesComponent = () => {
                 <GroundedWritingPage />
               </RequireAuth>
             }
+          />
+          <Route
+            path="papers"
+            element={<RequireAuth><PapersPage /></RequireAuth>}
+          />
+          <Route
+            path="papers/new"
+            element={<RequireAuth><NewPaperPage /></RequireAuth>}
+          />
+          <Route
+            path="papers/:projectId"
+            element={<RequireAuth><PaperWorkspacePage /></RequireAuth>}
           />
           <Route
             path="profile"

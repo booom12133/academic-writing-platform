@@ -26,6 +26,7 @@ post-merge governance closeout and accepted tag are pending.
 | P1 | Production Readiness | Production auth/isolation, configuration, PostgreSQL/pgvector, storage, provider, API security, health, lifecycle, recovery basics, and CI gates | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P3 | Deployment / Production E2E | Production deployment and revalidation for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning; full-text direct import deferred | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
+| P4 | Core Academic Writing Workflow | Paper projects, research planning, outline lifecycle, section editing/revisions, source management, and evidence-aware generation | REVIEW PASS / FINAL ACCEPTANCE PENDING | No |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
@@ -111,3 +112,15 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 - Governance status: `ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING`; `P3_ACCEPTED=YES`; `P3_ACCEPTED_CLOSED=NO`.
 - Merge is complete. The annotated `phase-p3-accepted` tag remains unauthorized and pending; P3 is not closed.
 - Rollback, reboot, and production migration rerun remain unauthorized.
+
+## Phase P4 current record
+
+- Branch: `phase/p4-core-writing-workflow`.
+- Approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a`.
+- Reviewed implementation HEAD: `a32cfa5c788dea65e676336d0a75a2cbae5e0123`.
+- Controller review: `P4_IMPLEMENTATION_REVIEW_PASS`, review ID `5263138676`.
+- Authoritative CI: run `35562046867` — SUCCESS for all five required jobs.
+- Final Acceptance candidate report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md).
+- Scope: WP1-WP8 core academic writing workflow and the controller-requested remediation completed implementation review; formal Final Acceptance remains pending.
+- Database boundary: migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
+- Status: `REVIEW PASS / FINAL ACCEPTANCE PENDING`; `REVIEW_PASS=YES`; `FINAL_ACCEPTANCE_PENDING=YES`; `ACCEPTED=NO`; `MERGE=NO`; `TAG=NO`.
