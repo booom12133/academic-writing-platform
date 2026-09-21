@@ -117,7 +117,7 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 
 - Branch: `phase/p4-core-writing-workflow`.
 - Approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a`.
-- Implementation code candidate SHA: `dfe7c64f77f23816a2be7816c2fec7bb3065fbb5`.
-- Scope: WP1-WP8 core academic writing workflow implementation is complete and ready for controller review.
+- Remediation code candidate SHA: `9ec80b22ace68fdc0550b3b584b43441e13868d6`.
+- Scope: WP1-WP8 core academic writing workflow and the controller-requested remediation are complete and ready for renewed controller review.
 - Database boundary: migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
 - Status: `IMPLEMENTATION CANDIDATE / CONTROLLER REVIEW PENDING`; `REVIEW_PASS=NO`; `ACCEPTED=NO`; `MERGE=NO`.
