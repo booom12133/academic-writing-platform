@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-19
+Last Updated: 2026-09-21
 
 ## Project
 
@@ -23,13 +23,15 @@ Last Updated: 2026-09-19
 
 ## Current development
 
-- Current Development: Phase P4 — Core Academic Writing Workflow is an `IMPLEMENTATION CANDIDATE / CONTROLLER REVIEW PENDING` on branch `phase/p4-core-writing-workflow`; it is not reviewed, accepted, merged, or frozen.
+- Current Development: Phase P4 — Core Academic Writing Workflow is `REVIEW PASS / FINAL ACCEPTANCE PENDING` on branch `phase/p4-core-writing-workflow`; it is not accepted, merged, or frozen.
 - P4 approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a` (`docs/plans/PHASE_P4_IMPLEMENTATION_PLAN_DRAFT.md`).
-- P4 remediation code candidate SHA: `9ec80b22ace68fdc0550b3b584b43441e13868d6`; WP1-WP8 and the controller-requested remediation are implemented for renewed controller review.
+- P4 reviewed implementation HEAD: `a32cfa5c788dea65e676336d0a75a2cbae5e0123`; Controller review `P4_IMPLEMENTATION_REVIEW_PASS`, review ID `5263138676`.
+- P4 Final Acceptance candidate report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md).
 - P4 database scope: new migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
 - P4 remediation: saved-outline editing preserves stable node identity and supports reorder/orphan recovery; generated outlines require explicit replacement; application-level HTTP E2E covers workflows A-D, ownership, persistence, and orphan remapping; generation context is profile-complete and deterministically bounded; integrity checks distinguish prospective methodology from unsupported empirical claims; research-plan generation receives the selected title.
-- P4 local verification: targeted PASS — 13 suites / 70 tests; full regression PASS — 209 suites / 1172 tests passed, with 9 suites / 59 tests skipped by environment guards; PostgreSQL integration command completed — 1 suite / 1 test passed, with 4 suites / 28 tests skipped locally pending real-PostgreSQL CI; lint, type-check, server/client builds, AppModule bootstrap, and application-level HTTP E2E PASS — 1 suite / 5 tests.
-- P4 governance boundary: `REVIEW_PASS=NO`; `ACCEPTED=NO`; `MERGE=NO`; no accepted tag has been created.
+- P4 local verification: targeted PASS — 13 suites / 70 tests; full regression PASS — 209 suites / 1172 tests passed, with 9 suites / 59 tests skipped by environment guards; PostgreSQL integration command completed — 1 suite / 1 test passed, with 4 suites / 28 tests skipped locally by environment guards and authoritative real-PostgreSQL evidence recorded below; lint, type-check, server/client builds, AppModule bootstrap, and application-level HTTP E2E PASS — 1 suite / 5 tests.
+- P4 authoritative CI: GitHub Actions run `35562046867`; `verify`, `postgres-schema`, `wp6-step5b`, `nginx-upload-boundary`, and `production-gates` all succeeded, including real PostgreSQL backup/restore and rollback compatibility integration.
+- P4 governance boundary: `REVIEW_PASS=YES`; `FINAL_ACCEPTANCE_PENDING=YES`; `ACCEPTED=NO`; `MERGE=NO`; `TAG=NO`.
 - Current Development: Phase P3 has received explicit Controller Final Acceptance and PR #16 has been merged. Current status is `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`; the accepted tag remains separately gated and unauthorized.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
