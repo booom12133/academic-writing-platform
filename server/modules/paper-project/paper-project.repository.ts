@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { paperOutlineNodes, paperProjectSources, paperProjects, paperSectionRevisions, paperSections } from '../../database/schema';
 import type { ActualSupportMode, OutlineNode, PaperProject, PaperProjectSource, PaperSection, PaperSectionRevision, ProjectProfileV1, ResearchPlanV1, RevisionOrigin, SourceStrategy, SupportState } from '../../../shared/paper-project.interface';
+import type { ManuscriptSnapshot, ManuscriptSnapshotRevision } from '../../../shared/manuscript.interface';
 import { PaperProjectError } from './paper-project.errors';
 
 type ProjectRow = typeof paperProjects.$inferSelect;
@@ -30,6 +31,7 @@ function toProject(row: ProjectRow): PaperProject {
 function toOutline(row: OutlineRow, sectionId?: string): OutlineNode { return { id: row.id, ...(row.parentId ? { parentId: row.parentId } : {}), nodeType: row.nodeType as OutlineNode['nodeType'], title: row.title, position: row.position, ...(row.targetWords === null ? {} : { targetWords: row.targetWords }), ...(row.generationNotes === null ? {} : { generationNotes: row.generationNotes }), status: row.status as OutlineNode['status'], ...(sectionId ? { sectionId } : {}) }; }
 function toSection(row: SectionRow): PaperSection { return { id: row.id, ...(row.outlineNodeId ? { outlineNodeId: row.outlineNodeId } : {}), status: row.status as PaperSection['status'], currentRevisionNumber: row.currentRevisionNumber }; }
 function toRevision(row: RevisionRow): PaperSectionRevision { return { id: row.id, sectionId: row.sectionId, revisionNumber: row.revisionNumber, ...(row.baseRevisionId ? { baseRevisionId: row.baseRevisionId } : {}), content: row.content, origin: row.origin as RevisionOrigin, sourceStrategy: row.sourceStrategy as SourceStrategy, actualSupportMode: row.actualSupportMode as ActualSupportMode, supportState: row.supportState as SupportState, citations: row.citations as unknown[], bibliography: row.bibliography as unknown[], evidenceTrace: row.evidenceTrace as unknown[], generationMetadata: row.generationMetadata as Record<string, unknown>, warnings: row.warnings as string[], ...(row.rewriteInstruction ? { rewriteInstruction: row.rewriteInstruction } : {}), createdAt: row.createdAt.toISOString() }; }
+function toSnapshotRevision(row: RevisionRow): ManuscriptSnapshotRevision { return { ...toRevision(row), contentHash: row.contentHash }; }
 
 export interface OutlineWriteNode { id?: string; clientKey: string; parentClientKey?: string; nodeType: 'container' | 'writing-unit'; title: string; position: number; targetWords?: number; generationNotes?: string; }
 export interface RevisionWrite { content: string; baseRevisionId?: string; origin: RevisionOrigin; sourceStrategy: SourceStrategy; actualSupportMode: ActualSupportMode; supportState: SupportState; citations: unknown[]; bibliography: unknown[]; evidenceTrace: unknown[]; generationMetadata: Record<string, unknown>; warnings: string[]; rewriteInstruction?: string; }
@@ -156,6 +158,43 @@ export class PaperProjectRepository {
       const [revision] = await tx.insert(paperSectionRevisions).values({ sectionId,userId,revisionNumber,baseRevisionId:input.baseRevisionId,content:input.content,contentHash:createHash('sha256').update(input.content).digest('hex'),origin:input.origin,sourceStrategy:input.sourceStrategy,actualSupportMode:input.actualSupportMode,supportState:input.supportState,citations:input.citations,bibliography:input.bibliography,evidenceTrace:input.evidenceTrace,generationMetadata:input.generationMetadata,warnings:input.warnings,rewriteInstruction:input.rewriteInstruction }).returning();
       return toRevision(revision!);
     });
+  }
+
+  async loadManuscriptSnapshot(userId: string, projectId: string): Promise<ManuscriptSnapshot> {
+    return this.db.transaction(async (tx) => {
+      const [projectRow] = await tx.select().from(paperProjects)
+        .where(and(eq(paperProjects.id, projectId), eq(paperProjects.userId, userId))).limit(1);
+      if (!projectRow) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND', 'Paper project was not found.');
+      const outlineRows = await tx.select().from(paperOutlineNodes)
+        .where(and(eq(paperOutlineNodes.userId, userId), eq(paperOutlineNodes.projectId, projectId), eq(paperOutlineNodes.status, 'active')));
+      const sectionRows = await tx.select().from(paperSections)
+        .where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId)));
+      const sectionIds = sectionRows.map((section) => section.id);
+      const revisionRows = sectionIds.length === 0 ? [] : await tx.select().from(paperSectionRevisions)
+        .where(and(eq(paperSectionRevisions.userId, userId), inArray(paperSectionRevisions.sectionId, sectionIds)));
+      const revisionsBySectionId: ManuscriptSnapshot['revisionsBySectionId'] = {};
+      for (const section of sectionRows) {
+        const revisions = revisionRows.filter((revision) => revision.sectionId === section.id);
+        const maximum = revisions.reduce((value, revision) => Math.max(value, revision.revisionNumber), 0);
+        if ((section.currentRevisionNumber === 0 && maximum > 0) || maximum > section.currentRevisionNumber) {
+          throw new PaperProjectError('PAPER_MANUSCRIPT_INTEGRITY_FAILURE', 'Paper section revision pointer is inconsistent.');
+        }
+        if (section.currentRevisionNumber > 0) {
+          const exact = revisions.find((revision) => revision.revisionNumber === section.currentRevisionNumber);
+          if (!exact) throw new PaperProjectError('PAPER_MANUSCRIPT_INTEGRITY_FAILURE', 'The exact current paper section revision is missing.');
+          revisionsBySectionId[section.id] = toSnapshotRevision(exact);
+        }
+      }
+      const activeSectionByNode = new Map(sectionRows
+        .filter((section) => section.status === 'active' && section.outlineNodeId)
+        .map((section) => [section.outlineNodeId!, section.id]));
+      return {
+        project: toProject(projectRow),
+        outline: outlineRows.map((row) => toOutline(row, activeSectionByNode.get(row.id))),
+        sections: sectionRows.map((row) => ({ ...toSection(row), sectionRole: 'OUTLINE' as const })),
+        revisionsBySectionId,
+      };
+    }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
   }
 
   async replaceSources(userId:string,projectId:string,expected:number,sources:CanonicalSourceWrite[]):Promise<{sources:PaperProjectSource[];lockVersion:number}> {

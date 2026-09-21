@@ -17,6 +17,8 @@ import { PaperSectionModelGenerator } from './generators/paper-section-model.gen
 import { AcademicIntegrityValidator } from './generators/academic-integrity.validator';
 import { PaperWritingContextBuilder } from './paper-writing-context.builder';
 import { KnowledgeIndexingModule } from '../knowledge/indexing/knowledge-indexing.module';
+import { ManuscriptController } from './manuscript/manuscript.controller';
+import { ManuscriptProjectionService } from './manuscript/manuscript-projection.service';
 
-@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder], exports: [PaperProjectRepository, PaperProjectService] })
+@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService] })
 export class PaperProjectModule {}

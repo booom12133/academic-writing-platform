@@ -8,6 +8,7 @@ export class PaperProjectExceptionFilter implements ExceptionFilter {
     const response = host.switchToHttp().getResponse<Response>();
     const status = error.code === 'PAPER_PROJECT_VERSION_CONFLICT' || error.code === 'PAPER_SECTION_REVISION_CONFLICT' ? 409
       : error.code === 'PAPER_PROJECT_NOT_FOUND' ? 404
+      : error.code === 'PAPER_MANUSCRIPT_INTEGRITY_FAILURE' ? 500
       : error.code.includes('PROVIDER_UNAVAILABLE') ? 503
       : error.code.includes('TIMEOUT') ? 504 : 400;
     response.status(status).json({ statusCode: status, code: error.code, message: error.message, ...(error.details === undefined ? {} : { details: error.details }) });
