@@ -2,11 +2,9 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { DerivedContentProjection, ManuscriptBlock, ManuscriptProjectionV1, ManuscriptSnapshot, ManuscriptWarning } from '../../../../shared/manuscript.interface';
 import { PaperProjectRepository } from '../paper-project.repository';
 import { assembleOutlineTree } from './manuscript-tree-assembler';
-import { computeBodyFingerprint, countManuscriptWordsV1, sha256Canonical } from './manuscript-fingerprint';
+import { computeBodyFingerprint, computeConclusionBasisFingerprint, countManuscriptWordsV1, sha256Canonical } from './manuscript-fingerprint';
 import { WholeDocumentCitationNormalizer } from '../../grounded-generation/citation/whole-document-citation-normalizer';
 import type { BibliographyEntry, CitationPlacementV1, CitationReference, EvidenceTrace } from '../../grounded-generation/grounded-generation.types';
-
-const missingDerived = (role: 'ABSTRACT' | 'KEYWORDS'): DerivedContentProjection => ({ role, state: 'MISSING' });
 
 @Injectable()
 export class ManuscriptProjectionService {
@@ -79,13 +77,33 @@ export class ManuscriptProjectionService {
     warnings.push(...normalized.warnings);
     if (normalized.bibliography.length > 0) blocks.push({ kind: 'references', entries: normalized.bibliography });
 
-    const derived = { abstract: missingDerived('ABSTRACT'), keywords: missingDerived('KEYWORDS') };
-    warnings.push(
-      { code: 'DERIVED_CONTENT_MISSING', severity: 'warning', message: 'The manuscript abstract is missing.', derivedRole: 'ABSTRACT' },
-      { code: 'DERIVED_CONTENT_MISSING', severity: 'warning', message: 'The manuscript keywords are missing.', derivedRole: 'KEYWORDS' },
-    );
     const bodyFingerprint = computeBodyFingerprint(snapshot);
-    const manuscriptFingerprint = sha256Canonical({ version: 'manuscript-v1', bodyFingerprint, abstract: null, keywords: null, citations: normalized.mapping, template: ['generic-academic-v1', '1'], renderer: ['docx', '1'] });
+    const projectDerived = (role: 'ABSTRACT'|'KEYWORDS'): DerivedContentProjection => {
+      const section = snapshot.sections.find((item) => item.sectionRole === role && item.status === 'active');
+      const revision = section ? snapshot.revisionsBySectionId[section.id] : undefined;
+      if (!section || !revision) {
+        warnings.push({ code: 'DERIVED_CONTENT_MISSING', severity: 'warning', message: `The manuscript ${role.toLowerCase()} is missing.`, derivedRole: role });
+        return { role, state: 'MISSING' };
+      }
+      const current = revision.generationMetadata.derivedFromBodyFingerprint === bodyFingerprint;
+      if (!current) warnings.push({ code: 'DERIVED_CONTENT_STALE', severity: 'warning', message: `The manuscript ${role.toLowerCase()} is stale.`, derivedRole: role, sectionId: section.id, revisionId: revision.id });
+      return { role, state: current ? 'CURRENT' : 'STALE', sectionId: section.id, revisionId: revision.id, revisionNumber: revision.revisionNumber, content: revision.content };
+    };
+    const derived = { abstract: projectDerived('ABSTRACT'), keywords: projectDerived('KEYWORDS') };
+    for (const section of snapshot.sections.filter((item) => item.sectionRole === 'OUTLINE' && item.status === 'active')) {
+      const revision = snapshot.revisionsBySectionId[section.id];
+      if (revision?.generationMetadata.operation !== 'CONCLUSION_REFRESH') continue;
+      const stored = revision.generationMetadata.conclusionBasisFingerprint;
+      if (typeof stored !== 'string' || stored !== computeConclusionBasisFingerprint(snapshot, section.id)) {
+        warnings.push({ code: 'CONCLUSION_REFRESH_STALE', severity: 'warning', message: 'A refreshed conclusion is stale because its manuscript basis changed.', sectionId: section.id, revisionId: revision.id });
+      }
+    }
+    const manuscriptFingerprint = sha256Canonical({
+      version: 'manuscript-v1', bodyFingerprint,
+      abstract: derived.abstract.revisionId ? { revisionId: derived.abstract.revisionId, contentHash: snapshot.revisionsBySectionId[derived.abstract.sectionId!]?.contentHash } : null,
+      keywords: derived.keywords.revisionId ? { revisionId: derived.keywords.revisionId, contentHash: snapshot.revisionsBySectionId[derived.keywords.sectionId!]?.contentHash } : null,
+      citations: normalized.mapping, template: ['generic-academic-v1', '1'], renderer: ['docx', '1'],
+    });
     const acknowledgementCodes = [...new Set(warnings.filter((warning) => warning.severity === 'blocking').map((warning) => warning.code))];
     return {
       schemaVersion: 1,

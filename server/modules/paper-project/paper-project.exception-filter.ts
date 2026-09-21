@@ -6,7 +6,7 @@ import { PaperProjectError } from './paper-project.errors';
 export class PaperProjectExceptionFilter implements ExceptionFilter {
   catch(error: PaperProjectError, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const status = error.code === 'PAPER_PROJECT_VERSION_CONFLICT' || error.code === 'PAPER_SECTION_REVISION_CONFLICT' ? 409
+    const status = error.code === 'PAPER_PROJECT_VERSION_CONFLICT' || error.code === 'PAPER_SECTION_REVISION_CONFLICT' || error.code === 'PAPER_MANUSCRIPT_CHANGED' || error.code === 'PAPER_PROJECT_ARCHIVED' ? 409
       : error.code === 'PAPER_PROJECT_NOT_FOUND' ? 404
       : error.code === 'PAPER_MANUSCRIPT_INTEGRITY_FAILURE' ? 500
       : error.code.includes('PROVIDER_UNAVAILABLE') ? 503

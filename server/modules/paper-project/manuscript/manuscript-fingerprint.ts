@@ -45,6 +45,20 @@ export function computeBodyFingerprint(snapshot: ManuscriptSnapshot): string {
   });
 }
 
+export function computeConclusionBasisFingerprint(snapshot: ManuscriptSnapshot, targetSectionId: string): string {
+  const sectionByNode = new Map(snapshot.sections
+    .filter((section) => section.sectionRole === 'OUTLINE' && section.status === 'active' && section.outlineNodeId)
+    .map((section) => [section.outlineNodeId!, section]));
+  const outline = assembleOutlineTree(snapshot.outline).map(({ node }) => {
+    const section = sectionByNode.get(node.id);
+    if (!section) return { id: node.id, parentId: node.parentId ?? null, nodeType: node.nodeType, title: node.title, position: node.position, sectionId: null, revision: null };
+    if (section.id === targetSectionId) return { id: node.id, parentId: node.parentId ?? null, nodeType: node.nodeType, title: node.title, position: node.position, sectionId: section.id, excluded: true };
+    const revision = snapshot.revisionsBySectionId[section.id];
+    return { id: node.id, parentId: node.parentId ?? null, nodeType: node.nodeType, title: node.title, position: node.position, sectionId: section.id, revision: revision ? { id: revision.id, revisionNumber: revision.revisionNumber, contentHash: revision.contentHash } : null };
+  });
+  return sha256Canonical({ version: 'conclusion-basis-v1', selectedTitle: snapshot.project.selectedTitle ?? null, researchPlan: snapshot.project.researchPlan ?? null, outline });
+}
+
 export function countManuscriptWordsV1(text: string): number {
   let nonCjk = '';
   let cjkCount = 0;

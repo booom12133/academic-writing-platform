@@ -22,7 +22,7 @@
     "db:migrate": "node scripts/db-migrate.js",
     "db:backup": "node scripts/db-backup.js",
     "db:restore:verify": "node scripts/db-restore-verify.js",
-    "test:integration:postgres": "jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts --runInBand",
+    "test:integration:postgres": "jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/unit/postgres-e2-embedding.integration.spec.ts test/unit/postgres-e3-retrieval.integration.spec.ts test/unit/postgres-e4-zotero.integration.spec.ts test/integration/p5-manuscript-snapshot.integration.spec.ts --runInBand",
     "start": "cross-env NODE_ENV=production node server/main.js",
     "test": "jest",
     "test:app-bootstrap": "npm run build:server && node scripts/test-app-bootstrap.js",

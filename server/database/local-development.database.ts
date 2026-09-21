@@ -299,15 +299,18 @@ CREATE UNIQUE INDEX paper_outline_nodes_active_child_position_key ON paper_outli
 
 CREATE TABLE paper_sections (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), project_id uuid NOT NULL, user_id varchar(64) NOT NULL,
-  outline_node_id uuid, status varchar(20) NOT NULL DEFAULT 'active', current_revision_number integer NOT NULL DEFAULT 0,
+  outline_node_id uuid, section_role varchar(20) NOT NULL DEFAULT 'OUTLINE', status varchar(20) NOT NULL DEFAULT 'active', current_revision_number integer NOT NULL DEFAULT 0,
   _created_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP, _updated_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT paper_sections_id_user_id_key UNIQUE(id,user_id),
   CONSTRAINT paper_sections_project_outline_key UNIQUE(project_id,outline_node_id),
   CONSTRAINT paper_sections_project_owner_fk FOREIGN KEY(project_id,user_id) REFERENCES paper_projects(id,user_id),
   CONSTRAINT paper_sections_outline_owner_fk FOREIGN KEY(outline_node_id,project_id,user_id) REFERENCES paper_outline_nodes(id,project_id,user_id),
   CONSTRAINT paper_sections_status_check CHECK(status IN ('active','orphaned','archived')),
+  CONSTRAINT paper_sections_role_check CHECK(section_role IN ('OUTLINE','ABSTRACT','KEYWORDS')),
+  CONSTRAINT paper_sections_role_outline_check CHECK((section_role='OUTLINE' AND outline_node_id IS NOT NULL) OR (section_role IN ('ABSTRACT','KEYWORDS') AND outline_node_id IS NULL AND status<>'orphaned')),
   CONSTRAINT paper_sections_revision_check CHECK(current_revision_number >= 0)
 );
+CREATE UNIQUE INDEX paper_sections_active_derived_role_key ON paper_sections(project_id,user_id,section_role) WHERE section_role IN ('ABSTRACT','KEYWORDS') AND status='active';
 
 CREATE TABLE paper_section_revisions (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(), section_id uuid NOT NULL, user_id varchar(64) NOT NULL,

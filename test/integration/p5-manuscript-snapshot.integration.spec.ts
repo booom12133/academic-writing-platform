@@ -85,4 +85,22 @@ describeIfDatabase('P5 manuscript repeatable-read snapshot', () => {
       writer.release();
     }
   });
+
+  it('backfills P4-shaped inserts as OUTLINE and enforces one active derived role under concurrency', async () => {
+    const userId = `p5-role-${randomUUID()}`;
+    const project = await pool.query<{ id: string }>(`INSERT INTO paper_projects (user_id,profile) VALUES ($1,$2::jsonb) RETURNING id`, [userId, JSON.stringify({ schemaVersion: 1, researchIdea: 'role', paperType: 'other', language: 'en' })]);
+    const projectId = project.rows[0].id;
+    const outline = await pool.query<{ id: string }>(`INSERT INTO paper_outline_nodes (project_id,user_id,node_type,title,position) VALUES ($1,$2,'writing-unit','Body',0) RETURNING id`, [projectId, userId]);
+    const p4Section = await pool.query<{ section_role: string }>(`INSERT INTO paper_sections (project_id,user_id,outline_node_id) VALUES ($1,$2,$3) RETURNING section_role`, [projectId, userId, outline.rows[0].id]);
+    expect(p4Section.rows[0].section_role).toBe('OUTLINE');
+
+    const concurrent = await Promise.allSettled([
+      pool.query(`INSERT INTO paper_sections (project_id,user_id,section_role) VALUES ($1,$2,'ABSTRACT')`, [projectId, userId]),
+      pool.query(`INSERT INTO paper_sections (project_id,user_id,section_role) VALUES ($1,$2,'ABSTRACT')`, [projectId, userId]),
+    ]);
+    expect(concurrent.filter((result) => result.status === 'fulfilled')).toHaveLength(1);
+    const count = await pool.query<{ count: string }>(`SELECT count(*) FROM paper_sections WHERE project_id=$1 AND user_id=$2 AND section_role='ABSTRACT' AND status='active'`, [projectId, userId]);
+    expect(count.rows[0].count).toBe('1');
+    await expect(pool.query(`INSERT INTO paper_sections (project_id,user_id,section_role,status) VALUES ($1,$2,'KEYWORDS','orphaned')`, [projectId, userId])).rejects.toThrow();
+  });
 });

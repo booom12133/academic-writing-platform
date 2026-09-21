@@ -87,4 +87,24 @@ describe('PaperProjectRepository', () => {
       code: 'PAPER_MANUSCRIPT_INTEGRITY_FAILURE',
     });
   });
+
+  it('keeps P4 section listing outline-only while manuscript loading includes derived roles', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const outline = await repository.replaceOutline('user-a', project.id, 0, [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }]);
+    const abstract = await repository.getOrCreateDerivedSection('user-a', project.id, 'ABSTRACT');
+
+    expect((await repository.listSections('user-a', project.id)).map((section) => section.id)).toEqual([outline.sections[0].id]);
+    expect(await repository.getSection('user-a', project.id, abstract.id)).toBeNull();
+    expect((await repository.loadManuscriptSnapshot('user-a', project.id)).sections.map((section) => section.sectionRole)).toEqual(expect.arrayContaining(['OUTLINE', 'ABSTRACT']));
+  });
+
+  it('converges concurrent derived role creation on one active section', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const results = await Promise.all([
+      repository.getOrCreateDerivedSection('user-a', project.id, 'KEYWORDS'),
+      repository.getOrCreateDerivedSection('user-a', project.id, 'KEYWORDS'),
+    ]);
+    expect(results[0].id).toBe(results[1].id);
+    expect((await repository.loadManuscriptSnapshot('user-a', project.id)).sections.filter((section) => section.sectionRole === 'KEYWORDS')).toHaveLength(1);
+  });
 });

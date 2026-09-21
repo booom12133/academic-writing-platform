@@ -67,7 +67,7 @@ describe('PostgreSQL backup and restore wrappers', () => {
       .mockReturnValueOnce({ status: 0, stdout: Buffer.from('10.10.0.5|5432|academic_writing\n') })
       .mockReturnValueOnce({ status: 0, stdout: Buffer.from('10.10.0.5|5432|academic_writing_recovery\n') })
       .mockReturnValueOnce({ status: 0 })
-      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('t|19|5|academic_writing_recovery\n') });
+      .mockReturnValueOnce({ status: 0, stdout: Buffer.from('t|19|6|academic_writing_recovery\n') });
     expect(runRestoreVerify({
       liveDatabaseUrl: 'postgresql://app:live-secret@db.example/academic_writing',
       restoreDatabaseUrl: 'postgresql://operator:restore-secret@db.example/academic_writing_recovery',
@@ -93,7 +93,7 @@ describe('PostgreSQL backup and restore wrappers', () => {
     expect(receipt).toEqual(expect.objectContaining({
       version: 1, status: 'pass', liveDatabaseIdentity: '10.10.0.5:5432/academic_writing',
       restoreDatabaseIdentity: '10.10.0.5:5432/academic_writing_recovery', isolatedTarget: true,
-      vectorExtension: true, tableCount: 19, migrationCount: 5, verifiedAt: '2026-09-17T00:01:00.000Z',
+      vectorExtension: true, tableCount: 19, migrationCount: 6, verifiedAt: '2026-09-17T00:01:00.000Z',
     }));
     expect(JSON.stringify(receipt)).not.toMatch(/live-secret|restore-secret/u);
   });

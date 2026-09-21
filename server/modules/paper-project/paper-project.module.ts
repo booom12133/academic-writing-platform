@@ -19,6 +19,7 @@ import { PaperWritingContextBuilder } from './paper-writing-context.builder';
 import { KnowledgeIndexingModule } from '../knowledge/indexing/knowledge-indexing.module';
 import { ManuscriptController } from './manuscript/manuscript.controller';
 import { ManuscriptProjectionService } from './manuscript/manuscript-projection.service';
+import { DerivedContentService } from './manuscript/derived-content.service';
 
-@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService] })
+@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService,DerivedContentService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService] })
 export class PaperProjectModule {}

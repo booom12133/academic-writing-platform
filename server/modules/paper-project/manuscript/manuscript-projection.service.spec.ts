@@ -1,5 +1,6 @@
 import type { ManuscriptSnapshot } from '../../../../shared/manuscript.interface';
 import { ManuscriptProjectionService } from './manuscript-projection.service';
+import { computeBodyFingerprint, computeConclusionBasisFingerprint } from './manuscript-fingerprint';
 
 function fixture(): ManuscriptSnapshot {
   return {
@@ -55,5 +56,29 @@ describe('ManuscriptProjectionService', () => {
     expect(projection.blocks.filter((block) => block.kind === 'references')).toEqual([{ kind: 'references', entries: [{ number: 1, identity: 'source:source', fields: { title: 'Verified title' } }] }]);
     expect(projection.supportSummary.managedCitationCount).toBe(1);
     expect(projection.citations[0]).toMatchObject({ number: 1, identity: 'source:source' });
+  });
+
+  it('tracks derived freshness and conclusion freshness without self-staling the target revision', async () => {
+    const snapshot = fixture();
+    snapshot.project.selectedTitle = 'Title';
+    const bodyFingerprint = computeBodyFingerprint(snapshot);
+    for (const [role, id] of [['ABSTRACT', 'abstract'], ['KEYWORDS', 'keywords']] as const) {
+      snapshot.sections.push({ id, sectionRole: role, status: 'active', currentRevisionNumber: 1 });
+      snapshot.revisionsBySectionId[id] = { id: `${id}-revision`, sectionId: id, revisionNumber: 1, content: id, contentHash: id.padEnd(64, '0'), origin: 'AI_GENERATION', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED', citations: [], bibliography: [], evidenceTrace: [], generationMetadata: { operation: 'DERIVED_GENERATION', derivedRole: role, derivedFromBodyFingerprint: bodyFingerprint }, warnings: [], createdAt: '2026-01-01T00:00:00.000Z' };
+    }
+    const conclusion = snapshot.revisionsBySectionId['section-a']!;
+    conclusion.generationMetadata = { operation: 'CONCLUSION_REFRESH', conclusionTargetSectionId: 'section-a', conclusionBasisFingerprint: computeConclusionBasisFingerprint(snapshot, 'section-a') };
+    const service = new ManuscriptProjectionService({ loadManuscriptSnapshot: jest.fn().mockResolvedValue(snapshot) } as any);
+    const current = await service.getProjection('user', 'project');
+    expect(current.derived.abstract.state).toBe('CURRENT');
+    expect(current.warnings).not.toContainEqual(expect.objectContaining({ code: 'CONCLUSION_REFRESH_STALE' }));
+
+    snapshot.project.selectedTitle = 'Changed title';
+    const stale = service.project(snapshot);
+    expect(stale.warnings).toContainEqual(expect.objectContaining({ code: 'CONCLUSION_REFRESH_STALE', sectionId: 'section-a' }));
+
+    conclusion.generationMetadata = { operation: 'USER_SAVE' };
+    const userEdited = service.project(snapshot);
+    expect(userEdited.warnings).not.toContainEqual(expect.objectContaining({ code: 'CONCLUSION_REFRESH_STALE' }));
   });
 });

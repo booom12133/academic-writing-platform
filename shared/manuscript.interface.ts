@@ -101,3 +101,22 @@ export interface ManuscriptProjectionV1 {
   warnings: ManuscriptWarning[];
   exportPolicy: { cleanAllowed: boolean; draftAllowed: boolean; acknowledgementCodes: ManuscriptWarningCode[] };
 }
+
+export interface WholeManuscriptGenerationContextV1 {
+  version: 1;
+  text: string;
+  contextFingerprint: string;
+  metadata: {
+    budgetCodePoints: 60000;
+    sourceBodyCodePoints: number;
+    includedSectionIds: string[];
+    truncatedSections: Array<{
+      sectionId: string;
+      originalCodePoints: number;
+      includedCodePoints: number;
+      strategy: 'HEAD_MIDDLE_TAIL';
+    }>;
+    allocations: Array<{ sectionId: string; allocatedCodePoints: number; includedCodePoints: number }>;
+    warnings: string[];
+  };
+}
