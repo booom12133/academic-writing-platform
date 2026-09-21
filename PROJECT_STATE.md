@@ -13,25 +13,28 @@ Last Updated: 2026-09-21
 
 ## Stable state
 
-- Current Stable Phase: Phase P3 — Production Deployment / End-to-End Validation
-- Stable Status: `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`
+- Current Stable Phase: Phase P4 — Core Academic Writing Workflow
+- Stable Status: `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: this P3 post-merge governance closeout commit; its parent is merge commit `ff3d2d736e5aa7e923ee7acbc9df0d8313a298eb`, which was the post-merge `main` HEAD verified by final main CI
-- Latest Final Acceptance Report: [PHASE_P3_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P3_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, Phase P2, and Phase P3 are completed/frozen by project records; P3 remains tag-pending and not closed
+- Stable Main Commit: this P4 post-merge governance closeout commit; its parent is merge commit `74fa7b57faf47ce389021af0fce1057e4c3a8a8d`, which was the post-merge `main` HEAD verified by main CI run `35563769896`
+- Latest Final Acceptance Report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, Phase P2, Phase P3, and Phase P4 are completed/frozen by project records; P4 remains tag-pending and not closed
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase P4 — Core Academic Writing Workflow is `REVIEW PASS / FINAL ACCEPTANCE PENDING` on branch `phase/p4-core-writing-workflow`; it is not accepted, merged, or frozen.
+- Current Development: Phase P4 — Core Academic Writing Workflow is `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; the annotated accepted tag remains pending.
 - P4 approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a` (`docs/plans/PHASE_P4_IMPLEMENTATION_PLAN_DRAFT.md`).
 - P4 reviewed implementation HEAD: `a32cfa5c788dea65e676336d0a75a2cbae5e0123`; Controller review `P4_IMPLEMENTATION_REVIEW_PASS`, review ID `5263138676`.
-- P4 Final Acceptance candidate report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md).
+- P4 Final Acceptance preparation HEAD: `1b1efd786bd8c0c76a54a6b76500a6c0fb7e6117`; Controller Final Acceptance `PHASE_P4_ACCEPTED`, review ID `5263186830`.
+- P4 Final Acceptance Report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md).
 - P4 database scope: new migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
 - P4 remediation: saved-outline editing preserves stable node identity and supports reorder/orphan recovery; generated outlines require explicit replacement; application-level HTTP E2E covers workflows A-D, ownership, persistence, and orphan remapping; generation context is profile-complete and deterministically bounded; integrity checks distinguish prospective methodology from unsupported empirical claims; research-plan generation receives the selected title.
 - P4 local verification: targeted PASS — 13 suites / 70 tests; full regression PASS — 209 suites / 1172 tests passed, with 9 suites / 59 tests skipped by environment guards; PostgreSQL integration command completed — 1 suite / 1 test passed, with 4 suites / 28 tests skipped locally by environment guards and authoritative real-PostgreSQL evidence recorded below; lint, type-check, server/client builds, AppModule bootstrap, and application-level HTTP E2E PASS — 1 suite / 5 tests.
 - P4 authoritative CI: GitHub Actions run `35562046867`; `verify`, `postgres-schema`, `wp6-step5b`, `nginx-upload-boundary`, and `production-gates` all succeeded, including real PostgreSQL backup/restore and rollback compatibility integration.
-- P4 governance boundary: `REVIEW_PASS=YES`; `FINAL_ACCEPTANCE_PENDING=YES`; `ACCEPTED=NO`; `MERGE=NO`; `TAG=NO`.
+- P4 merge: PR #17 `MERGED`; merge commit and post-merge `main` HEAD `74fa7b57faf47ce389021af0fce1057e4c3a8a8d`.
+- P4 post-merge main CI: GitHub Actions run `35563769896`; `verify`, `postgres-schema`, `wp6-step5b`, `nginx-upload-boundary`, and `production-gates` all succeeded.
+- P4 governance boundary: `REVIEW_PASS=YES`; `ACCEPTED=YES`; `MERGE=YES`; `TAG=NO`; `ACCEPTED_CLOSED=NO` pending final governance CI and annotated-tag verification.
 - Current Development: Phase P3 has received explicit Controller Final Acceptance and PR #16 has been merged. Current status is `PHASE_P3_ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING`; the accepted tag remains separately gated and unauthorized.
 - P2 status: `PHASE_P2_ACCEPTED / MERGED / FINAL_CLOSEOUT_PENDING`; final main CI and annotated `phase-p2-accepted` tag remain required to establish `P2_ACCEPTED_CLOSED`.
 - P2 accepted candidate: `f19af1434300113acb096f141b843ce2e0cf1127`.
@@ -251,6 +254,7 @@ Last Updated: 2026-09-21
 - Phase D3: ACCEPTED / FROZEN / CLOSED (`PHASE_D3_ACCEPTED_CLOSED`)
 - Phase E2: ACCEPTED / FROZEN / CLOSED (`PHASE_E2_ACCEPTED_CLOSED`)
 - Phase P3: ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING (`P3_ACCEPTED_CLOSED=NO`)
+- Phase P4: ACCEPTED / MERGED / FINAL CLOSEOUT PENDING (`P4_ACCEPTED_CLOSED=NO`)
 
 ## Previous accepted Phase goal (C3)
 

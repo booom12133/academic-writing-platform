@@ -1,5 +1,19 @@
 # Phase P4 Final Acceptance Report
 
+## Final decision
+
+```text
+PHASE_P4_ACCEPTED
+P4_ACCEPTED = YES
+P4_MERGED = YES
+P4_ACCEPTED_CLOSED = NO
+ACCEPTED_TAG_CREATED = NO
+```
+
+Controller Final Acceptance was granted in PR #17 review `5263186830`. PR #17
+was then merged, and the resulting main CI passed all required jobs. P4 remains
+accepted and merged but not tagged or closed.
+
 ## Phase identity
 
 | Item | Value |
@@ -9,8 +23,12 @@
 | PR | [#17 Phase P4: implement core academic writing workflow](https://github.com/booom12133/academic-writing-platform/pull/17) |
 | Approved plan SHA | `be2097d882a1bab27e6bee0bbedae263afb5aa3a` |
 | Reviewed implementation HEAD | `a32cfa5c788dea65e676336d0a75a2cbae5e0123` |
+| Final Acceptance preparation HEAD | `1b1efd786bd8c0c76a54a6b76500a6c0fb7e6117` |
+| Controller Final Acceptance review | [5263186830](https://github.com/booom12133/academic-writing-platform/pull/17#pullrequestreview-5263186830) |
+| Merge commit / post-merge main HEAD | `74fa7b57faf47ce389021af0fce1057e4c3a8a8d` |
+| Post-merge main CI | [35563769896](https://github.com/booom12133/academic-writing-platform/actions/runs/35563769896) — `SUCCESS` |
 
-## Scope accepted for Final Acceptance review
+## Accepted scope
 
 P4 delivers the WP1-WP8 core academic writing workflow: the `PaperProject`
 aggregate and `ProjectProfile`/Research Plan; topic selection and generation;
@@ -73,18 +91,39 @@ a32cfa5c788dea65e676336d0a75a2cbae5e0123
 
 Controller GitHub review ID:
 5263138676
+
+PHASE_P4_ACCEPTED
+
+Final Acceptance preparation HEAD:
+1b1efd786bd8c0c76a54a6b76500a6c0fb7e6117
+
+Controller Final Acceptance GitHub review ID:
+5263186830
 ```
+
+## Merge and post-merge main CI
+
+PR #17 was merged using a merge commit. Merge commit and post-merge `main` HEAD
+are both `74fa7b57faf47ce389021af0fce1057e4c3a8a8d`. GitHub Actions run
+`35563769896` completed successfully at that exact commit.
+
+| Required job | Result |
+|---|---|
+| `verify` | `SUCCESS` |
+| `postgres-schema` | `SUCCESS` |
+| `wp6-step5b` | `SUCCESS` |
+| `nginx-upload-boundary` | `SUCCESS` |
+| `production-gates` | `SUCCESS` |
 
 ## Governance status
 
 ```text
 REVIEW_PASS = YES
-FINAL_ACCEPTANCE_PENDING = YES
-ACCEPTED = NO
-MERGED = NO
+ACCEPTED = YES
+MERGED = YES
 ACCEPTED_TAG_CREATED = NO
 ACCEPTED_CLOSED = NO
 ```
 
-This report is a Final Acceptance candidate. It does not grant formal
-acceptance, authorize merge, create an accepted tag, or authorize Phase F.
+The annotated `phase-p4-accepted` tag remains pending final governance-main CI.
+No Phase F work is authorized.
