@@ -6,10 +6,10 @@ const { createHash } = require('node:crypto');
 const { databaseIdentity, writeProtectedJsonAtomic } = require('./db-backup.js');
 
 const REQUIRED_PGSSLROOTCERT = '/etc/academic-writing-platform/postgres-ca.pem';
-const REQUIRED_MIGRATION_COUNT = 4;
-const REQUIRED_TABLE_COUNT = 14;
+const REQUIRED_MIGRATION_COUNT = 5;
+const REQUIRED_TABLE_COUNT = 19;
 const IDENTITY_QUERY = "SELECT COALESCE(inet_server_addr()::text, '<local>') || '|' || COALESCE(inet_server_port()::text, '<local>') || '|' || current_database();";
-const VERIFY_QUERY = `SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN 't' ELSE 'f' END || '|' || (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('app_users','tasks','point_records','recharge_orders','knowledge_documents','knowledge_document_versions','knowledge_chunks','knowledge_source_records','knowledge_source_external_links','knowledge_metadata_assertions','knowledge_imports','knowledge_embedding_indexes','knowledge_chunk_embeddings','zotero_connections')) || '|' || (SELECT count(*) FROM drizzle.__drizzle_migrations) || '|' || current_database();`;
+const VERIFY_QUERY = `SELECT CASE WHEN EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'vector') THEN 't' ELSE 'f' END || '|' || (SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('app_users','tasks','point_records','recharge_orders','knowledge_documents','knowledge_document_versions','knowledge_chunks','knowledge_source_records','knowledge_source_external_links','knowledge_metadata_assertions','knowledge_imports','knowledge_embedding_indexes','knowledge_chunk_embeddings','zotero_connections','paper_projects','paper_outline_nodes','paper_sections','paper_section_revisions','paper_project_sources')) || '|' || (SELECT count(*) FROM drizzle.__drizzle_migrations) || '|' || current_database();`;
 
 function verifiedLibpqEnvironment(env, databaseUrl) {
   if (env.PGSSLMODE !== 'verify-full') throw new Error('PGSSLMODE=verify-full is required for PostgreSQL tools.');

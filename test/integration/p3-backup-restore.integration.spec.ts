@@ -101,7 +101,7 @@ describeIfEnabled('P3 dedicated backup and isolated restore', () => {
     })).toEqual({ verified: true });
 
     const receipt = JSON.parse(readFileSync(restoreReceiptPath, 'utf8'));
-    expect(receipt).toMatchObject({ isolatedTarget: true, migrationCount: 4, tableCount: 14 });
+    expect(receipt).toMatchObject({ isolatedTarget: true, migrationCount: 5, tableCount: 19 });
     const recovery = verifiedPool(restoreUrl, fixture.caFile);
     const restored = await recovery.query("SELECT count(*)::int AS count FROM app_users WHERE user_id = 'p3-backup-user'");
     expect(restored.rows[0].count).toBe(1);
