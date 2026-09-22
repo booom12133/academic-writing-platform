@@ -181,14 +181,14 @@ describeIfDatabase('standard PostgreSQL migrations', () => {
     await expect(pool.query('CREATE EXTENSION hstore')).rejects.toThrow();
   });
 
-  it('applies the accepted baseline and E1 schema exactly once', async () => {
+  it('applies the controlled schema exactly once', async () => {
     const result = await pool.query<{ table_name: string }>(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name`,
     );
     expect(result.rows.map((row) => row.table_name)).toEqual([
       'app_users', 'knowledge_chunk_embeddings', 'knowledge_chunks', 'knowledge_document_versions', 'knowledge_documents',
       'knowledge_embedding_indexes', 'knowledge_imports', 'knowledge_metadata_assertions', 'knowledge_source_external_links',
-      'knowledge_source_records', 'paper_outline_nodes', 'paper_project_sources', 'paper_projects',
+      'knowledge_source_records', 'paper_exports', 'paper_outline_nodes', 'paper_project_sources', 'paper_projects',
       'paper_section_revisions', 'paper_sections', 'point_records', 'recharge_orders', 'tasks', 'zotero_connections',
     ]);
   });
