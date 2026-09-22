@@ -2,6 +2,8 @@ import { FileService } from '@lark-apaas/fullstack-nestjs-core';
 
 import { PlatformDocumentStorageAdapter } from './platform-document-storage.adapter';
 
+const objectKey = `academic-writing/users/${'a'.repeat(64)}/550e8400-e29b-41d4-a716-446655440000/document.txt`;
+
 describe('PlatformDocumentStorageAdapter', () => {
   it('uses the platform default bucket and uploads Buffer content', async () => {
     const bucket = {
@@ -19,8 +21,8 @@ describe('PlatformDocumentStorageAdapter', () => {
     await expect(adapter.getDefaultBucketId()).resolves.toBe('default-bucket');
     await adapter.upload({
       bucketId: 'default-bucket',
-      filePath: 'academic-writing/users/a/path.txt',
-      fileName: 'path.txt',
+      filePath: objectKey,
+      fileName: 'document.txt',
       buffer,
       mimeType: 'text/plain',
     });
@@ -28,8 +30,8 @@ describe('PlatformDocumentStorageAdapter', () => {
     expect(fileService.getDefaultBucket).toHaveBeenCalledTimes(1);
     expect(fileService.from).toHaveBeenCalledWith('default-bucket');
     expect(bucket.upload).toHaveBeenCalledWith(buffer, {
-      filePath: 'academic-writing/users/a/path.txt',
-      fileName: 'path.txt',
+      filePath: objectKey,
+      fileName: 'document.txt',
       contentType: 'text/plain',
       upsert: false,
     });
@@ -46,10 +48,10 @@ describe('PlatformDocumentStorageAdapter', () => {
     } as unknown as FileService;
     const adapter = new PlatformDocumentStorageAdapter(fileService);
 
-    await expect(adapter.download({ bucketId: 'default-bucket', filePath: 'document.txt' }))
+    await expect(adapter.download({ bucketId: 'default-bucket', filePath: objectKey }))
       .resolves.toEqual(Buffer.from('synthetic document'));
     bucket.getFileMetadata.mockResolvedValueOnce(null);
-    await expect(adapter.download({ bucketId: 'default-bucket', filePath: 'missing.txt' })).resolves.toBeNull();
+    await expect(adapter.download({ bucketId: 'default-bucket', filePath: objectKey })).resolves.toBeNull();
   });
 
   it('removes a persisted object through the same bucket scope', async () => {
@@ -59,8 +61,8 @@ describe('PlatformDocumentStorageAdapter', () => {
     const fileService = { from: jest.fn().mockReturnValue(bucket) } as unknown as FileService;
     const adapter = new PlatformDocumentStorageAdapter(fileService);
 
-    await adapter.remove({ bucketId: 'default-bucket', filePath: 'document.txt' });
+    await adapter.remove({ bucketId: 'default-bucket', filePath: objectKey });
 
-    expect(bucket.remove).toHaveBeenCalledWith(['document.txt']);
+    expect(bucket.remove).toHaveBeenCalledWith([objectKey]);
   });
 });

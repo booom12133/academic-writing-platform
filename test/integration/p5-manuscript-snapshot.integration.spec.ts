@@ -103,4 +103,15 @@ describeIfDatabase('P5 manuscript repeatable-read snapshot', () => {
     expect(count.rows[0].count).toBe('1');
     await expect(pool.query(`INSERT INTO paper_sections (project_id,user_id,section_role,status) VALUES ($1,$2,'KEYWORDS','orphaned')`, [projectId, userId])).rejects.toThrow();
   });
+
+  it('enforces export owner, format, fingerprint, and JSON object constraints', async () => {
+    const userId = `p5-export-${randomUUID()}`;
+    const project = await pool.query<{ id: string }>(`INSERT INTO paper_projects (user_id,profile) VALUES ($1,$2::jsonb) RETURNING id`, [userId, JSON.stringify({ schemaVersion: 1, researchIdea: 'export', paperType: 'other', language: 'en' })]);
+    const projectId = project.rows[0].id;
+    const values = [randomUUID(), projectId, userId, 'a'.repeat(64), JSON.stringify({ schemaVersion: 1 }), JSON.stringify({ version: 1 })];
+    await expect(pool.query(`INSERT INTO paper_exports (id,project_id,user_id,format,template_key,template_version,renderer_version,manuscript_fingerprint,snapshot_manifest,artifact_ref,_created_at) VALUES ($1,$2,$3,'DOCX','generic-academic-v1','1','1',$4,$5::jsonb,$6::jsonb,CURRENT_TIMESTAMP)`, values)).resolves.toBeDefined();
+    await expect(pool.query(`INSERT INTO paper_exports (id,project_id,user_id,format,template_key,template_version,renderer_version,manuscript_fingerprint,snapshot_manifest,artifact_ref,_created_at) VALUES ($1,$2,'other-user','DOCX','generic-academic-v1','1','1',$4,$5::jsonb,$6::jsonb,CURRENT_TIMESTAMP)`, [randomUUID(), ...values.slice(1)])).rejects.toThrow();
+    await expect(pool.query(`INSERT INTO paper_exports (id,project_id,user_id,format,template_key,template_version,renderer_version,manuscript_fingerprint,snapshot_manifest,artifact_ref,_created_at) VALUES ($1,$2,$3,'PDF','generic-academic-v1','1','1',$4,$5::jsonb,$6::jsonb,CURRENT_TIMESTAMP)`, [randomUUID(), ...values.slice(1)])).rejects.toThrow();
+    await expect(pool.query(`INSERT INTO paper_exports (id,project_id,user_id,format,template_key,template_version,renderer_version,manuscript_fingerprint,snapshot_manifest,artifact_ref,_created_at) VALUES ($1,$2,$3,'DOCX','generic-academic-v1','1','1','BAD',$4::jsonb,$5::jsonb,CURRENT_TIMESTAMP)`, [randomUUID(), projectId, userId, JSON.stringify([]), JSON.stringify({})])).rejects.toThrow();
+  });
 });

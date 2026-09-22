@@ -1,3 +1,4 @@
+import type { DocumentInputProvider } from './document-input.interface';
 import type { OutlineNode, PaperProject, PaperSection, PaperSectionRevision } from './paper-project.interface';
 
 export type SectionRole = 'OUTLINE' | 'ABSTRACT' | 'KEYWORDS';
@@ -119,4 +120,53 @@ export interface WholeManuscriptGenerationContextV1 {
     allocations: Array<{ sectionId: string; allocatedCodePoints: number; includedCodePoints: number }>;
     warnings: string[];
   };
+}
+
+export type PaperExportMode = 'DRAFT' | 'CLEAN';
+
+export interface ExportManifestV1 {
+  schemaVersion: 1;
+  exportId: string;
+  createdAt: string;
+  mode: PaperExportMode;
+  projectId: string;
+  bodyFingerprint: string;
+  manuscriptFingerprint: string;
+  outline: { nodeIdsInPreorder: string[] };
+  bodyRevisions: Array<{ sectionId: string; revisionId: string; revisionNumber: number; contentHash: string }>;
+  abstractRevisionId?: string;
+  keywordsRevisionId?: string;
+  citationMapping: Array<{ sectionId: string; localCitationId: string; globalNumbers: number[] }>;
+  warnings: Array<{ code: ManuscriptWarningCode; sectionId?: string; revisionId?: string }>;
+  template: { key: 'generic-academic-v1'; version: '1' };
+  renderer: { key: 'docx'; version: '1' };
+}
+
+export interface ArtifactRefV1 {
+  version: 1;
+  provider: DocumentInputProvider;
+  bucketId: string;
+  objectKey: string;
+  fileName: string;
+  mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+  sizeBytes: number;
+  sha256: string;
+}
+
+export interface ExportArtifactSummary {
+  id: string;
+  projectId: string;
+  format: 'DOCX';
+  mode: PaperExportMode;
+  template: { key: 'generic-academic-v1'; version: '1' };
+  renderer: { key: 'docx'; version: '1' };
+  manuscriptFingerprint: string;
+  sizeBytes: number;
+  sha256: string;
+  createdAt: string;
+  downloadUrl: string;
+}
+
+export interface ExportArtifact extends ExportArtifactSummary {
+  manifest: ExportManifestV1;
 }

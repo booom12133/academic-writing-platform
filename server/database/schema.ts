@@ -660,6 +660,33 @@ export const paperProjectSources = pgTable(
   ],
 );
 
+export const paperExports = pgTable(
+  'paper_exports',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    format: varchar('format', { length: 16 }).notNull(),
+    templateKey: varchar('template_key', { length: 64 }).notNull(),
+    templateVersion: varchar('template_version', { length: 32 }).notNull(),
+    rendererVersion: varchar('renderer_version', { length: 32 }).notNull(),
+    manuscriptFingerprint: varchar('manuscript_fingerprint', { length: 64 }).notNull(),
+    snapshotManifest: jsonb('snapshot_manifest').notNull(),
+    artifactRef: jsonb('artifact_ref').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_exports_id_project_user_key').on(table.id, table.projectId, table.userId),
+    index('paper_exports_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
+    check('paper_exports_format_check', sql`${table.format} = 'DOCX'`),
+    check('paper_exports_template_check', sql`${table.templateKey} = 'generic-academic-v1'`),
+    check('paper_exports_fingerprint_check', sql`${table.manuscriptFingerprint} ~ '^[a-f0-9]{64}$'`),
+    check('paper_exports_manifest_object_check', sql`jsonb_typeof(${table.snapshotManifest}) = 'object'`),
+    check('paper_exports_artifact_object_check', sql`jsonb_typeof(${table.artifactRef}) = 'object'`),
+    foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_exports_project_owner_fk' }),
+  ],
+);
+
 export const appUsersTable = appUsers;
 export const pointRecordsTable = pointRecords;
 export const rechargeOrdersTable = rechargeOrders;

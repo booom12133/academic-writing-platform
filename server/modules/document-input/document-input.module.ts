@@ -6,9 +6,10 @@ import { DocumentParsingModule } from '../document-parsing/document-parsing.modu
 import { DocumentInputController } from './document-input.controller';
 import { DocumentInputService } from './document-input.service';
 import { createDocumentStorageProvider } from './document-input.storage-provider';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [DocumentParsingModule, ContextBuilderModule, ChunkingModule],
+  imports: [StorageModule, DocumentParsingModule, ContextBuilderModule, ChunkingModule],
   controllers: [DocumentInputController],
   providers: [
     DocumentInputService,

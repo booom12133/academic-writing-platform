@@ -1,93 +1,25 @@
-import { link, mkdir, open, readFile, unlink } from 'node:fs/promises';
-import { randomUUID } from 'node:crypto';
-import { dirname, isAbsolute, relative, resolve } from 'node:path';
-
-import type { DocumentInputProvider } from '@shared/document-input.interface';
 import type { DocumentStoragePort } from './document-input.storage';
+import {
+  SELF_HOSTED_FILESYSTEM_BUCKET_ID,
+  SelfHostedFilesystemObjectStorageAdapter,
+} from '../storage/filesystem-object-storage.adapter';
 
-export const SELF_HOSTED_FILESYSTEM_BUCKET_ID = 'self-hosted-filesystem';
+export { SELF_HOSTED_FILESYSTEM_BUCKET_ID };
 
-const GENERATED_PATH_PATTERN = /^academic-writing\/users\/[a-f0-9]{64}\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/([^/\\\u0000-\u001f\u007f]+)$/;
-const ENCODED_PATH_SEPARATOR_PATTERN = /%(?:2f|5c)/iu;
-
-export class SelfHostedFilesystemDocumentStorageAdapter implements DocumentStoragePort {
-  private readonly root: string;
-
-  constructor(storageRoot: string) {
-    if (!storageRoot || !isAbsolute(storageRoot)) {
-      throw new Error('Self-hosted document storage root must be an absolute path.');
-    }
-    this.root = resolve(storageRoot);
-  }
-
-  getProvider(): DocumentInputProvider {
-    return 'self-hosted-filesystem';
-  }
-
-  async getDefaultBucketId(): Promise<string> {
-    return SELF_HOSTED_FILESYSTEM_BUCKET_ID;
-  }
-
+/** Compatibility facade for the existing DocumentInput contract. */
+export class SelfHostedFilesystemDocumentStorageAdapter
+  extends SelfHostedFilesystemObjectStorageAdapter
+  implements DocumentStoragePort {
   async upload(input: Parameters<DocumentStoragePort['upload']>[0]): Promise<void> {
-    const target = this.resolveStoragePath(input.bucketId, input.filePath, input.fileName);
-    await mkdir(dirname(target), { recursive: true, mode: 0o700 });
-
-    const temporaryTarget = `${target}.${randomUUID()}.tmp`;
-    try {
-      const handle = await open(temporaryTarget, 'wx', 0o600);
-      try {
-        await handle.writeFile(input.buffer);
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
-      // link() creates the final name without replacing an existing object.
-      await link(temporaryTarget, target);
-    } finally {
-      await unlink(temporaryTarget).catch(() => undefined);
-    }
+    if (input.fileName !== input.filePath.split('/').at(-1)) throw new Error('The filesystem storage filename does not match its key.');
+    await this.putImmutable({ bucketId: input.bucketId, objectKey: input.filePath, buffer: input.buffer, contentType: input.mimeType ?? 'application/octet-stream' });
   }
-
-  async download(input: Parameters<DocumentStoragePort['download']>[0]): Promise<Buffer | null> {
-    const target = this.resolveStoragePath(input.bucketId, input.filePath);
-    try {
-      return await readFile(target);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
-      throw error;
-    }
+  download(input: Parameters<DocumentStoragePort['download']>[0]): Promise<Buffer | null> {
+    return this.get({ bucketId: input.bucketId, objectKey: input.filePath });
   }
-
-  async remove(input: Parameters<DocumentStoragePort['remove']>[0]): Promise<void> {
-    const target = this.resolveStoragePath(input.bucketId, input.filePath);
-    try {
-      await unlink(target);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-    }
-  }
-
-  private resolveStoragePath(bucketId: string, filePath: string, fileName?: string): string {
-    if (bucketId !== SELF_HOSTED_FILESYSTEM_BUCKET_ID) {
-      throw new Error('The filesystem storage bucket is invalid.');
-    }
-    if (typeof filePath !== 'string' || ENCODED_PATH_SEPARATOR_PATTERN.test(filePath)) {
-      throw new Error('The filesystem storage key is invalid.');
-    }
-
-    const match = filePath.match(GENERATED_PATH_PATTERN);
-    if (!match || filePath.includes('..') || filePath !== filePath.replaceAll('\\', '/')) {
-      throw new Error('The filesystem storage key is not a canonical generated path.');
-    }
-    if (fileName !== undefined && fileName !== match[1]) {
-      throw new Error('The filesystem storage filename does not match its key.');
-    }
-
-    const target = resolve(this.root, ...filePath.split('/'));
-    const containment = relative(this.root, target);
-    if (!containment || containment.startsWith('..') || isAbsolute(containment)) {
-      throw new Error('The filesystem storage key escapes the configured root.');
-    }
-    return target;
+  remove(input: { bucketId: string; filePath?: string; objectKey?: string }): Promise<void> {
+    const objectKey = input.filePath ?? input.objectKey;
+    if (!objectKey) throw new Error('A storage key is required.');
+    return super.remove({ bucketId: input.bucketId, objectKey });
   }
 }

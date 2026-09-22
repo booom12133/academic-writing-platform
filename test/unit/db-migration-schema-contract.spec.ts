@@ -15,6 +15,7 @@ const reviewedMigrations = [
   { fileName: '0004_e4_zotero_connections.sql', folderMillis: 1788670451922 },
   { fileName: '0005_p4_paper_projects.sql', folderMillis: 1789790000000 },
   { fileName: '0006_p5_section_roles.sql', folderMillis: 1790030000000 },
+  { fileName: '0007_p5_paper_exports.sql', folderMillis: 1790040000000 },
 ].map(({ fileName, folderMillis }) => ({
   fileName,
   folderMillis,

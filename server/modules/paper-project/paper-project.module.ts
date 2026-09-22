@@ -20,6 +20,10 @@ import { KnowledgeIndexingModule } from '../knowledge/indexing/knowledge-indexin
 import { ManuscriptController } from './manuscript/manuscript.controller';
 import { ManuscriptProjectionService } from './manuscript/manuscript-projection.service';
 import { DerivedContentService } from './manuscript/derived-content.service';
+import { StorageModule } from '../storage/storage.module';
+import { PaperExportController } from './export/paper-export.controller';
+import { PaperExportRepository } from './export/paper-export.repository';
+import { PaperExportService } from './export/paper-export.service';
 
-@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService,DerivedContentService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService] })
+@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule,StorageModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController,PaperExportController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService,DerivedContentService,PaperExportRepository,PaperExportService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService,PaperExportService] })
 export class PaperProjectModule {}

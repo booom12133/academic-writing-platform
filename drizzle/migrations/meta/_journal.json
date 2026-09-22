@@ -43,6 +43,13 @@
       "when": 1790030000000,
       "tag": "0006_p5_section_roles",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790040000000,
+      "tag": "0007_p5_paper_exports",
+      "breakpoints": true
     }
   ]
 }
