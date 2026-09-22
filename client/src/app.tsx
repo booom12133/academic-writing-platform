@@ -19,6 +19,7 @@ import GroundedWritingPage from './pages/GroundedWriting/GroundedWritingPage';
 import PapersPage from './pages/Papers/PapersPage';
 import NewPaperPage from './pages/Papers/NewPaperPage';
 import PaperWorkspacePage from './pages/Papers/PaperWorkspacePage';
+import ManuscriptPage from './pages/Papers/ManuscriptPage';
 import { AppAuthProvider } from './auth/AppAuthProvider';
 import { RequireAuth } from './auth/RequireAuth';
 
@@ -103,6 +104,10 @@ const RoutesComponent = () => {
           <Route
             path="papers/:projectId"
             element={<RequireAuth><PaperWorkspacePage /></RequireAuth>}
+          />
+          <Route
+            path="papers/:projectId/manuscript"
+            element={<RequireAuth><ManuscriptPage /></RequireAuth>}
           />
           <Route
             path="profile"

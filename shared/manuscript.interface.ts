@@ -93,7 +93,7 @@ export interface ManuscriptProjectionV1 {
   readiness: ManuscriptReadiness;
   wordCount: number;
   blocks: ManuscriptBlock[];
-  outline: Array<{ nodeId: string; sectionId?: string; title: string; depth: number; nodeType: OutlineNode['nodeType'] }>;
+  outline: Array<{ nodeId: string; sectionId?: string; title: string; depth: number; nodeType: OutlineNode['nodeType']; currentRevisionNumber?: number; conclusionBasisFingerprint?: string }>;
   derived: { abstract: DerivedContentProjection; keywords: DerivedContentProjection };
   supportSummary: ManuscriptSupportSummary;
   citations: ManuscriptCitation[];

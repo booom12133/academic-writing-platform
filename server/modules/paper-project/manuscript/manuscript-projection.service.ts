@@ -115,7 +115,10 @@ export class ManuscriptProjectionService {
       readiness: warnings.length === 0 ? 'READY' : warnings.some((warning) => warning.severity === 'blocking') ? 'BLOCKED' : 'INCOMPLETE',
       wordCount: blocks.reduce((total, block) => total + (block.kind === 'paragraph' ? countManuscriptWordsV1(block.text) : 0), 0),
       blocks,
-      outline: ordered.map(({ node, depth }) => ({ nodeId: node.id, ...(sectionByNode.get(node.id) ? { sectionId: sectionByNode.get(node.id)!.id } : {}), title: node.title, depth, nodeType: node.nodeType })),
+      outline: ordered.map(({ node, depth }) => {
+        const section = sectionByNode.get(node.id);
+        return { nodeId: node.id, ...(section ? { sectionId: section.id, currentRevisionNumber: section.currentRevisionNumber, conclusionBasisFingerprint: computeConclusionBasisFingerprint(snapshot, section.id) } : {}), title: node.title, depth, nodeType: node.nodeType };
+      }),
       derived,
       supportSummary: { ...support, managedCitationCount: normalized.citations.length, bibliographyEntryCount: normalized.bibliography.length, bibliographyState: normalized.citations.length === 0 ? 'NONE' : normalized.warnings.some((warning) => warning.code === 'BIBLIOGRAPHY_METADATA_UNRESOLVED') ? 'INCOMPLETE' : 'COMPLETE' },
       citations: normalized.citations,

@@ -1,5 +1,5 @@
 import { useEffect, useReducer, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import type {
   OutlineNode,
   PaperProject,
@@ -49,6 +49,7 @@ const button = 'rounded-md px-3 py-2 text-sm font-medium disabled:opacity-50';
 
 export default function PaperWorkspacePage() {
   const { projectId = '' } = useParams();
+  const [searchParams] = useSearchParams();
   const [project, setProject] = useState<PaperProject | null>(null);
   const [outline, setOutline] = useState<OutlineNode[]>([]);
   const [sections, setSections] = useState<PaperSection[]>([]);
@@ -87,6 +88,10 @@ export default function PaperWorkspacePage() {
     setStrategy(nextProject.defaultSourceStrategy);
     setOutline(nextOutline.filter((node) => node.status === 'active'));
     setSections(workspace.sections);
+    const requestedSectionId = searchParams.get('sectionId');
+    if (requestedSectionId && workspace.sections.some((section) => section.id === requestedSectionId)) {
+      setSectionId(requestedSectionId);
+    }
     setSources(nextSources);
     setSelected(getSourceSelectionTokens(nextSources));
   }
@@ -304,7 +309,7 @@ export default function PaperWorkspacePage() {
       <header className="rounded-xl border border-slate-200 bg-white p-5">
         <div className="flex items-center justify-between gap-4">
           <div><p className="text-xs text-slate-500">Paper Project · v{project.lockVersion}</p><h1 className="text-2xl font-semibold">{project.selectedTitle ?? '未命名论文'}</h1></div>
-          <Link to="/papers" className="text-sm text-blue-600">返回项目列表</Link>
+          <div className="flex gap-3"><Link to={`/papers/${projectId}/manuscript`} className="text-sm text-blue-600">整篇预览</Link><Link to="/papers" className="text-sm text-blue-600">返回项目列表</Link></div>
         </div>
         <div className="mt-4 flex gap-2">
           <input value={title} onChange={(event) => setTitle(event.target.value)} className="min-w-0 flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="手动输入或选择题目" />
