@@ -414,7 +414,7 @@ jobs:
           P3_POSTGRES_ROLE_INTEGRATION: YES
           P3_POSTGRES_ADMIN_URL: postgresql://postgres:postgres@localhost:5432/academic_writing_test
           P3_PRODUCTION_DATABASE_VERIFY_SCRIPT: ${{ github.workspace }}/dist/scripts/verify-production-database.js
-        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/integration/p3-backup-restore.integration.spec.ts --runInBand
+        run: npx jest test/unit/postgres-schema.integration.spec.ts test/unit/postgres-database-readiness.integration.spec.ts test/integration/p3-backup-restore.integration.spec.ts test/integration/p5-manuscript-snapshot.integration.spec.ts --runInBand
 
       - name: Verify approved previous-release rollback compatibility
         env:
