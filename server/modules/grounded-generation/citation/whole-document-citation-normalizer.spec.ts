@@ -54,4 +54,61 @@ describe('WholeDocumentCitationNormalizer', () => {
     const conflict = new WholeDocumentCitationNormalizer().normalize([{ sectionId: 'a', revisionId: 'r', supportState: 'VALID', content: 'A [1]', citations: [{ citationId: 'citation-1', evidenceIds: ['x'] }], bibliography: [{ citationId: 'citation-1', fields: { title: 'X' } }], evidenceTrace: [conflictingTrace], citationPlacements: [{ schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 2, end: 5, markerText: '[1]' }] }]);
     expect(conflict.warnings).toContainEqual(expect.objectContaining({ code: 'CITATION_IDENTITY_CONFLICT', severity: 'blocking' }));
   });
+
+  it('discards every managed contribution from a section when a later placement is invalid', () => {
+    const result = new WholeDocumentCitationNormalizer().normalize([{
+      sectionId: 'a', revisionId: 'r', supportState: 'VALID', content: 'A [1] B [2]',
+      citations: [
+        { citationId: 'citation-1', evidenceIds: ['x'] },
+        { citationId: 'citation-2', evidenceIds: ['y'] },
+      ],
+      bibliography: [
+        { citationId: 'citation-1', fields: { title: 'X' } },
+        { citationId: 'citation-2', fields: { title: 'Y' } },
+      ],
+      evidenceTrace: [trace('x', 'source-x', 'version-x'), trace('y', 'source-y', 'version-y')],
+      citationPlacements: [
+        { schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 2, end: 5, markerText: '[1]' },
+        { schemaVersion: 1, citationId: 'citation-2', localNumber: 2, start: 8, end: 11, markerText: '[wrong]' },
+      ],
+    }]);
+
+    expect(result.sections[0]?.content).toBe('A [1] B [2]');
+    expect(result.mapping).toEqual([]);
+    expect(result.citations).toEqual([]);
+    expect(result.bibliography).toEqual([]);
+    expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'CITATION_RENUMBER_UNSAFE' }));
+  });
+
+  it('rejects duplicate ids, incomplete placement coverage, and conflicting version chains before numbering', () => {
+    const duplicate = new WholeDocumentCitationNormalizer().normalize([{
+      sectionId: 'duplicate', revisionId: 'r1', supportState: 'VALID', content: 'A [1]',
+      citations: [{ citationId: 'citation-1', evidenceIds: ['x'] }, { citationId: 'citation-1', evidenceIds: ['x'] }],
+      bibliography: [{ citationId: 'citation-1', fields: { title: 'X' } }], evidenceTrace: [trace('x', 'source-x', 'version-x')],
+      citationPlacements: [{ schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 2, end: 5, markerText: '[1]' }],
+    }]);
+    expect(duplicate.mapping).toEqual([]);
+    expect(duplicate.warnings).toContainEqual(expect.objectContaining({ code: 'CITATION_IDENTITY_CONFLICT' }));
+
+    const incomplete = new WholeDocumentCitationNormalizer().normalize([{
+      sectionId: 'incomplete', revisionId: 'r2', supportState: 'VALID', content: 'A [1]',
+      citations: [{ citationId: 'citation-1', evidenceIds: ['x'] }, { citationId: 'citation-2', evidenceIds: ['y'] }],
+      bibliography: [{ citationId: 'citation-1', fields: { title: 'X' } }, { citationId: 'citation-2', fields: { title: 'Y' } }],
+      evidenceTrace: [trace('x', 'source-x', 'version-x'), trace('y', 'source-y', 'version-y')],
+      citationPlacements: [{ schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 2, end: 5, markerText: '[1]' }],
+    }]);
+    expect(incomplete.mapping).toEqual([]);
+    expect(incomplete.warnings).toContainEqual(expect.objectContaining({ code: 'CITATION_RENUMBER_UNSAFE' }));
+
+    const conflictingTrace = trace('x', 'source-x', 'version-x');
+    conflictingTrace.citationLocator.documentVersionId = 'version-other';
+    const conflicting = new WholeDocumentCitationNormalizer().normalize([{
+      sectionId: 'conflicting', revisionId: 'r3', supportState: 'VALID', content: 'A [1]',
+      citations: [{ citationId: 'citation-1', evidenceIds: ['x'] }],
+      bibliography: [{ citationId: 'citation-1', fields: { title: 'X' } }], evidenceTrace: [conflictingTrace],
+      citationPlacements: [{ schemaVersion: 1, citationId: 'citation-1', localNumber: 1, start: 2, end: 5, markerText: '[1]' }],
+    }]);
+    expect(conflicting.mapping).toEqual([]);
+    expect(conflicting.warnings).toContainEqual(expect.objectContaining({ code: 'CITATION_IDENTITY_CONFLICT' }));
+  });
 });

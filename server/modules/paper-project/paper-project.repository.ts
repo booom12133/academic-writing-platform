@@ -164,6 +164,10 @@ export class PaperProjectRepository {
   async listRevisions(userId: string, sectionId: string): Promise<PaperSectionRevision[]> { return (await this.db.select().from(paperSectionRevisions).where(and(eq(paperSectionRevisions.sectionId,sectionId),eq(paperSectionRevisions.userId,userId))).orderBy(desc(paperSectionRevisions.revisionNumber))).map(toRevision); }
   async appendRevision(userId: string, projectId: string, sectionId: string, expected: number, input: RevisionWrite): Promise<PaperSectionRevision> {
     return this.db.transaction(async (tx) => {
+      const [project] = await tx.select({ status: paperProjects.status }).from(paperProjects)
+        .where(and(eq(paperProjects.id,projectId),eq(paperProjects.userId,userId))).for('update').limit(1);
+      if (!project) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Paper project was not found.');
+      if (project.status !== 'active') throw new PaperProjectError('PAPER_PROJECT_ARCHIVED','Archived paper projects cannot create revisions.');
       const [section] = await tx.select().from(paperSections).where(and(eq(paperSections.id,sectionId),eq(paperSections.projectId,projectId),eq(paperSections.userId,userId))).limit(1);
       if (!section) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Paper section was not found.');
       if (section.currentRevisionNumber !== expected) throw new PaperProjectError('PAPER_SECTION_REVISION_CONFLICT','Paper section changed; reload before saving.',{ currentRevisionNumber: section.currentRevisionNumber });

@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Client, Pool } from 'pg';
 import { createStandardPostgresConfig } from '../../server/database/standard-postgres.module';
+import * as schema from '../../server/database/schema';
+import { PaperProjectRepository } from '../../server/modules/paper-project/paper-project.repository';
+import { computeBodyFingerprint } from '../../server/modules/paper-project/manuscript/manuscript-fingerprint';
 import { createP3PostgresRoleFixture, type P3PostgresRoleFixture } from '../support/p3-postgres-role-fixture';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -83,6 +87,74 @@ describeIfDatabase('P5 manuscript repeatable-read snapshot', () => {
       await writer.query('ROLLBACK').catch(() => undefined);
       reader.release();
       writer.release();
+    }
+  });
+
+  it('exercises the repository loader across a concurrent project and revision commit without a mixed fingerprint', async () => {
+    const userId = `p5-repository-snapshot-${randomUUID()}`;
+    const project = await pool.query<{ id: string }>(
+      `INSERT INTO paper_projects (user_id,selected_title,profile) VALUES ($1,'Before',$2::jsonb) RETURNING id`,
+      [userId, JSON.stringify({ schemaVersion: 1, researchIdea: 'repository snapshot', paperType: 'other', language: 'en' })],
+    );
+    const projectId = project.rows[0].id;
+    const outline = await pool.query<{ id: string }>(
+      `INSERT INTO paper_outline_nodes (project_id,user_id,node_type,title,position) VALUES ($1,$2,'writing-unit','Body',0) RETURNING id`,
+      [projectId, userId],
+    );
+    const section = await pool.query<{ id: string }>(
+      `INSERT INTO paper_sections (project_id,user_id,outline_node_id,current_revision_number) VALUES ($1,$2,$3,1) RETURNING id`,
+      [projectId, userId, outline.rows[0].id],
+    );
+    await pool.query(
+      `INSERT INTO paper_section_revisions (section_id,user_id,revision_number,content,content_hash,origin,source_strategy,actual_support_mode,support_state) VALUES ($1,$2,1,'Before body',$3,'USER_EDIT','MODEL_ONLY','AI_DRAFT','NOT_CLAIMED')`,
+      [section.rows[0].id, userId, 'a'.repeat(64)],
+    );
+
+    const config = createStandardPostgresConfig({
+      NODE_ENV: 'production', DATABASE_URL: fixture.appUrl, DATABASE_SSL: 'require',
+      ...(fixture.caFile ? { DATABASE_SSL_CA_FILE: fixture.caFile } : {}),
+    });
+    const readerClient = new Client(config);
+    const locker = await pool.connect();
+    const writer = await pool.connect();
+    await readerClient.connect();
+    const repository = new PaperProjectRepository(drizzle(readerClient, { schema }) as never);
+    try {
+      await locker.query('BEGIN');
+      await locker.query('LOCK TABLE paper_outline_nodes IN ACCESS EXCLUSIVE MODE');
+      const loading = repository.loadManuscriptSnapshot(userId, projectId);
+      for (let attempt = 0; attempt < 100; attempt += 1) {
+        const activity = await pool.query<{ wait_event_type: string | null }>('SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1', [readerClient.processID]);
+        if (activity.rows[0]?.wait_event_type === 'Lock') break;
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        if (attempt === 99) throw new Error('Repository snapshot reader did not reach the outline lock barrier.');
+      }
+
+      await writer.query('BEGIN');
+      await writer.query(`UPDATE paper_projects SET selected_title='After' WHERE id=$1 AND user_id=$2`, [projectId, userId]);
+      await writer.query(
+        `INSERT INTO paper_section_revisions (section_id,user_id,revision_number,content,content_hash,origin,source_strategy,actual_support_mode,support_state) VALUES ($1,$2,2,'After body',$3,'USER_EDIT','MODEL_ONLY','AI_DRAFT','NOT_CLAIMED')`,
+        [section.rows[0].id, userId, 'b'.repeat(64)],
+      );
+      await writer.query('UPDATE paper_sections SET current_revision_number=2 WHERE id=$1 AND user_id=$2', [section.rows[0].id, userId]);
+      await writer.query('COMMIT');
+      await locker.query('COMMIT');
+
+      const before = await loading;
+      expect(before.project.selectedTitle).toBe('Before');
+      expect(before.revisionsBySectionId[section.rows[0].id]).toMatchObject({ revisionNumber: 1, contentHash: 'a'.repeat(64) });
+      const beforeFingerprint = computeBodyFingerprint(before);
+
+      const after = await repository.loadManuscriptSnapshot(userId, projectId);
+      expect(after.project.selectedTitle).toBe('After');
+      expect(after.revisionsBySectionId[section.rows[0].id]).toMatchObject({ revisionNumber: 2, contentHash: 'b'.repeat(64) });
+      expect(computeBodyFingerprint(after)).not.toBe(beforeFingerprint);
+    } finally {
+      await locker.query('ROLLBACK').catch(() => undefined);
+      await writer.query('ROLLBACK').catch(() => undefined);
+      locker.release();
+      writer.release();
+      await readerClient.end();
     }
   });
 

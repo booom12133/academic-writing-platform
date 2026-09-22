@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type PaperProjectErrorCode =
   | 'PAPER_PROJECT_NOT_FOUND' | 'PAPER_PROJECT_VERSION_CONFLICT' | 'PAPER_PROJECT_INVALID_REQUEST'
   | 'PAPER_OUTLINE_INVALID_TREE' | 'PAPER_SECTION_REVISION_CONFLICT'
@@ -16,6 +18,13 @@ export class PaperProjectError extends Error {
     super(message);
     this.name = 'PaperProjectError';
   }
+}
+
+const paperUuidSchema = z.string().uuid();
+
+export function parsePaperUuid(value: string): string {
+  if (!paperUuidSchema.safeParse(value).success) throw new PaperProjectError('PAPER_PROJECT_INVALID_REQUEST', 'Paper project route identifier is invalid.');
+  return value;
 }
 
 export function toPaperGenerationError(error: unknown): PaperProjectError {

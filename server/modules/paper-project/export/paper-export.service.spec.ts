@@ -60,6 +60,15 @@ describe('PaperExportService artifact lifecycle', () => {
     expect(storage.remove).toHaveBeenCalledWith({ bucketId: 'self-hosted-filesystem', objectKey });
   });
 
+  it('compensates the uploaded object when archival wins the final repository write', async () => {
+    repository.create.mockRejectedValue(new PaperProjectError('PAPER_PROJECT_ARCHIVED', 'Archived projects cannot create exports.'));
+    await expect(service.persistRenderedArtifact({
+      userId, projectId, exportId, createdAt, manuscriptFingerprint: fingerprint,
+      manifest, buffer, fileName: 'paper.docx',
+    })).rejects.toMatchObject({ code: 'PAPER_PROJECT_ARCHIVED' });
+    expect(storage.remove).toHaveBeenCalledWith({ bucketId: 'self-hosted-filesystem', objectKey });
+  });
+
   it('starts download from owner-scoped metadata and verifies path, length, and hash', async () => {
     repository.get.mockResolvedValue({
       id: exportId, userId, projectId, format: 'DOCX', templateKey: 'generic-academic-v1',

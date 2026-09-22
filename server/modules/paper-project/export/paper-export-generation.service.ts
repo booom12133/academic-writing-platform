@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
-import { z } from 'zod';
 
 import type { ExportManifestV1, ManuscriptProjectionV1, ManuscriptSnapshot } from '@shared/manuscript.interface';
-import { PaperProjectError } from '../paper-project.errors';
+import { PaperProjectError, parsePaperUuid } from '../paper-project.errors';
 import { PaperProjectRepository } from '../paper-project.repository';
 import { ManuscriptProjectionService } from '../manuscript/manuscript-projection.service';
 import { DocxManuscriptRenderer } from './docx-manuscript.renderer';
@@ -20,7 +19,7 @@ export class PaperExportGenerationService {
   ) {}
 
   async create(userId: string, projectId: string, request: unknown) {
-    if (!z.string().uuid().safeParse(projectId).success) throw new PaperProjectError('PAPER_PROJECT_INVALID_REQUEST', 'The export request is invalid.');
+    parsePaperUuid(projectId);
     const parsed = createPaperExportRequestSchema.safeParse(request);
     if (!parsed.success) throw new PaperProjectError('PAPER_PROJECT_INVALID_REQUEST', 'The export request is invalid.');
     const snapshot = await this.repository.loadManuscriptSnapshot(userId, projectId);

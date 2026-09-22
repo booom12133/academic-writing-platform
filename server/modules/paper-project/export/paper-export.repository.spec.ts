@@ -49,4 +49,28 @@ describe('PaperExportRepository', () => {
     expect('update' in repository).toBe(false);
     expect('delete' in repository).toBe(false);
   });
+
+  it('rejects the final export row write when the project is archived', async () => {
+    const projectId = randomUUID();
+    await local.db.insert(paperProjects).values({
+      id: projectId, userId, status: 'archived', profile: { schemaVersion: 1, researchIdea: 'exports', paperType: 'other', language: 'en' },
+    });
+    const id = randomUUID();
+    const createdAt = '2026-09-22T04:00:00.000Z';
+    const fingerprint = 'a'.repeat(64);
+    await expect(repository.create({
+      id, projectId, userId, format: 'DOCX', templateKey: 'generic-academic-v1', templateVersion: '1', rendererVersion: '1',
+      manuscriptFingerprint: fingerprint, createdAt: new Date(createdAt),
+      snapshotManifest: {
+        schemaVersion: 1, exportId: id, createdAt, mode: 'CLEAN', projectId, bodyFingerprint: 'b'.repeat(64), manuscriptFingerprint: fingerprint,
+        outline: { nodeIdsInPreorder: [] }, bodyRevisions: [], citationMapping: [], warnings: [],
+        template: { key: 'generic-academic-v1', version: '1' }, renderer: { key: 'docx', version: '1' },
+      },
+      artifactRef: {
+        version: 1, provider: 'self-hosted-filesystem', bucketId: 'self-hosted-filesystem',
+        objectKey: `academic-writing/users/${'c'.repeat(64)}/exports/${projectId}/${id}/paper.docx`, fileName: 'paper.docx',
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', sizeBytes: 1, sha256: 'd'.repeat(64),
+      },
+    })).rejects.toMatchObject({ code: 'PAPER_PROJECT_ARCHIVED' });
+  });
 });

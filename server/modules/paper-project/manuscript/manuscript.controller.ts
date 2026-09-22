@@ -2,6 +2,7 @@ import { Body, Controller, Get, Inject, Param, Post, Req, UnauthorizedException,
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import type { Request } from 'express';
 import { PaperProjectExceptionFilter } from '../paper-project.exception-filter';
+import { parsePaperUuid } from '../paper-project.errors';
 import { ManuscriptProjectionService } from './manuscript-projection.service';
 import { DerivedContentService } from './derived-content.service';
 
@@ -10,11 +11,11 @@ export class ManuscriptController {
   get(req: Request, projectId: string) {
     const userId = req.userContext?.userId;
     if (!userId) throw new UnauthorizedException('Authentication is required.');
-    return this.projections.getProjection(userId, projectId);
+    return this.projections.getProjection(userId, parsePaperUuid(projectId));
   }
-  generateAbstract(req: Request, projectId: string, body: unknown) { return this.derived.generateDerived(this.user(req), projectId, 'ABSTRACT', body); }
-  generateKeywords(req: Request, projectId: string, body: unknown) { return this.derived.generateDerived(this.user(req), projectId, 'KEYWORDS', body); }
-  refreshConclusion(req: Request, projectId: string, sectionId: string, body: unknown) { return this.derived.refreshConclusion(this.user(req), projectId, sectionId, body); }
+  generateAbstract(req: Request, projectId: string, body: unknown) { return this.derived.generateDerived(this.user(req), parsePaperUuid(projectId), 'ABSTRACT', body); }
+  generateKeywords(req: Request, projectId: string, body: unknown) { return this.derived.generateDerived(this.user(req), parsePaperUuid(projectId), 'KEYWORDS', body); }
+  refreshConclusion(req: Request, projectId: string, sectionId: string, body: unknown) { return this.derived.refreshConclusion(this.user(req), parsePaperUuid(projectId), parsePaperUuid(sectionId), body); }
   private user(req: Request) { const userId = req.userContext?.userId; if (!userId) throw new UnauthorizedException('Authentication is required.'); return userId; }
 }
 

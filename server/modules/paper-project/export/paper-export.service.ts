@@ -5,12 +5,11 @@ import { z } from 'zod';
 import type { ExportArtifact, ExportArtifactSummary, ExportManifestV1 } from '@shared/manuscript.interface';
 import { OBJECT_STORAGE, type ObjectStoragePort } from '../../storage/object-storage.port';
 import { assertCanonicalObjectKey } from '../../storage/object-storage-key';
-import { PaperProjectError } from '../paper-project.errors';
+import { PaperProjectError, parsePaperUuid } from '../paper-project.errors';
 import { PaperProjectRepository } from '../paper-project.repository';
 import { artifactRefV1Schema, exportManifestV1Schema } from './export.schemas';
 import { PaperExportRepository, type PaperExportRecord } from './paper-export.repository';
 
-const uuidSchema = z.string().uuid();
 const fingerprintSchema = z.string().regex(/^[a-f0-9]{64}$/u);
 const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' as const;
 const MAX_EXPORT_BYTES = 50 * 1024 * 1024;
@@ -27,8 +26,8 @@ export class PaperExportService {
     userId: string; projectId: string; exportId: string; createdAt: string; manuscriptFingerprint: string;
     manifest: ExportManifestV1; buffer: Buffer; fileName: string;
   }): Promise<ExportArtifact> {
-    const projectId = uuidSchema.parse(input.projectId);
-    const exportId = uuidSchema.parse(input.exportId);
+    const projectId = parsePaperUuid(input.projectId);
+    const exportId = parsePaperUuid(input.exportId);
     const manuscriptFingerprint = fingerprintSchema.parse(input.manuscriptFingerprint);
     const manifest = exportManifestV1Schema.parse(input.manifest) as ExportManifestV1;
     if (manifest.exportId !== exportId || manifest.projectId !== projectId || manifest.createdAt !== input.createdAt || manifest.manuscriptFingerprint !== manuscriptFingerprint) {
@@ -63,19 +62,19 @@ export class PaperExportService {
   }
 
   async list(userId: string, projectId: string): Promise<ExportArtifactSummary[]> {
-    uuidSchema.parse(projectId);
+    parsePaperUuid(projectId);
     if (this.projects) await this.projects.require(userId, projectId);
     return (await this.repository.list(userId, projectId)).map((row) => this.toSummary(row));
   }
 
   async get(userId: string, projectId: string, exportId: string): Promise<ExportArtifact> {
-    const row = await this.requireRecord(userId, uuidSchema.parse(projectId), uuidSchema.parse(exportId));
+    const row = await this.requireRecord(userId, parsePaperUuid(projectId), parsePaperUuid(exportId));
     return this.toArtifact(row);
   }
 
   async download(userId: string, projectId: string, exportId: string): Promise<{ buffer: Buffer; fileName: string; mimeType: typeof DOCX_MIME }> {
-    const validProjectId = uuidSchema.parse(projectId);
-    const validExportId = uuidSchema.parse(exportId);
+    const validProjectId = parsePaperUuid(projectId);
+    const validExportId = parsePaperUuid(exportId);
     const row = await this.requireRecord(userId, validProjectId, validExportId);
     const ref = artifactRefV1Schema.parse(row.artifactRef);
     const expectedKey = `academic-writing/users/${this.userScope(userId)}/exports/${validProjectId}/${validExportId}/${ref.fileName}`;

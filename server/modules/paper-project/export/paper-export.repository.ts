@@ -3,7 +3,7 @@ import { and, desc, eq } from 'drizzle-orm';
 
 import type { ArtifactRefV1, ExportManifestV1 } from '@shared/manuscript.interface';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../../database/database.types';
-import { paperExports } from '../../../database/schema';
+import { paperExports, paperProjects } from '../../../database/schema';
 import { artifactRefV1Schema, exportManifestV1Schema } from './export.schemas';
 import { PaperProjectError } from '../paper-project.errors';
 
@@ -46,14 +46,20 @@ export class PaperExportRepository {
   async create(input: CreatePaperExportRecord): Promise<PaperExportRecord> {
     const manifest = exportManifestV1Schema.parse(input.snapshotManifest);
     const artifactRef = artifactRefV1Schema.parse(input.artifactRef);
-    const [row] = await this.db.insert(paperExports).values({
-      id: input.id, projectId: input.projectId, userId: input.userId, format: input.format,
-      templateKey: input.templateKey, templateVersion: input.templateVersion, rendererVersion: input.rendererVersion,
-      manuscriptFingerprint: input.manuscriptFingerprint,
-      snapshotManifest: manifest, artifactRef, createdAt: input.createdAt,
-    }).returning();
-    if (!row) throw new PaperProjectError('PAPER_EXPORT_ARTIFACT_CORRUPT', 'The export record was not created.');
-    return toRecord(row);
+    return this.db.transaction(async (tx) => {
+      const [project] = await tx.select({ status: paperProjects.status }).from(paperProjects)
+        .where(and(eq(paperProjects.id, input.projectId), eq(paperProjects.userId, input.userId))).for('update').limit(1);
+      if (!project) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND', 'Paper project was not found.');
+      if (project.status !== 'active') throw new PaperProjectError('PAPER_PROJECT_ARCHIVED', 'Archived projects cannot create exports.');
+      const [row] = await tx.insert(paperExports).values({
+        id: input.id, projectId: input.projectId, userId: input.userId, format: input.format,
+        templateKey: input.templateKey, templateVersion: input.templateVersion, rendererVersion: input.rendererVersion,
+        manuscriptFingerprint: input.manuscriptFingerprint,
+        snapshotManifest: manifest, artifactRef, createdAt: input.createdAt,
+      }).returning();
+      if (!row) throw new PaperProjectError('PAPER_EXPORT_ARTIFACT_CORRUPT', 'The export record was not created.');
+      return toRecord(row);
+    });
   }
 
   async list(userId: string, projectId: string): Promise<PaperExportRecord[]> {

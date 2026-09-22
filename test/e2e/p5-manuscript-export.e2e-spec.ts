@@ -22,6 +22,10 @@ import { PaperProjectController } from '../../server/modules/paper-project/paper
 import { PaperProjectRepository } from '../../server/modules/paper-project/paper-project.repository';
 import { PaperProjectService } from '../../server/modules/paper-project/paper-project.service';
 import { PaperSourceService } from '../../server/modules/paper-project/paper-source.service';
+import { PaperGenerationService } from '../../server/modules/paper-project/paper-generation.service';
+import { PaperPlanningService } from '../../server/modules/paper-project/paper-planning.service';
+import { PaperWorkflowController } from '../../server/modules/paper-project/paper-workflow.controller';
+import { PaperWorkflowService } from '../../server/modules/paper-project/paper-workflow.service';
 import { SelfHostedFilesystemObjectStorageAdapter } from '../../server/modules/storage/filesystem-object-storage.adapter';
 import { OBJECT_STORAGE } from '../../server/modules/storage/object-storage.port';
 
@@ -61,13 +65,17 @@ describe('P5 manuscript and DOCX acceptance HTTP flows', () => {
     const renderer = new DocxManuscriptRenderer();
     const generation = new PaperExportGenerationService(repository, projection, renderer, artifacts);
     const projectService = new PaperProjectService(repository);
+    const workflowService = new PaperWorkflowService(repository);
     const moduleRef = await Test.createTestingModule({
-      controllers: [ManuscriptController, PaperExportController, PaperProjectController],
+      controllers: [ManuscriptController, PaperExportController, PaperProjectController, PaperWorkflowController],
       providers: [
         { provide: DRIZZLE_DATABASE, useValue: local.db },
         { provide: OBJECT_STORAGE, useValue: storage },
         { provide: PaperProjectRepository, useValue: repository },
         { provide: PaperProjectService, useValue: projectService },
+        { provide: PaperWorkflowService, useValue: workflowService },
+        { provide: PaperPlanningService, useValue: {} },
+        { provide: PaperGenerationService, useValue: {} },
         { provide: PaperSourceService, useValue: { list: async () => [] } },
         { provide: ManuscriptProjectionService, useValue: projection },
         { provide: DerivedContentService, useValue: {} },
@@ -199,6 +207,12 @@ describe('P5 manuscript and DOCX acceptance HTTP flows', () => {
     expect(workspace.status).toBe(200);
     expect(workspace.body.sections.map((section: { id: string }) => section.id)).toEqual(seeded.sectionIds);
     expect(await repository.getSection('user-a', seeded.projectId, seeded.derivedSectionIds[0]!)).toBeNull();
+    const derivedRevision = (await repository.listRevisions('user-a', seeded.derivedSectionIds[0]!))[0]!;
+    const derivedRestore = await json('POST', `/api/paper-projects/${seeded.projectId}/sections/${seeded.derivedSectionIds[0]}/revisions/restore`, {
+      expectedCurrentRevisionNumber: 1,
+      revisionId: derivedRevision.id,
+    });
+    expect(derivedRestore).toMatchObject({ status: 404, body: { code: 'PAPER_PROJECT_NOT_FOUND' } });
   });
 
   it('B: globally renumbers grounded citations and deduplicates bibliography identities', async () => {
@@ -284,6 +298,8 @@ describe('P5 manuscript and DOCX acceptance HTTP flows', () => {
 
   it('enforces authentication, ownership, archived-project, missing-object, and corrupt-object semantics', async () => {
     const seeded = await seedProject([{ title: 'Body', content: 'Secure body.' }]);
+    expect((await json('GET', '/api/paper-projects/not-a-uuid/manuscript')).status).toBe(400);
+    expect((await json('GET', `/api/paper-projects/${seeded.projectId}/exports/not-a-uuid`)).status).toBe(400);
     expect((await json('GET', `/api/paper-projects/${seeded.projectId}/manuscript`, undefined, null)).status).toBe(401);
     expect((await json('GET', `/api/paper-projects/${seeded.projectId}/manuscript`, undefined, 'user-b')).status).toBe(404);
     expect((await json('GET', `/api/paper-projects/${seeded.projectId}/exports`, undefined, 'user-b')).status).toBe(404);

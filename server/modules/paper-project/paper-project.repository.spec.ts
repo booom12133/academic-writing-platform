@@ -107,4 +107,15 @@ describe('PaperProjectRepository', () => {
     expect(results[0].id).toBe(results[1].id);
     expect((await repository.loadManuscriptSnapshot('user-a', project.id)).sections.filter((section) => section.sectionRole === 'KEYWORDS')).toHaveLength(1);
   });
+
+  it('rejects a final revision write after the project is archived', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const outline = await repository.replaceOutline('user-a', project.id, 0, [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }]);
+    await repository.archive('user-a', project.id, 1);
+
+    await expect(repository.appendRevision('user-a', project.id, outline.sections[0].id, 0, {
+      content: 'Too late', origin: 'AI_GENERATION', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED',
+      citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [],
+    })).rejects.toMatchObject({ code: 'PAPER_PROJECT_ARCHIVED' });
+  });
 });
