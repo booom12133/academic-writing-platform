@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export type PaperProjectErrorCode =
   | 'PAPER_PROJECT_NOT_FOUND' | 'PAPER_PROJECT_VERSION_CONFLICT' | 'PAPER_PROJECT_INVALID_REQUEST'
   | 'PAPER_OUTLINE_INVALID_TREE' | 'PAPER_SECTION_REVISION_CONFLICT'
@@ -5,13 +7,24 @@ export type PaperProjectErrorCode =
   | 'PAPER_SOURCE_METADATA_ONLY' | 'PAPER_SOURCE_NOT_INDEXED' | 'PAPER_SOURCE_INDEXING'
   | 'PAPER_SOURCE_INDEX_FAILED' | 'PAPER_EVIDENCE_INSUFFICIENT'
   | 'PAPER_GENERATION_INVALID_RESPONSE' | 'PAPER_INTEGRITY_VALIDATION_FAILED'
-  | 'PAPER_GENERATION_PROVIDER_UNAVAILABLE' | 'PAPER_GENERATION_TIMEOUT';
+  | 'PAPER_GENERATION_PROVIDER_UNAVAILABLE' | 'PAPER_GENERATION_TIMEOUT'
+  | 'PAPER_MANUSCRIPT_INTEGRITY_FAILURE' | 'PAPER_MANUSCRIPT_CONTEXT_UNREPRESENTABLE'
+  | 'PAPER_MANUSCRIPT_CHANGED' | 'PAPER_PROJECT_ARCHIVED'
+  | 'PAPER_EXPORT_NOT_FOUND' | 'PAPER_EXPORT_ARTIFACT_MISSING' | 'PAPER_EXPORT_ARTIFACT_CORRUPT'
+  | 'PAPER_EXPORT_FINGERPRINT_CONFLICT' | 'PAPER_EXPORT_POLICY_CONFLICT';
 
 export class PaperProjectError extends Error {
   constructor(public readonly code: PaperProjectErrorCode, message: string, public readonly details?: unknown) {
     super(message);
     this.name = 'PaperProjectError';
   }
+}
+
+const paperUuidSchema = z.string().uuid();
+
+export function parsePaperUuid(value: string): string {
+  if (!paperUuidSchema.safeParse(value).success) throw new PaperProjectError('PAPER_PROJECT_INVALID_REQUEST', 'Paper project route identifier is invalid.');
+  return value;
 }
 
 export function toPaperGenerationError(error: unknown): PaperProjectError {

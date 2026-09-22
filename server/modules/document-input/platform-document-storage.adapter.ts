@@ -1,38 +1,20 @@
 import type { FileService } from '@lark-apaas/fullstack-nestjs-core';
-
-import type { DocumentInputProvider } from '@shared/document-input.interface';
 import type { DocumentStoragePort } from './document-input.storage';
+import { PlatformObjectStorageAdapter } from '../storage/platform-object-storage.adapter';
 
-export class PlatformDocumentStorageAdapter implements DocumentStoragePort {
-  constructor(private readonly fileService: FileService) {}
-
-  getProvider(): DocumentInputProvider {
-    return 'platform-file';
-  }
-
-  getDefaultBucketId(): Promise<string> {
-    return this.fileService.getDefaultBucket();
-  }
-
+/** Compatibility facade for the existing DocumentInput contract. */
+export class PlatformDocumentStorageAdapter extends PlatformObjectStorageAdapter implements DocumentStoragePort {
+  constructor(fileService: FileService) { super(fileService); }
   async upload(input: Parameters<DocumentStoragePort['upload']>[0]): Promise<void> {
-    await this.fileService.from(input.bucketId).upload(input.buffer, {
-      filePath: input.filePath,
-      fileName: input.fileName,
-      contentType: input.mimeType,
-      upsert: false,
-    });
+    if (input.fileName !== input.filePath.split('/').at(-1)) throw new Error('The platform storage filename does not match its key.');
+    await this.putImmutable({ bucketId: input.bucketId, objectKey: input.filePath, buffer: input.buffer, contentType: input.mimeType ?? 'application/octet-stream' });
   }
-
-  async download(input: Parameters<DocumentStoragePort['download']>[0]): Promise<Buffer | null> {
-    const scoped = this.fileService.from(input.bucketId);
-    const metadata = await scoped.getFileMetadata(input.filePath);
-    if (!metadata) return null;
-
-    const result = await scoped.download(input.filePath);
-    return Buffer.from(await result.content.arrayBuffer());
+  download(input: Parameters<DocumentStoragePort['download']>[0]): Promise<Buffer | null> {
+    return this.get({ bucketId: input.bucketId, objectKey: input.filePath });
   }
-
-  async remove(input: Parameters<DocumentStoragePort['remove']>[0]): Promise<void> {
-    await this.fileService.from(input.bucketId).remove([input.filePath]);
+  remove(input: { bucketId: string; filePath?: string; objectKey?: string }): Promise<void> {
+    const objectKey = input.filePath ?? input.objectKey;
+    if (!objectKey) throw new Error('A storage key is required.');
+    return super.remove({ bucketId: input.bucketId, objectKey });
   }
 }

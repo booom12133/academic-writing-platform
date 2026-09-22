@@ -10,9 +10,10 @@ import { createDocumentStorageProvider } from '../document-input/document-input.
 import { DocumentParsingModule } from '../document-parsing/document-parsing.module';
 import { KnowledgeRepository } from './knowledge.repository';
 import { KnowledgeService } from './knowledge.service';
+import { StorageModule } from '../storage/storage.module';
 
 @Module({
-  imports: [DocumentParsingModule, ContextBuilderModule, ChunkingModule],
+  imports: [StorageModule, DocumentParsingModule, ContextBuilderModule, ChunkingModule],
   providers: [
     createDocumentStorageProvider(),
     {

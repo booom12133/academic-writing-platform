@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray } from 'drizzle-orm';
 import { createHash, randomUUID } from 'node:crypto';
 import { DRIZZLE_DATABASE, type AppDatabase } from '../../database/database.types';
 import { paperOutlineNodes, paperProjectSources, paperProjects, paperSectionRevisions, paperSections } from '../../database/schema';
 import type { ActualSupportMode, OutlineNode, PaperProject, PaperProjectSource, PaperSection, PaperSectionRevision, ProjectProfileV1, ResearchPlanV1, RevisionOrigin, SourceStrategy, SupportState } from '../../../shared/paper-project.interface';
+import type { ManuscriptSnapshot, ManuscriptSnapshotRevision, SectionRole } from '../../../shared/manuscript.interface';
 import { PaperProjectError } from './paper-project.errors';
 
 type ProjectRow = typeof paperProjects.$inferSelect;
@@ -28,8 +29,9 @@ function toProject(row: ProjectRow): PaperProject {
 }
 
 function toOutline(row: OutlineRow, sectionId?: string): OutlineNode { return { id: row.id, ...(row.parentId ? { parentId: row.parentId } : {}), nodeType: row.nodeType as OutlineNode['nodeType'], title: row.title, position: row.position, ...(row.targetWords === null ? {} : { targetWords: row.targetWords }), ...(row.generationNotes === null ? {} : { generationNotes: row.generationNotes }), status: row.status as OutlineNode['status'], ...(sectionId ? { sectionId } : {}) }; }
-function toSection(row: SectionRow): PaperSection { return { id: row.id, ...(row.outlineNodeId ? { outlineNodeId: row.outlineNodeId } : {}), status: row.status as PaperSection['status'], currentRevisionNumber: row.currentRevisionNumber }; }
+function toSection(row: SectionRow): PaperSection { return { id: row.id, ...(row.outlineNodeId ? { outlineNodeId: row.outlineNodeId } : {}), sectionRole: row.sectionRole as SectionRole, status: row.status as PaperSection['status'], currentRevisionNumber: row.currentRevisionNumber }; }
 function toRevision(row: RevisionRow): PaperSectionRevision { return { id: row.id, sectionId: row.sectionId, revisionNumber: row.revisionNumber, ...(row.baseRevisionId ? { baseRevisionId: row.baseRevisionId } : {}), content: row.content, origin: row.origin as RevisionOrigin, sourceStrategy: row.sourceStrategy as SourceStrategy, actualSupportMode: row.actualSupportMode as ActualSupportMode, supportState: row.supportState as SupportState, citations: row.citations as unknown[], bibliography: row.bibliography as unknown[], evidenceTrace: row.evidenceTrace as unknown[], generationMetadata: row.generationMetadata as Record<string, unknown>, warnings: row.warnings as string[], ...(row.rewriteInstruction ? { rewriteInstruction: row.rewriteInstruction } : {}), createdAt: row.createdAt.toISOString() }; }
+function toSnapshotRevision(row: RevisionRow): ManuscriptSnapshotRevision { return { ...toRevision(row), contentHash: row.contentHash }; }
 
 export interface OutlineWriteNode { id?: string; clientKey: string; parentClientKey?: string; nodeType: 'container' | 'writing-unit'; title: string; position: number; targetWords?: number; generationNotes?: string; }
 export interface RevisionWrite { content: string; baseRevisionId?: string; origin: RevisionOrigin; sourceStrategy: SourceStrategy; actualSupportMode: ActualSupportMode; supportState: SupportState; citations: unknown[]; bibliography: unknown[]; evidenceTrace: unknown[]; generationMetadata: Record<string, unknown>; warnings: string[]; rewriteInstruction?: string; }
@@ -104,7 +106,7 @@ export class PaperProjectRepository {
       const byId = new Map(existing.map((row) => [row.id, row]));
       if (nodes.some((node) => node.id && !byId.has(node.id))) throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE', 'Outline contains an unknown node.');
       await tx.update(paperOutlineNodes).set({ status: 'archived', updatedAt: new Date() }).where(and(eq(paperOutlineNodes.userId, userId), eq(paperOutlineNodes.projectId, projectId), eq(paperOutlineNodes.status, 'active')));
-      await tx.update(paperSections).set({ status: 'orphaned', updatedAt: new Date() }).where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId), eq(paperSections.status, 'active')));
+      await tx.update(paperSections).set({ status: 'orphaned', updatedAt: new Date() }).where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId), eq(paperSections.status, 'active'), eq(paperSections.sectionRole, 'OUTLINE')));
       const ids = new Map(nodes.map((node) => [node.clientKey, node.id ?? randomUUID()]));
       const pending = [...nodes]; const saved: OutlineRow[] = [];
       while (pending.length) {
@@ -119,7 +121,7 @@ export class PaperProjectRepository {
       }
       const sections: SectionRow[] = [];
       for (const node of saved.filter((item) => item.nodeType === 'writing-unit')) {
-        const [existingSection] = await tx.select().from(paperSections).where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId), eq(paperSections.outlineNodeId, node.id))).limit(1);
+        const [existingSection] = await tx.select().from(paperSections).where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId), eq(paperSections.outlineNodeId, node.id), eq(paperSections.sectionRole, 'OUTLINE'))).limit(1);
         if (existingSection) { const [row] = await tx.update(paperSections).set({ status: 'active', updatedAt: new Date() }).where(eq(paperSections.id, existingSection.id)).returning(); sections.push(row!); }
         else { const [row] = await tx.insert(paperSections).values({ projectId, userId, outlineNodeId: node.id }).returning(); sections.push(row!); }
       }
@@ -132,20 +134,40 @@ export class PaperProjectRepository {
     const conditions = [eq(paperOutlineNodes.userId, userId), eq(paperOutlineNodes.projectId, projectId)];
     if (!includeArchived) conditions.push(eq(paperOutlineNodes.status, 'active'));
     const rows = await this.db.select().from(paperOutlineNodes).where(and(...conditions)).orderBy(paperOutlineNodes.position);
-    const sections = await this.db.select().from(paperSections).where(and(eq(paperSections.userId,userId),eq(paperSections.projectId,projectId)));
+    const sections = await this.db.select().from(paperSections).where(and(eq(paperSections.userId,userId),eq(paperSections.projectId,projectId),eq(paperSections.sectionRole,'OUTLINE')));
     const sectionByNode = new Map(sections.filter((s) => s.outlineNodeId).map((s) => [s.outlineNodeId!,s.id]));
     return rows.map((row) => toOutline(row, sectionByNode.get(row.id)));
   }
 
   async getSection(userId: string, projectId: string, sectionId: string): Promise<PaperSection | null> {
-    const [row] = await this.db.select().from(paperSections).where(and(eq(paperSections.id,sectionId),eq(paperSections.userId,userId),eq(paperSections.projectId,projectId))).limit(1);
+    const [row] = await this.db.select().from(paperSections).where(and(eq(paperSections.id,sectionId),eq(paperSections.userId,userId),eq(paperSections.projectId,projectId),eq(paperSections.sectionRole,'OUTLINE'))).limit(1);
     return row ? toSection(row) : null;
   }
-  async listSections(userId: string, projectId: string): Promise<PaperSection[]> { return (await this.db.select().from(paperSections).where(and(eq(paperSections.userId,userId),eq(paperSections.projectId,projectId)))).map(toSection); }
+  async listSections(userId: string, projectId: string): Promise<PaperSection[]> { return (await this.db.select().from(paperSections).where(and(eq(paperSections.userId,userId),eq(paperSections.projectId,projectId),eq(paperSections.sectionRole,'OUTLINE')))).map(toSection); }
+  async getManuscriptSection(userId: string, projectId: string, sectionId: string): Promise<PaperSection | null> { const [row] = await this.db.select().from(paperSections).where(and(eq(paperSections.id,sectionId),eq(paperSections.userId,userId),eq(paperSections.projectId,projectId))).limit(1); return row ? toSection(row) : null; }
+  async getOrCreateDerivedSection(userId: string, projectId: string, role: Extract<SectionRole, 'ABSTRACT'|'KEYWORDS'>): Promise<PaperSection> {
+    return this.db.transaction(async (tx) => {
+      const [project] = await tx.select({ status: paperProjects.status }).from(paperProjects).where(and(eq(paperProjects.id,projectId),eq(paperProjects.userId,userId))).limit(1);
+      if (!project) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Paper project was not found.');
+      if (project.status !== 'active') throw new PaperProjectError('PAPER_PROJECT_ARCHIVED','Archived paper projects cannot generate derived content.');
+      const find = async () => (await tx.select().from(paperSections).where(and(eq(paperSections.projectId,projectId),eq(paperSections.userId,userId),eq(paperSections.sectionRole,role),eq(paperSections.status,'active'))).limit(1))[0];
+      const existing = await find();
+      if (existing) return toSection(existing);
+      const [created] = await tx.insert(paperSections).values({ projectId, userId, outlineNodeId: null, sectionRole: role }).onConflictDoNothing().returning();
+      if (created) return toSection(created);
+      const winner = await find();
+      if (winner) return toSection(winner);
+      throw new PaperProjectError('PAPER_MANUSCRIPT_INTEGRITY_FAILURE', 'Derived section creation did not produce an active role section.');
+    });
+  }
   async getRevision(userId: string, sectionId: string, revisionId: string): Promise<PaperSectionRevision | null> { const [row] = await this.db.select().from(paperSectionRevisions).where(and(eq(paperSectionRevisions.id,revisionId),eq(paperSectionRevisions.sectionId,sectionId),eq(paperSectionRevisions.userId,userId))).limit(1); return row ? toRevision(row) : null; }
   async listRevisions(userId: string, sectionId: string): Promise<PaperSectionRevision[]> { return (await this.db.select().from(paperSectionRevisions).where(and(eq(paperSectionRevisions.sectionId,sectionId),eq(paperSectionRevisions.userId,userId))).orderBy(desc(paperSectionRevisions.revisionNumber))).map(toRevision); }
   async appendRevision(userId: string, projectId: string, sectionId: string, expected: number, input: RevisionWrite): Promise<PaperSectionRevision> {
     return this.db.transaction(async (tx) => {
+      const [project] = await tx.select({ status: paperProjects.status }).from(paperProjects)
+        .where(and(eq(paperProjects.id,projectId),eq(paperProjects.userId,userId))).for('update').limit(1);
+      if (!project) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Paper project was not found.');
+      if (project.status !== 'active') throw new PaperProjectError('PAPER_PROJECT_ARCHIVED','Archived paper projects cannot create revisions.');
       const [section] = await tx.select().from(paperSections).where(and(eq(paperSections.id,sectionId),eq(paperSections.projectId,projectId),eq(paperSections.userId,userId))).limit(1);
       if (!section) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Paper section was not found.');
       if (section.currentRevisionNumber !== expected) throw new PaperProjectError('PAPER_SECTION_REVISION_CONFLICT','Paper section changed; reload before saving.',{ currentRevisionNumber: section.currentRevisionNumber });
@@ -156,6 +178,43 @@ export class PaperProjectRepository {
       const [revision] = await tx.insert(paperSectionRevisions).values({ sectionId,userId,revisionNumber,baseRevisionId:input.baseRevisionId,content:input.content,contentHash:createHash('sha256').update(input.content).digest('hex'),origin:input.origin,sourceStrategy:input.sourceStrategy,actualSupportMode:input.actualSupportMode,supportState:input.supportState,citations:input.citations,bibliography:input.bibliography,evidenceTrace:input.evidenceTrace,generationMetadata:input.generationMetadata,warnings:input.warnings,rewriteInstruction:input.rewriteInstruction }).returning();
       return toRevision(revision!);
     });
+  }
+
+  async loadManuscriptSnapshot(userId: string, projectId: string): Promise<ManuscriptSnapshot> {
+    return this.db.transaction(async (tx) => {
+      const [projectRow] = await tx.select().from(paperProjects)
+        .where(and(eq(paperProjects.id, projectId), eq(paperProjects.userId, userId))).limit(1);
+      if (!projectRow) throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND', 'Paper project was not found.');
+      const outlineRows = await tx.select().from(paperOutlineNodes)
+        .where(and(eq(paperOutlineNodes.userId, userId), eq(paperOutlineNodes.projectId, projectId), eq(paperOutlineNodes.status, 'active')));
+      const sectionRows = await tx.select().from(paperSections)
+        .where(and(eq(paperSections.userId, userId), eq(paperSections.projectId, projectId)));
+      const sectionIds = sectionRows.map((section) => section.id);
+      const revisionRows = sectionIds.length === 0 ? [] : await tx.select().from(paperSectionRevisions)
+        .where(and(eq(paperSectionRevisions.userId, userId), inArray(paperSectionRevisions.sectionId, sectionIds)));
+      const revisionsBySectionId: ManuscriptSnapshot['revisionsBySectionId'] = {};
+      for (const section of sectionRows) {
+        const revisions = revisionRows.filter((revision) => revision.sectionId === section.id);
+        const maximum = revisions.reduce((value, revision) => Math.max(value, revision.revisionNumber), 0);
+        if ((section.currentRevisionNumber === 0 && maximum > 0) || maximum > section.currentRevisionNumber) {
+          throw new PaperProjectError('PAPER_MANUSCRIPT_INTEGRITY_FAILURE', 'Paper section revision pointer is inconsistent.');
+        }
+        if (section.currentRevisionNumber > 0) {
+          const exact = revisions.find((revision) => revision.revisionNumber === section.currentRevisionNumber);
+          if (!exact) throw new PaperProjectError('PAPER_MANUSCRIPT_INTEGRITY_FAILURE', 'The exact current paper section revision is missing.');
+          revisionsBySectionId[section.id] = toSnapshotRevision(exact);
+        }
+      }
+      const activeSectionByNode = new Map(sectionRows
+        .filter((section) => section.status === 'active' && section.outlineNodeId)
+        .map((section) => [section.outlineNodeId!, section.id]));
+      return {
+        project: toProject(projectRow),
+        outline: outlineRows.map((row) => toOutline(row, activeSectionByNode.get(row.id))),
+        sections: sectionRows.map((row) => ({ ...toSection(row), sectionRole: row.sectionRole as SectionRole })),
+        revisionsBySectionId,
+      };
+    }, { isolationLevel: 'repeatable read', accessMode: 'read only' });
   }
 
   async replaceSources(userId:string,projectId:string,expected:number,sources:CanonicalSourceWrite[]):Promise<{sources:PaperProjectSource[];lockVersion:number}> {
@@ -174,12 +233,12 @@ export class PaperProjectRepository {
       if(!changed.length)throw new PaperProjectError('PAPER_PROJECT_VERSION_CONFLICT','Project changed; reload before remapping.');
       const[target]=await tx.select().from(paperOutlineNodes).where(and(eq(paperOutlineNodes.id,targetOutlineNodeId),eq(paperOutlineNodes.projectId,projectId),eq(paperOutlineNodes.userId,userId),eq(paperOutlineNodes.status,'active'),eq(paperOutlineNodes.nodeType,'writing-unit'))).limit(1);
       if(!target)throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Target must be an active writing unit.');
-      const[occupied]=await tx.select({id:paperSections.id,currentRevisionNumber:paperSections.currentRevisionNumber}).from(paperSections).where(and(eq(paperSections.projectId,projectId),eq(paperSections.userId,userId),eq(paperSections.outlineNodeId,targetOutlineNodeId))).limit(1);
+      const[occupied]=await tx.select({id:paperSections.id,currentRevisionNumber:paperSections.currentRevisionNumber}).from(paperSections).where(and(eq(paperSections.projectId,projectId),eq(paperSections.userId,userId),eq(paperSections.outlineNodeId,targetOutlineNodeId),eq(paperSections.sectionRole,'OUTLINE'))).limit(1);
       if(occupied){
         if(occupied.currentRevisionNumber!==0)throw new PaperProjectError('PAPER_OUTLINE_INVALID_TREE','Target writing unit already has revision history.');
         await tx.delete(paperSections).where(and(eq(paperSections.id,occupied.id),eq(paperSections.userId,userId),eq(paperSections.currentRevisionNumber,0)));
       }
-      const[row]=await tx.update(paperSections).set({outlineNodeId:targetOutlineNodeId,status:'active',updatedAt:new Date()}).where(and(eq(paperSections.id,sectionId),eq(paperSections.projectId,projectId),eq(paperSections.userId,userId),eq(paperSections.status,'orphaned'))).returning();
+      const[row]=await tx.update(paperSections).set({outlineNodeId:targetOutlineNodeId,status:'active',updatedAt:new Date()}).where(and(eq(paperSections.id,sectionId),eq(paperSections.projectId,projectId),eq(paperSections.userId,userId),eq(paperSections.status,'orphaned'),eq(paperSections.sectionRole,'OUTLINE'))).returning();
       if(!row)throw new PaperProjectError('PAPER_PROJECT_NOT_FOUND','Orphaned section was not found.');
       return{section:toSection(row),lockVersion:expected+1};
     });

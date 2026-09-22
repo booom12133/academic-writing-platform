@@ -577,6 +577,7 @@ export const paperSections = pgTable(
     projectId: uuid('project_id').notNull(),
     userId: varchar('user_id', { length: 64 }).notNull(),
     outlineNodeId: uuid('outline_node_id'),
+    sectionRole: varchar('section_role', { length: 20 }).notNull().default('OUTLINE'),
     status: varchar('status', { length: 20 }).notNull().default('active'),
     currentRevisionNumber: integer('current_revision_number').notNull().default(0),
     createdAt: createdAt(),
@@ -587,6 +588,9 @@ export const paperSections = pgTable(
     uniqueIndex('paper_sections_project_outline_key').on(table.projectId, table.outlineNodeId),
     index('paper_sections_project_status_idx').on(table.userId, table.projectId, table.status),
     check('paper_sections_status_check', sql`${table.status} in ('active', 'orphaned', 'archived')`),
+    check('paper_sections_role_check', sql`${table.sectionRole} in ('OUTLINE', 'ABSTRACT', 'KEYWORDS')`),
+    check('paper_sections_role_outline_check', sql`(${table.sectionRole} = 'OUTLINE' and ${table.outlineNodeId} is not null) or (${table.sectionRole} in ('ABSTRACT','KEYWORDS') and ${table.outlineNodeId} is null and ${table.status} <> 'orphaned')`),
+    uniqueIndex('paper_sections_active_derived_role_key').on(table.projectId, table.userId, table.sectionRole).where(sql`${table.sectionRole} in ('ABSTRACT','KEYWORDS') and ${table.status} = 'active'`),
     check('paper_sections_revision_check', sql`${table.currentRevisionNumber} >= 0`),
     foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_sections_project_owner_fk' }),
     foreignKey({ columns: [table.outlineNodeId, table.projectId, table.userId], foreignColumns: [paperOutlineNodes.id, paperOutlineNodes.projectId, paperOutlineNodes.userId], name: 'paper_sections_outline_owner_fk' }),
@@ -653,6 +657,33 @@ export const paperProjectSources = pgTable(
     foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_project_sources_project_owner_fk' }),
     foreignKey({ columns: [table.sourceRecordId, table.userId], foreignColumns: [knowledgeSourceRecords.id, knowledgeSourceRecords.userId], name: 'paper_project_sources_source_owner_fk' }),
     foreignKey({ columns: [table.documentVersionId, table.userId], foreignColumns: [knowledgeDocumentVersions.id, knowledgeDocumentVersions.userId], name: 'paper_project_sources_version_owner_fk' }),
+  ],
+);
+
+export const paperExports = pgTable(
+  'paper_exports',
+  {
+    id: uuid('id').primaryKey(),
+    projectId: uuid('project_id').notNull(),
+    userId: varchar('user_id', { length: 64 }).notNull(),
+    format: varchar('format', { length: 16 }).notNull(),
+    templateKey: varchar('template_key', { length: 64 }).notNull(),
+    templateVersion: varchar('template_version', { length: 32 }).notNull(),
+    rendererVersion: varchar('renderer_version', { length: 32 }).notNull(),
+    manuscriptFingerprint: varchar('manuscript_fingerprint', { length: 64 }).notNull(),
+    snapshotManifest: jsonb('snapshot_manifest').notNull(),
+    artifactRef: jsonb('artifact_ref').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    uniqueIndex('paper_exports_id_project_user_key').on(table.id, table.projectId, table.userId),
+    index('paper_exports_user_project_created_idx').on(table.userId, table.projectId, table.createdAt),
+    check('paper_exports_format_check', sql`${table.format} = 'DOCX'`),
+    check('paper_exports_template_check', sql`${table.templateKey} = 'generic-academic-v1'`),
+    check('paper_exports_fingerprint_check', sql`${table.manuscriptFingerprint} ~ '^[a-f0-9]{64}$'`),
+    check('paper_exports_manifest_object_check', sql`jsonb_typeof(${table.snapshotManifest}) = 'object'`),
+    check('paper_exports_artifact_object_check', sql`jsonb_typeof(${table.artifactRef}) = 'object'`),
+    foreignKey({ columns: [table.projectId, table.userId], foreignColumns: [paperProjects.id, paperProjects.userId], name: 'paper_exports_project_owner_fk' }),
   ],
 );
 

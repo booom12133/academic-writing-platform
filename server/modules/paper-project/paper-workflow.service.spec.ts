@@ -98,4 +98,19 @@ describe('P4 outline and revision workflow', () => {
 
     expect((await repository.require('user-a', project.id)).lockVersion).toBe(1);
   });
+
+  it('rejects P4 restore mutations against derived manuscript sections', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const derived = await repository.getOrCreateDerivedSection('user-a', project.id, 'ABSTRACT');
+    const revision = await repository.appendRevision('user-a', project.id, derived.id, 0, {
+      content: 'Derived abstract', origin: 'AI_GENERATION', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED',
+      citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [],
+    });
+
+    await expect(service.restoreRevision('user-a', project.id, derived.id, {
+      expectedCurrentRevisionNumber: 1,
+      revisionId: revision.id,
+    })).rejects.toMatchObject({ code: 'PAPER_PROJECT_NOT_FOUND' });
+    expect((await repository.getManuscriptSection('user-a', project.id, derived.id))?.currentRevisionNumber).toBe(1);
+  });
 });

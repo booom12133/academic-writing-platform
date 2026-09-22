@@ -1,4 +1,6 @@
 import { createLocalDevelopmentDatabase, type LocalDevelopmentDatabase } from '../../database/local-development.database';
+import { paperSectionRevisions, paperSections } from '../../database/schema';
+import { eq } from 'drizzle-orm';
 import { PaperProjectRepository } from './paper-project.repository';
 
 describe('PaperProjectRepository', () => {
@@ -59,5 +61,61 @@ describe('PaperProjectRepository', () => {
     const rejected = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
     expect(rejected?.reason).toMatchObject({ code: 'PAPER_SECTION_REVISION_CONFLICT' });
     expect(await repository.listRevisions('user-a', section.id)).toHaveLength(1);
+  });
+
+  it('loads exact current revisions in a repeatable-read read-only transaction and rejects a higher hidden revision', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const outline = await repository.replaceOutline('user-a', project.id, 0, [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }]);
+    const section = outline.sections[0];
+    const current = await repository.appendRevision('user-a', project.id, section.id, 0, {
+      content: 'Current', origin: 'USER_EDIT', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED', citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [],
+    });
+    const transaction = jest.spyOn(local.db, 'transaction');
+
+    const snapshot = await repository.loadManuscriptSnapshot('user-a', project.id);
+    expect(snapshot.revisionsBySectionId[section.id]?.id).toBe(current.id);
+    expect(transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'repeatable read',
+      accessMode: 'read only',
+    });
+
+    await local.db.insert(paperSectionRevisions).values({
+      sectionId: section.id, userId: 'user-a', revisionNumber: 2, content: 'Hidden newer revision', contentHash: 'a'.repeat(64), origin: 'USER_EDIT', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED', citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [],
+    });
+    await local.db.update(paperSections).set({ currentRevisionNumber: 1 }).where(eq(paperSections.id, section.id));
+    await expect(repository.loadManuscriptSnapshot('user-a', project.id)).rejects.toMatchObject({
+      code: 'PAPER_MANUSCRIPT_INTEGRITY_FAILURE',
+    });
+  });
+
+  it('keeps P4 section listing outline-only while manuscript loading includes derived roles', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const outline = await repository.replaceOutline('user-a', project.id, 0, [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }]);
+    const abstract = await repository.getOrCreateDerivedSection('user-a', project.id, 'ABSTRACT');
+
+    expect((await repository.listSections('user-a', project.id)).map((section) => section.id)).toEqual([outline.sections[0].id]);
+    expect(await repository.getSection('user-a', project.id, abstract.id)).toBeNull();
+    expect((await repository.loadManuscriptSnapshot('user-a', project.id)).sections.map((section) => section.sectionRole)).toEqual(expect.arrayContaining(['OUTLINE', 'ABSTRACT']));
+  });
+
+  it('converges concurrent derived role creation on one active section', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const results = await Promise.all([
+      repository.getOrCreateDerivedSection('user-a', project.id, 'KEYWORDS'),
+      repository.getOrCreateDerivedSection('user-a', project.id, 'KEYWORDS'),
+    ]);
+    expect(results[0].id).toBe(results[1].id);
+    expect((await repository.loadManuscriptSnapshot('user-a', project.id)).sections.filter((section) => section.sectionRole === 'KEYWORDS')).toHaveLength(1);
+  });
+
+  it('rejects a final revision write after the project is archived', async () => {
+    const project = await repository.create('user-a', { profile: { schemaVersion: 1, researchIdea: 'Idea', paperType: 'other', language: 'en' } });
+    const outline = await repository.replaceOutline('user-a', project.id, 0, [{ clientKey: 's', nodeType: 'writing-unit', title: 'Section', position: 0 }]);
+    await repository.archive('user-a', project.id, 1);
+
+    await expect(repository.appendRevision('user-a', project.id, outline.sections[0].id, 0, {
+      content: 'Too late', origin: 'AI_GENERATION', sourceStrategy: 'MODEL_ONLY', actualSupportMode: 'AI_DRAFT', supportState: 'NOT_CLAIMED',
+      citations: [], bibliography: [], evidenceTrace: [], generationMetadata: {}, warnings: [],
+    })).rejects.toMatchObject({ code: 'PAPER_PROJECT_ARCHIVED' });
   });
 });

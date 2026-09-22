@@ -17,6 +17,15 @@ import { PaperSectionModelGenerator } from './generators/paper-section-model.gen
 import { AcademicIntegrityValidator } from './generators/academic-integrity.validator';
 import { PaperWritingContextBuilder } from './paper-writing-context.builder';
 import { KnowledgeIndexingModule } from '../knowledge/indexing/knowledge-indexing.module';
+import { ManuscriptController } from './manuscript/manuscript.controller';
+import { ManuscriptProjectionService } from './manuscript/manuscript-projection.service';
+import { DerivedContentService } from './manuscript/derived-content.service';
+import { StorageModule } from '../storage/storage.module';
+import { PaperExportController } from './export/paper-export.controller';
+import { PaperExportRepository } from './export/paper-export.repository';
+import { PaperExportService } from './export/paper-export.service';
+import { PaperExportGenerationService } from './export/paper-export-generation.service';
+import { DocxManuscriptRenderer } from './export/docx-manuscript.renderer';
 
-@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule],controllers: [PaperProjectController,PaperWorkflowController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder], exports: [PaperProjectRepository, PaperProjectService] })
+@Module({ imports:[AiToolsModule,KnowledgeModule,KnowledgeProductModule,KnowledgeIndexingModule,GroundedGenerationModule,StorageModule],controllers: [PaperProjectController,PaperWorkflowController,ManuscriptController,PaperExportController], providers: [PaperProjectRepository, PaperProjectService,PaperWorkflowService,PaperSourceService,PaperGenerationService,PaperPlanningService,ResearchPlanGenerator,PaperOutlineGenerator,PaperSectionModelGenerator,AcademicIntegrityValidator,PaperWritingContextBuilder,ManuscriptProjectionService,DerivedContentService,PaperExportRepository,PaperExportService,DocxManuscriptRenderer,PaperExportGenerationService], exports: [PaperProjectRepository, PaperProjectService,ManuscriptProjectionService,PaperExportService] })
 export class PaperProjectModule {}

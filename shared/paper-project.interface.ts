@@ -94,6 +94,7 @@ export interface PaperSectionRevision {
 export interface PaperSection {
   id: string;
   outlineNodeId?: string;
+  sectionRole: import('./manuscript.interface').SectionRole;
   status: 'active' | 'orphaned' | 'archived';
   currentRevisionNumber: number;
   currentRevision?: PaperSectionRevision;

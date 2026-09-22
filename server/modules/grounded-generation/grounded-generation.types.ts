@@ -46,6 +46,15 @@ export interface BibliographyEntry {
   fields: Record<string, unknown>;
 }
 
+export interface CitationPlacementV1 {
+  schemaVersion: 1;
+  citationId: string;
+  localNumber: number;
+  start: number;
+  end: number;
+  markerText: string;
+}
+
 export interface EvidenceTrace {
   evidenceId: string;
   citationLocator: CitationLocator;
@@ -88,6 +97,7 @@ export interface GroundedGenerationResult {
   claims: GroundedClaim[];
   citations: CitationReference[];
   bibliography: BibliographyEntry[];
+  citationPlacements: CitationPlacementV1[];
   evidenceTrace: EvidenceTrace[];
   grounding: GroundingReport;
   provenance: GenerationProvenance;
