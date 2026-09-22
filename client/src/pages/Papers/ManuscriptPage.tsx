@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import type { ManuscriptProjectionV1, SectionRole } from '@shared/manuscript.interface';
+import type { ExportArtifactSummary, ManuscriptProjectionV1, PaperExportMode, SectionRole } from '@shared/manuscript.interface';
 import * as api from '../../api/paper-projects';
 import { getHeadingAnchor, getManuscriptReadinessLabel, getManuscriptWarningLabel } from '../../lib/manuscript';
 
@@ -12,16 +12,23 @@ export default function ManuscriptPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [exports, setExports] = useState<ExportArtifactSummary[]>([]);
+  const [exportMode, setExportMode] = useState<PaperExportMode>('CLEAN');
+  const [warningsAcknowledged, setWarningsAcknowledged] = useState(false);
 
-  async function refresh() { setManuscript(await api.getManuscript(projectId)); }
+  async function refresh() {
+    const [nextManuscript, nextExports] = await Promise.all([api.getManuscript(projectId), api.listPaperExports(projectId)]);
+    setManuscript(nextManuscript); setExports(nextExports);
+    if (!nextManuscript.exportPolicy.cleanAllowed) setExportMode('DRAFT');
+  }
   useEffect(() => { void refresh().catch(() => setError('整篇论文加载失败。')); }, [projectId]);
 
   async function run(work: () => Promise<void>) {
     setBusy(true); setError(''); setMessage('');
     try { await work(); await refresh(); } catch (caught) {
-      const status = (caught as { response?: { status?: number } }).response?.status;
-      setError(status === 409 ? '论文已发生变化，已为你刷新；请核对后重试。' : '操作失败，请稍后重试。');
-      if (status === 409) await refresh().catch(() => undefined);
+      const response = (caught as { response?: { status?: number; data?: { code?: string } } }).response;
+      setError(response?.data?.code === 'PAPER_EXPORT_POLICY_CONFLICT' ? '导出条件未满足：请完成内容或明确确认当前全部提醒。' : response?.status === 409 ? '论文已发生变化，已为你刷新；请核对后重试。' : '操作失败，请稍后重试。');
+      if (response?.status === 409) await refresh().catch(() => undefined);
     } finally { setBusy(false); }
   }
 
@@ -39,6 +46,15 @@ export default function ManuscriptPage() {
       expectedCurrentRevisionNumber: section.currentRevisionNumber,
     });
     setMessage(`“${section.title}”已生成结论刷新修订。`);
+  }
+
+  async function exportDocx() {
+    if (!manuscript) return;
+    await api.createPaperExport(projectId, {
+      format: 'DOCX', mode: exportMode, templateKey: 'generic-academic-v1', expectedManuscriptFingerprint: manuscript.manuscriptFingerprint,
+      ...(exportMode === 'DRAFT' && warningsAcknowledged ? { acknowledgedWarningCodes: manuscript.exportPolicy.acknowledgementCodes } : {}),
+    });
+    setMessage('DOCX 已生成并保存到导出历史。'); setWarningsAcknowledged(false);
   }
 
   if (!manuscript) return <main className="p-8 text-sm text-slate-500">{error || '正在装配整篇论文…'}</main>;
@@ -62,7 +78,7 @@ export default function ManuscriptPage() {
         })}
       </article>
 
-      <aside className="rounded-xl border border-slate-200 bg-white p-4"><h2 className="font-semibold">整篇状态</h2><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between"><dt>字数</dt><dd>{manuscript.wordCount}</dd></div><div className="flex justify-between"><dt>有效支持章节</dt><dd>{manuscript.supportSummary.validSections}</dd></div><div className="flex justify-between"><dt>全局引用</dt><dd>{manuscript.supportSummary.managedCitationCount}</dd></div></dl><h3 className="mt-5 text-sm font-semibold">提醒</h3><div className="mt-2 space-y-2">{manuscript.warnings.length === 0 ? <p className="text-xs text-emerald-700">没有阻塞问题。</p> : manuscript.warnings.map((warning, index) => <Link key={`${warning.code}-${index}`} to={warning.sectionId ? `/papers/${projectId}?sectionId=${encodeURIComponent(warning.sectionId)}` : `/papers/${projectId}`} className={`block rounded p-2 text-xs ${warning.severity === 'blocking' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>{getManuscriptWarningLabel(warning.code)}</Link>)}</div><h3 className="mt-5 text-sm font-semibold">刷新结论</h3><p className="mt-1 text-xs text-slate-500">明确选择一个现有写作单元；系统不会根据标题猜测结论章节。</p><div className="mt-2 max-h-48 space-y-2 overflow-auto">{manuscript.outline.filter((item) => item.sectionId && item.conclusionBasisFingerprint && item.currentRevisionNumber !== undefined).map((item) => <button key={item.nodeId} disabled={busy} className={`${button} w-full border border-slate-300 text-left`} onClick={() => void run(() => refreshConclusion(item))}>刷新“{item.title}”</button>)}</div><button disabled className={`${button} mt-5 w-full border border-slate-300`}>DOCX 导出将在导出工作包启用</button></aside>
+      <aside className="rounded-xl border border-slate-200 bg-white p-4"><h2 className="font-semibold">整篇状态</h2><dl className="mt-3 space-y-2 text-sm"><div className="flex justify-between"><dt>字数</dt><dd>{manuscript.wordCount}</dd></div><div className="flex justify-between"><dt>有效支持章节</dt><dd>{manuscript.supportSummary.validSections}</dd></div><div className="flex justify-between"><dt>全局引用</dt><dd>{manuscript.supportSummary.managedCitationCount}</dd></div></dl><h3 className="mt-5 text-sm font-semibold">提醒</h3><div className="mt-2 space-y-2">{manuscript.warnings.length === 0 ? <p className="text-xs text-emerald-700">没有阻塞问题。</p> : manuscript.warnings.map((warning, index) => <Link key={`${warning.code}-${index}`} to={warning.sectionId ? `/papers/${projectId}?sectionId=${encodeURIComponent(warning.sectionId)}` : `/papers/${projectId}`} className={`block rounded p-2 text-xs ${warning.severity === 'blocking' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-800'}`}>{getManuscriptWarningLabel(warning.code)}</Link>)}</div><h3 className="mt-5 text-sm font-semibold">刷新结论</h3><p className="mt-1 text-xs text-slate-500">明确选择一个现有写作单元；系统不会根据标题猜测结论章节。</p><div className="mt-2 max-h-48 space-y-2 overflow-auto">{manuscript.outline.filter((item) => item.sectionId && item.conclusionBasisFingerprint && item.currentRevisionNumber !== undefined).map((item) => <button key={item.nodeId} disabled={busy} className={`${button} w-full border border-slate-300 text-left`} onClick={() => void run(() => refreshConclusion(item))}>刷新“{item.title}”</button>)}</div><h3 className="mt-5 text-sm font-semibold">DOCX 导出</h3><select aria-label="导出模式" value={exportMode} onChange={(event) => { setExportMode(event.target.value as PaperExportMode); setWarningsAcknowledged(false); }} className="mt-2 w-full rounded border border-slate-300 p-2 text-sm"><option value="CLEAN" disabled={!manuscript.exportPolicy.cleanAllowed}>Clean（仅就绪论文）</option><option value="DRAFT">Draft（保留提醒）</option></select>{exportMode === 'DRAFT' && manuscript.exportPolicy.acknowledgementCodes.length > 0 && <label className="mt-2 flex gap-2 text-xs text-slate-600"><input type="checkbox" checked={warningsAcknowledged} onChange={(event) => setWarningsAcknowledged(event.target.checked)} />我已核对并确认当前全部提醒</label>}<button disabled={busy || (exportMode === 'CLEAN' && !manuscript.exportPolicy.cleanAllowed) || (exportMode === 'DRAFT' && manuscript.exportPolicy.acknowledgementCodes.length > 0 && !warningsAcknowledged)} className={`${button} mt-3 w-full bg-blue-600 text-white`} onClick={() => void run(exportDocx)}>生成 DOCX</button><h3 className="mt-5 text-sm font-semibold">导出历史</h3><div className="mt-2 space-y-2">{exports.length === 0 ? <p className="text-xs text-slate-500">尚无导出。</p> : exports.map((artifact) => <a key={artifact.id} href={api.paperExportDownloadUrl(projectId, artifact.id)} className="block rounded border border-slate-200 p-2 text-xs text-blue-700"><span>{artifact.mode} · {new Date(artifact.createdAt).toLocaleString()}</span><span className="block text-slate-500">{Math.ceil(artifact.sizeBytes / 1024)} KB</span></a>)}</div></aside>
     </div>
   </main>;
 }

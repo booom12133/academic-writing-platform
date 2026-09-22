@@ -1,5 +1,5 @@
 import type { OutlineNode, PaperGenerationResponse, PaperProject, PaperProjectSource, PaperSection, PaperSectionRevision, PaperWorkspace, ProjectProfileV1, ResearchPlanV1, SourceStrategy } from '@shared/paper-project.interface';
-import type { ManuscriptProjectionV1, SectionRole } from '@shared/manuscript.interface';
+import type { ExportArtifact, ExportArtifactSummary, ManuscriptProjectionV1, ManuscriptWarningCode, PaperExportMode, SectionRole } from '@shared/manuscript.interface';
 import { productHttpClient } from './http';
 
 const id=(value:string)=>encodeURIComponent(value);
@@ -26,3 +26,6 @@ export const remapSection=async(projectId:string,sectionId:string,request:{expec
 export const getManuscript=async(projectId:string)=>(await productHttpClient.get<ManuscriptProjectionV1>(`/api/paper-projects/${id(projectId)}/manuscript`)).data;
 export const generateDerivedContent=async(projectId:string,role:Extract<SectionRole,'ABSTRACT'|'KEYWORDS'>,request:{expectedBodyFingerprint:string;expectedCurrentRevisionNumber:number;instructions?:string})=>(await productHttpClient.post(`/api/paper-projects/${id(projectId)}/derived/${role.toLowerCase()}/generate`,request)).data;
 export const refreshConclusion=async(projectId:string,sectionId:string,request:{expectedConclusionBasisFingerprint:string;expectedCurrentRevisionNumber:number;baseRevisionId?:string;instructions?:string})=>(await productHttpClient.post(`/api/paper-projects/${id(projectId)}/sections/${id(sectionId)}/conclusion-refresh`,request)).data;
+export const createPaperExport=async(projectId:string,request:{format:'DOCX';mode:PaperExportMode;templateKey:'generic-academic-v1';expectedManuscriptFingerprint:string;acknowledgedWarningCodes?:ManuscriptWarningCode[]})=>(await productHttpClient.post<ExportArtifact>(`/api/paper-projects/${id(projectId)}/exports`,request)).data;
+export const listPaperExports=async(projectId:string)=>(await productHttpClient.get<ExportArtifactSummary[]>(`/api/paper-projects/${id(projectId)}/exports`)).data;
+export const paperExportDownloadUrl=(projectId:string,exportId:string)=>`/api/paper-projects/${id(projectId)}/exports/${id(exportId)}/download`;

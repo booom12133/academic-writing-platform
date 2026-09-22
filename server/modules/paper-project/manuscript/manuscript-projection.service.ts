@@ -75,7 +75,7 @@ export class ManuscriptProjectionService {
       if (block.kind === 'paragraph') block.text = normalizedByRevision.get(block.revisionId) ?? block.text;
     }
     warnings.push(...normalized.warnings);
-    if (normalized.bibliography.length > 0) blocks.push({ kind: 'references', entries: normalized.bibliography });
+    blocks.push({ kind: 'references', entries: normalized.bibliography });
 
     const bodyFingerprint = computeBodyFingerprint(snapshot);
     const projectDerived = (role: 'ABSTRACT'|'KEYWORDS'): DerivedContentProjection => {
@@ -104,7 +104,7 @@ export class ManuscriptProjectionService {
       keywords: derived.keywords.revisionId ? { revisionId: derived.keywords.revisionId, contentHash: snapshot.revisionsBySectionId[derived.keywords.sectionId!]?.contentHash } : null,
       citations: normalized.mapping, template: ['generic-academic-v1', '1'], renderer: ['docx', '1'],
     });
-    const acknowledgementCodes = [...new Set(warnings.filter((warning) => warning.severity === 'blocking').map((warning) => warning.code))];
+    const acknowledgementCodes = [...new Set(warnings.map((warning) => warning.code))];
     return {
       schemaVersion: 1,
       projectId: snapshot.project.id,
@@ -124,7 +124,7 @@ export class ManuscriptProjectionService {
       citations: normalized.citations,
       bibliography: normalized.bibliography,
       warnings,
-      exportPolicy: { cleanAllowed: acknowledgementCodes.length === 0, draftAllowed: true, acknowledgementCodes },
+      exportPolicy: { cleanAllowed: warnings.length === 0, draftAllowed: true, acknowledgementCodes },
     };
   }
 }

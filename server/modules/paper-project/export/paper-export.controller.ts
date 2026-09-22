@@ -1,12 +1,14 @@
-import { Controller, Get, Inject, Param, Req, Res, StreamableFile, UnauthorizedException, UseFilters } from '@nestjs/common';
+import { Body, Controller, Get, Inject, Param, Post, Req, Res, StreamableFile, UnauthorizedException, UseFilters } from '@nestjs/common';
 import { NeedLogin } from '@lark-apaas/fullstack-nestjs-core';
 import type { Request, Response } from 'express';
 
 import { PaperProjectExceptionFilter } from '../paper-project.exception-filter';
 import { PaperExportService } from './paper-export.service';
+import { PaperExportGenerationService } from './paper-export-generation.service';
 
 export class PaperExportController {
-  constructor(private readonly exports: PaperExportService) {}
+  constructor(private readonly exports: PaperExportService, private readonly generation: PaperExportGenerationService) {}
+  create(req: Request, projectId: string, body: unknown) { return this.generation.create(this.user(req), projectId, body); }
   list(req: Request, projectId: string) { return this.exports.list(this.user(req), projectId); }
   get(req: Request, projectId: string, exportId: string) { return this.exports.get(this.user(req), projectId, exportId); }
   async download(req: Request, projectId: string, exportId: string, response: Response) {
@@ -26,7 +28,10 @@ export class PaperExportController {
 Controller('api/paper-projects')(PaperExportController);
 UseFilters(PaperProjectExceptionFilter)(PaperExportController);
 Inject(PaperExportService)(PaperExportController, undefined, 0);
-for (const name of ['list', 'get', 'download'] as const) NeedLogin()(PaperExportController.prototype, name, Object.getOwnPropertyDescriptor(PaperExportController.prototype, name)!);
+Inject(PaperExportGenerationService)(PaperExportController, undefined, 1);
+for (const name of ['create', 'list', 'get', 'download'] as const) NeedLogin()(PaperExportController.prototype, name, Object.getOwnPropertyDescriptor(PaperExportController.prototype, name)!);
+Post(':projectId/exports')(PaperExportController.prototype, 'create', Object.getOwnPropertyDescriptor(PaperExportController.prototype, 'create')!);
+Req()(PaperExportController.prototype, 'create', 0); Param('projectId')(PaperExportController.prototype, 'create', 1); Body()(PaperExportController.prototype, 'create', 2);
 Get(':projectId/exports')(PaperExportController.prototype, 'list', Object.getOwnPropertyDescriptor(PaperExportController.prototype, 'list')!);
 Req()(PaperExportController.prototype, 'list', 0); Param('projectId')(PaperExportController.prototype, 'list', 1);
 Get(':projectId/exports/:exportId')(PaperExportController.prototype, 'get', Object.getOwnPropertyDescriptor(PaperExportController.prototype, 'get')!);
