@@ -13,25 +13,28 @@ Last Updated: 2026-09-22
 
 ## Stable state
 
-- Current Stable Phase: Phase P4 — Core Academic Writing Workflow
-- Stable Status: `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`
+- Current Stable Phase: Phase P5 — Whole-paper Manuscript Assembly & Export
+- Stable Status: `PHASE_P5_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`
 - Stable Branch: `main`
-- Stable Main Commit: this P4 post-merge governance closeout commit; its parent is merge commit `74fa7b57faf47ce389021af0fce1057e4c3a8a8d`, which was the post-merge `main` HEAD verified by main CI run `35563769896`
-- Latest Final Acceptance Report: [PHASE_P4_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P4_FINAL_ACCEPTANCE_REPORT.md)
-- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, Phase P2, Phase P3, and Phase P4 are completed/frozen by project records; P4 remains tag-pending and not closed
+- Stable Main Commit: this P5 post-merge governance closeout commit; its parent is merge commit `1f95f7ba888559dcdca009a3f7743a97bfb2a7f1`, which was the initial post-merge `main` HEAD verified by main CI run `35724195720`
+- Latest Final Acceptance Report: [PHASE_P5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P5_FINAL_ACCEPTANCE_REPORT.md)
+- Stable frozen state: Phase A, Phase B0, Phase B1, Phase C1, Phase C2, Phase C3, Phase C4, Phase D1, Phase D2, Phase D3, Phase D4, Phase E1, Phase E2, Phase E3, Phase E4, Phase E5, Phase E6, Phase P1, Phase P2, Phase P3, Phase P4, and Phase P5 are completed/frozen by project records; P5 remains tag-pending and not closed
 - `PHASE_E4_ACCEPTED_CLOSED`: NOT YET; `phase-e4-accepted`: PENDING
 
 ## Current development
 
-- Current Development: Phase P5 — Manuscript Assembly, Derived Front Matter, and DOCX Export is `IMPLEMENTATION_READY_FOR_CONTROLLER_REVIEW`; it is not accepted, merged, tagged, or deployed.
+- Current Development: none authorized. Phase P5 is `PHASE_P5_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; no next product phase may begin.
 - P5 branch: `phase/p5-manuscript-assembly-export`; accepted baseline: `c13013d79e09f130693e94e71fd69f58c623787a`.
-- P5 approved plan: [PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md](docs/plans/PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md); WP1-WP7 are implemented on the Phase branch and the WP7 acceptance commit is the Review Candidate HEAD.
+- P5 accepted candidate: `49020ffa8bb0430b30272363e06358b4c51f069e`; approved plan: [PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md](docs/plans/PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md).
 - P5 scope: consistent-snapshot manuscript assembly, safe whole-document citation normalization, bounded whole-manuscript derived generation context, Abstract/Keywords and Conclusion freshness, outline-only P4 compatibility, immutable DOCX exports, generic academic static TOC/font strategy, object-storage integrity, manuscript preview, and export history/download UX.
 - P5 migrations: new `0006_p5_section_roles.sql` and `0007_p5_paper_exports.sql` only; accepted migrations `0001`-`0005` are unchanged. Exact P5 dependency additions are production `docx@9.7.1` and development `jszip@3.10.1`.
-- P5 local verification: full regression PASS — 224 suites / 1224 tests passed, with 10 suites / 63 tests skipped by environment guards; HTTP E2E PASS — 2 suites / 10 tests; lint, combined type-check, server/client builds, and AppModule bootstrap PASS. PostgreSQL integration command completed — 1 suite / 1 test passed, with 5 suites / 32 tests skipped because local real PostgreSQL is unavailable; authoritative PostgreSQL 16 migration/concurrency/restore evidence remains required from PR CI.
+- P5 local verification: full regression PASS — 224 suites / 1224 tests passed, with 10 suites / 63 tests skipped by environment guards; HTTP E2E PASS — 2 suites / 10 tests; lint, combined type-check, server/client builds, AppModule bootstrap, and clean dependency installation PASS.
 - P5 performance evidence: [PHASE_P5_PERFORMANCE_BENCHMARK.md](docs/reviews/PHASE_P5_PERFORMANCE_BENCHMARK.md) records deterministic 10k/50k/100k-word assembly, normalization, DOCX render, and ZIP/XML validation. The 100k local p95 was 153.38 ms; all ten sections retained bounded context coverage. This evidence does not authorize Phase F, Redis, BullMQ, or Queue.
-- P5 governance boundary: `REVIEW_PASS=NO`; `ACCEPTED=NO`; `MERGE=NO`; `TAG=NO`; `DEPLOY=NO`. Controller review and authoritative CI are pending.
-- Current Development: Phase P4 — Core Academic Writing Workflow is `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; the annotated accepted tag remains pending.
+- P5 authoritative PR CI: run `35722816390`; all five jobs passed, and the real PostgreSQL step executed the P5 integration suite with 4 tests passed and none skipped.
+- P5 merge: PR #18 `MERGED`; merge commit and initial post-merge `main` HEAD `1f95f7ba888559dcdca009a3f7743a97bfb2a7f1`.
+- P5 initial post-merge main CI: run `35724195720`; `verify`, `postgres-schema`, `wp6-step5b`, `nginx-upload-boundary`, and `production-gates` all succeeded.
+- P5 Final Acceptance Report: [PHASE_P5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P5_FINAL_ACCEPTANCE_REPORT.md).
+- P5 governance boundary: `REVIEW_PASS=YES`; `ACCEPTED=YES`; `MERGE=YES`; `TAG=NO`; `ACCEPTED_CLOSED=NO`; `DEPLOY=NO`, pending final governance CI and annotated-tag verification.
 - P4 approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a` (`docs/plans/PHASE_P4_IMPLEMENTATION_PLAN_DRAFT.md`).
 - P4 reviewed implementation HEAD: `a32cfa5c788dea65e676336d0a75a2cbae5e0123`; Controller review `P4_IMPLEMENTATION_REVIEW_PASS`, review ID `5263138676`.
 - P4 Final Acceptance preparation HEAD: `1b1efd786bd8c0c76a54a6b76500a6c0fb7e6117`; Controller Final Acceptance `PHASE_P4_ACCEPTED`, review ID `5263186830`.
@@ -263,6 +266,7 @@ Last Updated: 2026-09-22
 - Phase E2: ACCEPTED / FROZEN / CLOSED (`PHASE_E2_ACCEPTED_CLOSED`)
 - Phase P3: ACCEPTED / MERGED / POST-MERGE CLOSEOUT / TAG PENDING (`P3_ACCEPTED_CLOSED=NO`)
 - Phase P4: ACCEPTED / MERGED / FINAL CLOSEOUT PENDING (`P4_ACCEPTED_CLOSED=NO`)
+- Phase P5: ACCEPTED / MERGED / FINAL CLOSEOUT PENDING (`P5_ACCEPTED_CLOSED=NO`)
 
 ## Previous accepted Phase goal (C3)
 

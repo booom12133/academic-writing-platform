@@ -2,8 +2,9 @@
 
 Only established project phases are listed here. E1, E2, and E3 are accepted
 and closed. E4, E5, and E6 are retained as historical accepted phases. P1 is
-accepted and merged. P2 is accepted and merged. P3 is accepted and merged; its
-post-merge governance closeout and accepted tag are pending.
+accepted and merged. P2 and P3 are accepted and merged. P4 is the accepted P5
+baseline. P5 is accepted and merged; its final governance CI and annotated tag
+are pending. No next product phase is authorized.
 
 | Phase | Name | Goal / core deliverables | Status | Frozen? |
 |---|---|---|---|---|
@@ -27,12 +28,14 @@ post-merge governance closeout and accepted tag are pending.
 | P2 | Product Integration / UX Completion | WP1-WP8 product integration, capability truth, authenticated workflows, task/result UX, Academic Search, Zotero, Knowledge indexing, Grounded Writing, and payment unavailability boundary | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P3 | Deployment / Production E2E | Production deployment and revalidation for PDF artifact closure, recovery safety, ACME renewal, search import, and optional Zotero positioning; full-text direct import deferred | ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING | Yes |
 | P4 | Core Academic Writing Workflow | Paper projects, research planning, outline lifecycle, section editing/revisions, source management, and evidence-aware generation | ACCEPTED / MERGED / FINAL CLOSEOUT PENDING | Yes |
+| P5 | Whole-paper Manuscript Assembly & Export | Deterministic manuscript projection, derived front matter, truthful global citations, preview, immutable DOCX export, and history/download UX | ACCEPTED / MERGED / FINAL CLOSEOUT PENDING | Yes |
 | F | Queue / Redis / BullMQ | Record only; no implementation authorization | PLANNED / NOT AUTHORIZED | No |
 
 ## Status meanings
 
 - ACCEPTED: explicit `PHASE_x_ACCEPTED` and Final Acceptance Report exist; accepted tag and closeout determine the separate CLOSED state.
 - ACCEPTED / POST-MERGE CLOSEOUT / TAG PENDING: acceptance and merge are complete, but final governance closeout and accepted tag are still pending.
+- ACCEPTED / MERGED / FINAL CLOSEOUT PENDING: acceptance and merge are complete; final governance-main CI and annotated-tag verification remain.
 - IN_PROGRESS: implementation is active or awaiting review/acceptance.
 - PLANNED: route is recorded but work has not started.
 - NOT_STARTED: a confirmed item has no implementation yet.
@@ -128,3 +131,18 @@ Phase status changes require the workflow in `CODEX_WORKFLOW.md`; do not advance
 - Scope: WP1-WP8 core academic writing workflow and the controller-requested remediation are accepted and merged.
 - Database boundary: migration `0005_p4_paper_projects.sql` only; accepted migrations `0001`-`0004` are unchanged.
 - Status: `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; `REVIEW_PASS=YES`; `ACCEPTED=YES`; `MERGE=YES`; `TAG=NO`; `ACCEPTED_CLOSED=NO` pending final governance CI and annotated-tag verification.
+
+## Phase P5 current record
+
+- Branch: `phase/p5-manuscript-assembly-export`.
+- Accepted baseline: `c13013d79e09f130693e94e71fd69f58c623787a`.
+- Accepted candidate: `49020ffa8bb0430b30272363e06358b4c51f069e`.
+- Final Acceptance: `PHASE_P5_ACCEPTED`.
+- Authoritative PR CI: run `35722816390` — SUCCESS for all five required jobs; the real PostgreSQL P5 suite executed 4 tests without skips.
+- Final Acceptance Report: [PHASE_P5_FINAL_ACCEPTANCE_REPORT.md](docs/reviews/PHASE_P5_FINAL_ACCEPTANCE_REPORT.md).
+- Merge: PR #18 `MERGED`; merge commit and initial post-merge `main` HEAD `1f95f7ba888559dcdca009a3f7743a97bfb2a7f1`.
+- Initial post-merge main CI: run `35724195720` — SUCCESS for `verify`, `postgres-schema`, `wp6-step5b`, `nginx-upload-boundary`, and `production-gates`.
+- Scope: consistent-snapshot manuscript assembly, bounded derived generation context, Abstract/Keywords and Conclusion freshness, outline-only P4 compatibility, global citation/bibliography normalization, immutable artifact storage, and editable DOCX export.
+- Database boundary: migrations `0006_p5_section_roles.sql` and `0007_p5_paper_exports.sql`; accepted migrations `0001`–`0005` are unchanged.
+- Status: `PHASE_P5_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; `REVIEW_PASS=YES`; `ACCEPTED=YES`; `MERGE=YES`; `TAG=NO`; `ACCEPTED_CLOSED=NO`; `DEPLOY=NO` pending final governance CI and annotated-tag verification.
+- Phase F, Redis, BullMQ, Queue/workers, PDF, LaTeX, production deployment, and the next product phase remain unauthorized.
