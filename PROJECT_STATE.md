@@ -1,6 +1,6 @@
 # Project State
 
-Last Updated: 2026-09-21
+Last Updated: 2026-09-22
 
 ## Project
 
@@ -23,6 +23,14 @@ Last Updated: 2026-09-21
 
 ## Current development
 
+- Current Development: Phase P5 — Manuscript Assembly, Derived Front Matter, and DOCX Export is `IMPLEMENTATION_READY_FOR_CONTROLLER_REVIEW`; it is not accepted, merged, tagged, or deployed.
+- P5 branch: `phase/p5-manuscript-assembly-export`; accepted baseline: `c13013d79e09f130693e94e71fd69f58c623787a`.
+- P5 approved plan: [PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md](docs/plans/PHASE_P5_IMPLEMENTATION_PLAN_DRAFT.md); WP1-WP7 are implemented on the Phase branch and the WP7 acceptance commit is the Review Candidate HEAD.
+- P5 scope: consistent-snapshot manuscript assembly, safe whole-document citation normalization, bounded whole-manuscript derived generation context, Abstract/Keywords and Conclusion freshness, outline-only P4 compatibility, immutable DOCX exports, generic academic static TOC/font strategy, object-storage integrity, manuscript preview, and export history/download UX.
+- P5 migrations: new `0006_p5_section_roles.sql` and `0007_p5_paper_exports.sql` only; accepted migrations `0001`-`0005` are unchanged. Exact P5 dependency additions are production `docx@9.7.1` and development `jszip@3.10.1`.
+- P5 local verification: full regression PASS — 224 suites / 1218 tests passed, with 10 suites / 62 tests skipped by environment guards; HTTP E2E PASS — 2 suites / 10 tests; lint, combined type-check, server/client builds, and AppModule bootstrap PASS. PostgreSQL integration command completed — 1 suite / 1 test passed, with 5 suites / 31 tests skipped because local real PostgreSQL is unavailable; authoritative PostgreSQL 16 migration/concurrency/restore evidence remains required from PR CI.
+- P5 performance evidence: [PHASE_P5_PERFORMANCE_BENCHMARK.md](docs/reviews/PHASE_P5_PERFORMANCE_BENCHMARK.md) records deterministic 10k/50k/100k-word assembly, normalization, DOCX render, and ZIP/XML validation. The 100k local p95 was 143.43 ms; all ten sections retained bounded context coverage. This evidence does not authorize Phase F, Redis, BullMQ, or Queue.
+- P5 governance boundary: `REVIEW_PASS=NO`; `ACCEPTED=NO`; `MERGE=NO`; `TAG=NO`; `DEPLOY=NO`. Controller review and authoritative CI are pending.
 - Current Development: Phase P4 — Core Academic Writing Workflow is `PHASE_P4_ACCEPTED / MERGED / FINAL CLOSEOUT PENDING`; the annotated accepted tag remains pending.
 - P4 approved implementation plan SHA: `be2097d882a1bab27e6bee0bbedae263afb5aa3a` (`docs/plans/PHASE_P4_IMPLEMENTATION_PLAN_DRAFT.md`).
 - P4 reviewed implementation HEAD: `a32cfa5c788dea65e676336d0a75a2cbae5e0123`; Controller review `P4_IMPLEMENTATION_REVIEW_PASS`, review ID `5263138676`.

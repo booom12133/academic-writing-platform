@@ -26,6 +26,7 @@
     "start": "cross-env NODE_ENV=production node server/main.js",
     "test": "jest",
     "test:app-bootstrap": "npm run build:server && node scripts/test-app-bootstrap.js",
+    "benchmark:p5": "ts-node --transpile-only --project tsconfig.node.json scripts/benchmark-p5-manuscript.ts",
     "test:deepseek": "ts-node --project tsconfig.smoke.json scripts/test-deepseek.ts",
     "test:deepseek:health": "ts-node --project tsconfig.smoke.json scripts/test-deepseek-health.ts",
     "test:watch": "jest --watch",
